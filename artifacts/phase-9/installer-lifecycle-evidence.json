@@ -1,36 +1,36 @@
 {
-  "verifiedAt": "2026-08-28T18:49:37.343Z",
-  "version": "0.10.0",
+  "verifiedAt": "2026-08-28T19:01:56.380Z",
+  "version": "0.11.0",
   "installer": {
-    "path": "C:\\coach\\release\\Lattice-Setup-0.10.0.exe",
-    "bytes": 110935045,
-    "sha256": "0b3b413b0a21a3b1117e50ddb41472b55c7069dc5a466a5152e5cde43acdea25",
+    "path": "C:\\Users\\arvin\\.codex\\worktrees\\46ba\\coach\\release\\Lattice-Setup-0.11.0.exe",
+    "bytes": 110937547,
+    "sha256": "7d0059843a380f9b42eb539e7b2e4502c4f351cb1bbf9f953c33cefc0bc361e4",
     "authenticodeStatus": "NotSigned",
     "signed": false
   },
   "installation": {
     "mode": "current-user",
     "silent": true,
-    "isolatedTestDirectory": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine-install-57972",
+    "isolatedTestDirectory": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine-install-63272",
     "uninstallRecordCreated": true,
     "uninstallRecord": {
       "PSChildName": "a580a7fa-68d5-53ac-9906-76801e868ef9",
       "DisplayName": "Lattice",
-      "DisplayVersion": "0.10.0",
+      "DisplayVersion": "0.11.0",
       "InstallLocation": null,
-      "UninstallString": "\"C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine-install-57972\\Uninstall Lattice.exe\" /currentuser"
+      "UninstallString": "\"C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine-install-63272\\Uninstall Lattice.exe\" /currentuser"
     },
     "startMenuShortcutCreated": true,
     "desktopShortcutConfigured": false,
     "portableHashes": {
-      "executable": "d8082c8a149a500153bc0c5a66584cc07b6d4af77c967381c82902c3be1551b2",
-      "appAsar": "4965801887ea1c481f54c5cc2a050a59493a7e0c4088df12fe4dc4f15342c20a",
-      "sourceManifest": "0f63293a58c216c808d7d3f1c25ae8557b7c85a2a8803255ae7ce492ed017d71"
+      "executable": "2fbf8e74dfc8b36a8c0e9f0bae222b284998dde01323baa72ef58179504e858b",
+      "appAsar": "16430b2f5001873fdefd319f3720b5417b5654a4004f57e8f9868a60fab22968",
+      "sourceManifest": "742c8a36f5061b139c0135fc7a3da89475d6b07433cfad959ff39be76fc030e1"
     },
     "installedHashes": {
-      "executable": "d8082c8a149a500153bc0c5a66584cc07b6d4af77c967381c82902c3be1551b2",
-      "appAsar": "4965801887ea1c481f54c5cc2a050a59493a7e0c4088df12fe4dc4f15342c20a",
-      "sourceManifest": "0f63293a58c216c808d7d3f1c25ae8557b7c85a2a8803255ae7ce492ed017d71"
+      "executable": "2fbf8e74dfc8b36a8c0e9f0bae222b284998dde01323baa72ef58179504e858b",
+      "appAsar": "16430b2f5001873fdefd319f3720b5417b5654a4004f57e8f9868a60fab22968",
+      "sourceManifest": "742c8a36f5061b139c0135fc7a3da89475d6b07433cfad959ff39be76fc030e1"
     },
     "hardenedPackagePreserved": true,
     "authenticodeStatus": "NotSigned",
@@ -43,7 +43,7 @@
       "OnlyLoadAppFromAsar": true,
       "GrantFileProtocolExtraPrivileges": false
     },
-    "smokeEvidence": "C:\\coach\\artifacts\\phase-9\\installed-smoke-evidence.json"
+    "smokeEvidence": "C:\\Users\\arvin\\.codex\\worktrees\\46ba\\coach\\artifacts\\phase-9\\installed-smoke-evidence.json"
   },
   "uninstall": {
     "silent": true,

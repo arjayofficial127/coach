@@ -44,6 +44,7 @@ const api: LatticeApi = {
     getCanvasPage: (id) => ipcRenderer.invoke(IPC.vaultGetCanvasPage, id),
     saveCanvasPage: (input) => ipcRenderer.invoke(IPC.vaultSaveCanvasPage, input),
     revealCanvasReference: (input) => ipcRenderer.invoke(IPC.vaultRevealCanvasReference, input),
+    referenceIndex: () => ipcRenderer.invoke(IPC.vaultReferenceIndex),
     disconnect: () => ipcRenderer.invoke(IPC.vaultDisconnect),
   },
 };

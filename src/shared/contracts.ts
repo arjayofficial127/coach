@@ -27,6 +27,7 @@ export const IPC = {
   vaultGetCanvasPage: "vault:get-canvas-page",
   vaultSaveCanvasPage: "vault:save-canvas-page",
   vaultRevealCanvasReference: "vault:reveal-canvas-reference",
+  vaultReferenceIndex: "vault:reference-index",
   vaultDisconnect: "vault:disconnect",
 } as const;
 
@@ -221,6 +222,34 @@ export interface RevealCanvasReferenceInput {
   linkId?: string;
 }
 
+export type VaultReferenceStatus = "resolved" | "unresolved" | "external";
+
+export interface VaultReferenceSource {
+  kind: "page" | "saved-link";
+  id: string;
+  title: string;
+  objectId?: string;
+  objectTitle?: string;
+}
+
+export interface VaultReferenceEntry {
+  id: string;
+  kind: CanvasLinkKind;
+  source: VaultReferenceSource;
+  label: string;
+  targetKey: string;
+  targetLabel: string;
+  status: VaultReferenceStatus;
+  diagnostic: string;
+  repairHint: string;
+}
+
+export interface VaultReferenceIndex {
+  generatedAt: string;
+  entries: VaultReferenceEntry[];
+  unresolvedCount: number;
+}
+
 export interface LatticeApi {
   shell: {
     onCommand(listener: (command: ShellCommand) => void): () => void;
@@ -255,6 +284,7 @@ export interface LatticeApi {
     getCanvasPage(id: string): Promise<CanvasPageRecord>;
     saveCanvasPage(input: SaveCanvasPageInput): Promise<CanvasPageRecord>;
     revealCanvasReference(input: RevealCanvasReferenceInput): Promise<void>;
+    referenceIndex(): Promise<VaultReferenceIndex>;
     disconnect(): Promise<void>;
   };
 }

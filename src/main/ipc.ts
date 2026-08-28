@@ -147,6 +147,7 @@ export function registerIpc(
     );
     shellActions.showItemInFolder(absolutePath);
   });
+  handle(IPC.vaultReferenceIndex, () => vault.referenceIndex());
   handle(IPC.vaultDisconnect, () => vault.disconnect());
 
   return () => {

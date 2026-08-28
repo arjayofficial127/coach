@@ -257,6 +257,11 @@ export function installBrowserPreviewBridge(): void {
         return structuredClone(updated);
       },
       revealCanvasReference: async () => undefined,
+      referenceIndex: async () => ({
+        generatedAt: new Date().toISOString(),
+        entries: [],
+        unresolvedCount: 0,
+      }),
       disconnect: async () => {
         vault = null;
         canvasPages = [];

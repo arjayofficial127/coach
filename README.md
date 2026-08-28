@@ -1,8 +1,9 @@
-# Lattice — Phase 10
+# Lattice — Phase 11
 
 **Status: PASS (2026-08-29).** Lattice is an installable, focus-first personal research browser with
 secure native website tabs, restart-safe desktops, Obsidian-compatible saved links, and local
-spatial pages made of connected notes, websites, files, objects, and more pages.
+spatial pages made of connected notes, websites, files, objects, and more pages. A read-only local
+index now shows backlinks and broken-reference diagnostics without exposing vault paths.
 
 ![Phase 10 focus-first navigation](artifacts/phase-10/focus-navigation.png)
 
@@ -26,6 +27,9 @@ spatial pages made of connected notes, websites, files, objects, and more pages.
 - An Obsidian vault can be selected once and restored on the next launch.
 - Canvas pages are stored as open JSON Canvas `.canvas` files under `Lattice Pages/`, including
   safe nested folders that Obsidian can browse directly.
+- Saved links and canvas references form a local index across pages, objects, HTTPS URLs, documents,
+  images, and files. Repair diagnostics navigate to the authored source but never rewrite, move, or
+  delete Obsidian files.
 - A spatial page can contain draggable Markdown note objects, website objects, and typed link-list
   objects. The page title, description, object positions, and timestamps round-trip atomically.
 - Link lists support page, object, HTTPS URL, document, image, and file references. Page links open
@@ -80,17 +84,18 @@ pnpm run package
 pnpm run smoke:packaged
 pnpm run installer
 pnpm run smoke:installer
-pnpm run verify:phase10
+pnpm run verify:phase11
 ```
 
 The unsigned Windows x64 portable app is generated at
 `out/Lattice-win32-x64/Lattice.exe`. The assisted installer is generated at
-`release/Lattice-Setup-0.10.0.exe`. Windows reputation warnings are expected until a later release
+`release/Lattice-Setup-0.11.0.exe`. Windows reputation warnings are expected until a later release
 phase adds a protected signing identity. The installer and updater are intentionally not presented
 as production distribution yet.
 
 ## Evidence and decisions
 
+- [Phase 11 report](docs/phase-11-report.md)
 - [Phase 10 report](docs/phase-10-report.md)
 - [Focus navigation screenshot](artifacts/phase-10/focus-navigation.png)
 - [Phase 9 canvas and data report](docs/phase-9-report.md)
@@ -118,7 +123,7 @@ disconnect, and library read-back.
 
 ## Current phase boundary
 
-Phase 10 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
+Phase 11 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
 automatic updates, code signing, full history/scroll restoration, or Chrome-equivalent Safe
 Browsing. It also does not claim full compatibility with every third-party JSON Canvas extension or
-repair externally broken page/file links. See the risk register before Phase 11.
+automatic reference repair, or multi-profile website identities. See the risk register before Phase 12.

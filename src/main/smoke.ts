@@ -147,6 +147,10 @@ export interface PhaseNineSmokeEvidence {
     revealedPathMatches: boolean;
     nativeViewHidden: boolean;
     pathNotRendered: boolean;
+    unresolvedReferenceCount: number;
+    repairDiagnosticsVisible: boolean;
+    backlinkSourceVisible: boolean;
+    privateReferencePathHidden: boolean;
     temporaryFilesRemaining: number;
     absolutePath: string;
     sha256: string;
@@ -409,7 +413,7 @@ export async function runPhaseNineSmoke(
               { id: crypto.randomUUID(), label: "Key description", kind: "object", target: noteNodeId },
               { id: crypto.randomUUID(), label: "Primary source", kind: "url", target: "https://example.com/source" },
               { id: crypto.randomUUID(), label: "Local brief", kind: "document", target: "Files/brief.md" },
-              { id: crypto.randomUUID(), label: "Local image", kind: "image", target: "Files/image.png" },
+              { id: crypto.randomUUID(), label: "Missing image", kind: "image", target: "Files/missing.png" },
               { id: crypto.randomUUID(), label: "Local data", kind: "file", target: "Files/data.bin" }
             ]
           }
@@ -925,6 +929,17 @@ export async function runPhaseNineSmoke(
       if (ready) break;
       await delay(25);
     }
+    const referenceUi = (await window.webContents.executeJavaScript(`(() => ({
+      unresolvedReferenceCount: document.querySelectorAll(".reference-diagnostics article").length,
+      repairDiagnosticsVisible: document.querySelector(".reference-overview")?.textContent?.includes("Lattice will not change the source file automatically") ?? false,
+      backlinkSourceVisible: [...document.querySelectorAll(".canvas-page-card")].some((card) => card.textContent?.includes("from Phase 9 research canvas")),
+      privatePathHidden: !document.body.innerText.includes("Files/missing.png") && !document.body.innerText.includes(${JSON.stringify(shellProbe.vault.displayPath)})
+    }))()`)) as {
+      unresolvedReferenceCount: number;
+      repairDiagnosticsVisible: boolean;
+      backlinkSourceVisible: boolean;
+      privatePathHidden: boolean;
+    };
     await window.webContents.executeJavaScript(`(() => {
       const page = [...document.querySelectorAll("button.canvas-page-card")]
         .find((button) => button.querySelector("strong")?.textContent?.trim() === "Phase 9 research canvas");
@@ -1192,6 +1207,10 @@ export async function runPhaseNineSmoke(
         revealedPathMatches: revealedFilePaths[1] === canonicalBriefPath,
         nativeViewHidden: nativeViewHiddenForCanvas,
         pathNotRendered: canvasUi.pathNotRendered,
+        unresolvedReferenceCount: referenceUi.unresolvedReferenceCount,
+        repairDiagnosticsVisible: referenceUi.repairDiagnosticsVisible,
+        backlinkSourceVisible: referenceUi.backlinkSourceVisible,
+        privateReferencePathHidden: referenceUi.privatePathHidden,
         temporaryFilesRemaining: (await readdir(parentCanvasDirectory)).filter((entry) =>
           entry.endsWith(".tmp"),
         ).length,

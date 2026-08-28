@@ -7,6 +7,7 @@ import type {
   SavedLinkRecord,
   ShellCommand,
   VaultInfo,
+  VaultReferenceIndex,
 } from "../shared/contracts";
 import { CanvasWorkspace } from "./canvas-workspace";
 import {
@@ -40,6 +41,11 @@ const WORKSPACE_STORAGE_KEY = "lattice.workspace.v1";
 const SESSION_STORAGE_KEY = "lattice.session.v1";
 const SETTINGS_STORAGE_KEY = "lattice.settings.v1";
 const emptySnapshot: BrowserSnapshot = { activeTabId: "", tabs: [] };
+const emptyReferenceIndex: VaultReferenceIndex = {
+  generatedAt: "",
+  entries: [],
+  unresolvedCount: 0,
+};
 
 type CommandItem =
   | { kind: "web"; id: string; label: string; detail: string; query: string }
@@ -75,6 +81,12 @@ function displayHost(url: string): string {
   } catch {
     return "New tab";
   }
+}
+
+function urlReferenceKey(input: string): string {
+  const url = new URL(input);
+  url.hash = "";
+  return `url:${url.toString()}`;
 }
 
 function displayTitle(tab: BrowserState): string {
@@ -126,6 +138,7 @@ export function LatticeApp() {
   const [vault, setVault] = useState<VaultInfo | null>(null);
   const [links, setLinks] = useState<SavedLinkRecord[]>([]);
   const [canvasPages, setCanvasPages] = useState<CanvasPageSummary[]>([]);
+  const [referenceIndex, setReferenceIndex] = useState<VaultReferenceIndex>(emptyReferenceIndex);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [captureDescription, setCaptureDescription] = useState("");
   const [queueCapture, setQueueCapture] = useState(false);
@@ -289,14 +302,16 @@ export function LatticeApp() {
     let cancelled = false;
     void window.lattice.vault.current().then(async (selected) => {
       if (cancelled || !selected) return;
-      const [savedLinks, savedCanvasPages] = await Promise.all([
+      const [savedLinks, savedCanvasPages, references] = await Promise.all([
         window.lattice.vault.listSavedLinks(),
         window.lattice.vault.listCanvasPages(),
+        window.lattice.vault.referenceIndex(),
       ]);
       if (cancelled) return;
       setVault(selected);
       setLinks(savedLinks);
       setCanvasPages(savedCanvasPages);
+      setReferenceIndex(references);
       setStatus("Obsidian vault restored");
     });
     return () => {
@@ -678,12 +693,14 @@ export function LatticeApp() {
         : await window.lattice.vault.choose();
       if (!selected) return;
       setVault(selected);
-      const [savedLinks, savedCanvasPages] = await Promise.all([
+      const [savedLinks, savedCanvasPages, references] = await Promise.all([
         window.lattice.vault.listSavedLinks(),
         window.lattice.vault.listCanvasPages(),
+        window.lattice.vault.referenceIndex(),
       ]);
       setLinks(savedLinks);
       setCanvasPages(savedCanvasPages);
+      setReferenceIndex(references);
       setStatus(disposable ? "Disposable vault connected" : "Obsidian vault connected");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
@@ -712,6 +729,7 @@ export function LatticeApp() {
         readingStatus: queueCapture ? "queued" : "saved",
       });
       setLinks(await window.lattice.vault.listSavedLinks());
+      setReferenceIndex(await window.lattice.vault.referenceIndex());
       setSaved(true);
       setStatus(queueCapture ? "Saved to your reading queue" : "Saved to Obsidian");
     } catch (error) {
@@ -724,7 +742,14 @@ export function LatticeApp() {
   const showLibrary = async () => {
     setSurface("library");
     setCaptureOpen(false);
-    if (vault) setLinks(await window.lattice.vault.listSavedLinks());
+    if (vault) {
+      const [savedLinks, references] = await Promise.all([
+        window.lattice.vault.listSavedLinks(),
+        window.lattice.vault.referenceIndex(),
+      ]);
+      setLinks(savedLinks);
+      setReferenceIndex(references);
+    }
   };
 
   const showReadingQueue = async () => {
@@ -737,7 +762,14 @@ export function LatticeApp() {
     setRequestedCanvasPageId(pageId);
     setSurface("pages");
     setCaptureOpen(false);
-    if (vault) setCanvasPages(await window.lattice.vault.listCanvasPages());
+    if (vault) {
+      const [savedCanvasPages, references] = await Promise.all([
+        window.lattice.vault.listCanvasPages(),
+        window.lattice.vault.referenceIndex(),
+      ]);
+      setCanvasPages(savedCanvasPages);
+      setReferenceIndex(references);
+    }
   };
 
   const showSettings = async () => {
@@ -1775,6 +1807,24 @@ export function LatticeApp() {
                         }
                         key={`${link.id}-${link.relativePath}`}
                       >
+                        {(() => {
+                          const incoming = referenceIndex.entries.filter(
+                            (entry) =>
+                              entry.targetKey === urlReferenceKey(link.url) &&
+                              !(entry.source.kind === "saved-link" && entry.source.id === link.id),
+                          );
+                          return incoming.length > 0 ? (
+                            <div className="backlink-summary">
+                              <span className="backlink-count">
+                                {incoming.length} incoming{" "}
+                                {incoming.length === 1 ? "link" : "links"}
+                              </span>
+                              <small>
+                                From {incoming.map((entry) => entry.source.title).join(", ")}
+                              </small>
+                            </div>
+                          ) : null;
+                        })()}
                         {editingLinkId === link.id ? (
                           <form className="link-edit-form" onSubmit={saveLinkMetadata}>
                             <label>
@@ -1889,8 +1939,12 @@ export function LatticeApp() {
               <CanvasWorkspace
                 vault={vault}
                 pages={canvasPages}
+                referenceIndex={referenceIndex}
                 initialPageId={requestedCanvasPageId}
                 onPagesChange={setCanvasPages}
+                refreshReferences={async () =>
+                  setReferenceIndex(await window.lattice.vault.referenceIndex())
+                }
                 connectVault={() => connectVault(false)}
                 openUrl={(url) => openUrl(url, true)}
                 reportStatus={setStatus}

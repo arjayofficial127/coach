@@ -316,6 +316,14 @@ if (
   failures.push("canvas file reveal or trusted-shell boundary failed");
 }
 if (
+  evidence.canvas.unresolvedReferenceCount !== 1 ||
+  !evidence.canvas.repairDiagnosticsVisible ||
+  !evidence.canvas.backlinkSourceVisible ||
+  !evidence.canvas.privateReferencePathHidden
+) {
+  failures.push("backlinks or privacy-safe broken-reference diagnostics failed");
+}
+if (
   !evidence.privacy.cookieSeeded ||
   !evidence.privacy.localStorageSeeded ||
   !evidence.privacy.cacheStorageSeeded

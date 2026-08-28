@@ -23,6 +23,7 @@
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
+    "lineEnding": "crlf",
     "lineWidth": 100
   },
   "linter": {

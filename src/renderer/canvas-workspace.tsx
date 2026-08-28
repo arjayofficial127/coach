@@ -15,14 +15,17 @@ import type {
   CanvasTextNode,
   CanvasTypedLink,
   VaultInfo,
+  VaultReferenceIndex,
 } from "../shared/contracts";
 import { Icon } from "./icon";
 
 interface CanvasWorkspaceProps {
   vault: VaultInfo | null;
   pages: CanvasPageSummary[];
+  referenceIndex: VaultReferenceIndex;
   initialPageId?: string | null;
   onPagesChange(pages: CanvasPageSummary[]): void;
+  refreshReferences(): Promise<void>;
   connectVault(): Promise<void>;
   openUrl(url: string): Promise<void>;
   reportStatus(message: string): void;
@@ -69,8 +72,10 @@ function defaultTarget(
 export function CanvasWorkspace({
   vault,
   pages,
+  referenceIndex,
   initialPageId,
   onPagesChange,
+  refreshReferences,
   connectVault,
   openUrl,
   reportStatus,
@@ -96,6 +101,7 @@ export function CanvasWorkspace({
 
   const refreshPages = async () => {
     onPagesChange(await window.lattice.vault.listCanvasPages());
+    await refreshReferences();
   };
 
   const openPage = useCallback(
@@ -415,6 +421,50 @@ export function CanvasWorkspace({
           </form>
         )}
 
+        <section className="reference-overview" aria-label="Backlinks and broken references">
+          <header>
+            <div>
+              <span className="eyebrow">Local reference health</span>
+              <h2>Backlinks &amp; repairs</h2>
+            </div>
+            <strong className={referenceIndex.unresolvedCount ? "has-issues" : "all-clear"}>
+              {referenceIndex.unresolvedCount
+                ? `${referenceIndex.unresolvedCount} unresolved`
+                : "All local targets resolve"}
+            </strong>
+          </header>
+          {referenceIndex.unresolvedCount === 0 ? (
+            <p>
+              Page, object, document, image, and file references are connected. External URLs are
+              indexed but not probed.
+            </p>
+          ) : (
+            <div className="reference-diagnostics">
+              {referenceIndex.entries
+                .filter((entry) => entry.status === "unresolved")
+                .map((entry) => (
+                  <article key={entry.id}>
+                    <span>{entry.kind}</span>
+                    <strong>{entry.label || entry.targetLabel}</strong>
+                    <p>
+                      From {entry.source.title}
+                      {entry.source.objectTitle ? ` · ${entry.source.objectTitle}` : ""}.{" "}
+                      {entry.diagnostic}
+                    </p>
+                    <small>
+                      {entry.repairHint} Lattice will not change the source file automatically.
+                    </small>
+                    {entry.source.kind === "page" && (
+                      <button type="button" onClick={() => void openPage(entry.source.id)}>
+                        Open source page
+                      </button>
+                    )}
+                  </article>
+                ))}
+            </div>
+          )}
+        </section>
+
         {pages.length === 0 && !creating ? (
           <div className="empty-library compact">
             <span className="empty-icon">
@@ -451,6 +501,22 @@ export function CanvasWorkspace({
                         <small>{page.description || "No page description"}</small>
                       </span>
                       <b>{page.nodeCount} objects</b>
+                      {referenceIndex.entries.filter(
+                        (entry) => entry.targetKey === `page:${page.id}`,
+                      ).length > 0 && (
+                        <em>
+                          {
+                            referenceIndex.entries.filter(
+                              (entry) => entry.targetKey === `page:${page.id}`,
+                            ).length
+                          }{" "}
+                          incoming · from{" "}
+                          {referenceIndex.entries
+                            .filter((entry) => entry.targetKey === `page:${page.id}`)
+                            .map((entry) => entry.source.title)
+                            .join(", ")}
+                        </em>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -504,6 +570,19 @@ export function CanvasWorkspace({
           {saving ? "Saving…" : dirty ? "Save page" : "Saved"}
         </button>
       </header>
+      {referenceIndex.entries.some((entry) => entry.targetKey === `page:${draft.id}`) && (
+        <aside className="canvas-backlinks" aria-label="Incoming links">
+          <strong>Linked from</strong>
+          {referenceIndex.entries
+            .filter((entry) => entry.targetKey === `page:${draft.id}`)
+            .map((entry) => (
+              <button type="button" key={entry.id} onClick={() => void openPage(entry.source.id)}>
+                {entry.source.title}
+                {entry.source.objectTitle ? ` · ${entry.source.objectTitle}` : ""}
+              </button>
+            ))}
+        </aside>
+      )}
       <label className="canvas-description-field">
         <span>Page description</span>
         <input

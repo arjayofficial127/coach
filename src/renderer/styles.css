@@ -2774,6 +2774,129 @@ kbd {
   width: 13px;
 }
 
+.reference-overview {
+  margin: 0 0 22px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface) 92%, var(--accent));
+}
+
+.reference-overview > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.reference-overview h2 {
+  margin: 3px 0 0;
+  font-size: 1.05rem;
+}
+
+.reference-overview > p {
+  margin: 12px 0 0;
+  color: var(--muted);
+}
+
+.reference-overview .has-issues,
+.reference-overview .all-clear,
+.backlink-count {
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.reference-overview .has-issues {
+  color: #9f3a35;
+  background: #fff0ee;
+}
+
+.reference-overview .all-clear,
+.backlink-count {
+  color: #286345;
+  background: #e8f7ee;
+}
+
+.reference-diagnostics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.reference-diagnostics article {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 1px 0 rgb(24 30 43 / 6%);
+}
+
+.reference-diagnostics article > span {
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.reference-diagnostics article strong,
+.reference-diagnostics article p,
+.reference-diagnostics article small {
+  display: block;
+  margin-top: 5px;
+}
+
+.reference-diagnostics article p,
+.reference-diagnostics article small {
+  color: var(--muted);
+}
+
+.reference-diagnostics article button {
+  margin-top: 10px;
+}
+
+.canvas-page-card em {
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-style: normal;
+}
+
+.link-card > .backlink-summary {
+  align-self: flex-start;
+  margin: 12px 12px 0;
+}
+
+.backlink-summary small {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+}
+
+.canvas-backlinks {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+
+.canvas-backlinks strong {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.canvas-backlinks button {
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+
 .canvas-create-form {
   display: grid;
   grid-template-columns: minmax(190px, 0.8fr) minmax(170px, 1fr) minmax(190px, 1.3fr) minmax(

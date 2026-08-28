@@ -15,6 +15,7 @@ import type {
   SetReadingStatusInput,
   UpdateSavedLinkMetadataInput,
   VaultInfo,
+  VaultReferenceIndex,
 } from "../../shared/contracts";
 import { saveProbeNoteAtomically } from "./atomic-note";
 import {
@@ -25,6 +26,7 @@ import {
   saveCanvasPageAtomically,
 } from "./canvas-page";
 import { updateReadingStatusAtomically } from "./reading-status";
+import { buildVaultReferenceIndex } from "./reference-index";
 import { resolveSavedLinkHandoff, type SavedLinkHandoff } from "./saved-link-handoff";
 import { updateSavedLinkMetadataAtomically } from "./saved-link-metadata";
 import { listSavedLinksFromVault } from "./saved-link-reader";
@@ -176,6 +178,20 @@ export class VaultService {
   async resolveCanvasReference(input: RevealCanvasReferenceInput): Promise<string> {
     if (!this.activeVault) throw new Error("Choose a vault before revealing a canvas file.");
     return resolveCanvasFileReference(this.activeVault.canonicalPath, input);
+  }
+
+  async referenceIndex(): Promise<VaultReferenceIndex> {
+    if (!this.activeVault)
+      return { generatedAt: new Date().toISOString(), entries: [], unresolvedCount: 0 };
+    const root = this.activeVault.canonicalPath;
+    const [savedLinks, pageSummaries] = await Promise.all([
+      listSavedLinksFromVault(root),
+      listCanvasPagesFromVault(root),
+    ]);
+    const pages = await Promise.all(
+      pageSummaries.map((page) => getCanvasPageFromVault(root, page.id)),
+    );
+    return buildVaultReferenceIndex(root, savedLinks, pages);
   }
 
   async disconnect(): Promise<void> {
