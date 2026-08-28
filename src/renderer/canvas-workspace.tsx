@@ -28,6 +28,7 @@ interface CanvasWorkspaceProps {
   refreshReferences(): Promise<void>;
   connectVault(): Promise<void>;
   openUrl(url: string): Promise<void>;
+  onDirtyChange(dirty: boolean): void;
   reportStatus(message: string): void;
 }
 
@@ -38,6 +39,7 @@ interface DragState {
   clientY: number;
   originX: number;
   originY: number;
+  moved: boolean;
 }
 
 const linkKinds: Array<{ value: CanvasLinkKind; label: string }> = [
@@ -78,17 +80,75 @@ export function CanvasWorkspace({
   refreshReferences,
   connectVault,
   openUrl,
+  onDirtyChange,
   reportStatus,
 }: CanvasWorkspaceProps) {
   const [draft, setDraft] = useState<CanvasPageRecord | null>(null);
+  const draftRef = useRef<CanvasPageRecord | null>(null);
   const [creating, setCreating] = useState(false);
   const [createTitle, setCreateTitle] = useState("");
   const [createDescription, setCreateDescription] = useState("");
   const [createFolder, setCreateFolder] = useState("");
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const dirtyRef = useRef(false);
+  const [undoStack, setUndoStack] = useState<CanvasPageRecord[]>([]);
+  const [redoStack, setRedoStack] = useState<CanvasPageRecord[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const dragRef = useRef<DragState | null>(null);
+  const undoCanvasRef = useRef<() => void>(() => undefined);
+  const redoCanvasRef = useRef<() => void>(() => undefined);
+
+  const replaceDraft = useCallback((next: CanvasPageRecord | null) => {
+    draftRef.current = next;
+    setDraft(next);
+  }, []);
+
+  const setDraftDirty = useCallback(
+    (next: boolean) => {
+      dirtyRef.current = next;
+      setDirty(next);
+      onDirtyChange(next);
+    },
+    [onDirtyChange],
+  );
+
+  const resetHistory = useCallback(() => {
+    setUndoStack([]);
+    setRedoStack([]);
+  }, []);
+
+  const recordCurrentDraft = useCallback(() => {
+    const current = draftRef.current;
+    if (!current) return;
+    setUndoStack((history) => [...history, structuredClone(current)].slice(-100));
+    setRedoStack([]);
+  }, []);
+
+  const undoCanvas = () => {
+    const previous = undoStack.at(-1);
+    const current = draftRef.current;
+    if (!previous || !current) return;
+    setUndoStack((history) => history.slice(0, -1));
+    setRedoStack((history) => [...history, structuredClone(current)].slice(-100));
+    replaceDraft(structuredClone(previous));
+    setDraftDirty(true);
+    reportStatus("Canvas change undone");
+  };
+
+  const redoCanvas = () => {
+    const next = redoStack.at(-1);
+    const current = draftRef.current;
+    if (!next || !current) return;
+    setRedoStack((history) => history.slice(0, -1));
+    setUndoStack((history) => [...history, structuredClone(current)].slice(-100));
+    replaceDraft(structuredClone(next));
+    setDraftDirty(true);
+    reportStatus("Canvas change restored");
+  };
+
+  undoCanvasRef.current = undoCanvas;
+  redoCanvasRef.current = redoCanvas;
 
   const groupedPages = useMemo(() => {
     const groups = new Map<string, CanvasPageSummary[]>();
@@ -106,17 +166,24 @@ export function CanvasWorkspace({
 
   const openPage = useCallback(
     async (pageId: string) => {
+      if (
+        dirtyRef.current &&
+        !window.confirm("Discard unsaved Canvas changes and open another page?")
+      ) {
+        return;
+      }
       try {
         const page = await window.lattice.vault.getCanvasPage(pageId);
-        setDraft(page);
-        setDirty(false);
+        replaceDraft(page);
+        setDraftDirty(false);
+        resetHistory();
         setSelectedNodeId(null);
         reportStatus(`Opened canvas page “${page.title}”`);
       } catch (error) {
         reportStatus(error instanceof Error ? error.message : String(error));
       }
     },
-    [reportStatus],
+    [replaceDraft, reportStatus, resetHistory, setDraftDirty],
   );
 
   useEffect(() => {
@@ -133,28 +200,42 @@ export function CanvasWorkspace({
         folder: createFolder,
       });
       await refreshPages();
-      setDraft(created);
+      replaceDraft(created);
       setCreating(false);
       setCreateTitle("");
       setCreateDescription("");
       setCreateFolder("");
-      setDirty(false);
+      setDraftDirty(false);
+      resetHistory();
       reportStatus("Canvas page created atomically in the Obsidian vault");
     } catch (error) {
       reportStatus(error instanceof Error ? error.message : String(error));
     }
   };
 
-  const updateDraft = (change: (current: CanvasPageRecord) => CanvasPageRecord) => {
-    setDraft((current) => (current ? change(current) : current));
-    setDirty(true);
+  const updateDraft = (
+    change: (current: CanvasPageRecord) => CanvasPageRecord,
+    recordHistory = true,
+  ) => {
+    const current = draftRef.current;
+    if (!current) return;
+    if (recordHistory) recordCurrentDraft();
+    replaceDraft(change(current));
+    setDraftDirty(true);
   };
 
-  const updateNode = (nodeId: string, change: (node: CanvasPageNode) => CanvasPageNode) => {
-    updateDraft((current) => ({
-      ...current,
-      nodes: current.nodes.map((node) => (node.id === nodeId ? change(node) : node)),
-    }));
+  const updateNode = (
+    nodeId: string,
+    change: (node: CanvasPageNode) => CanvasPageNode,
+    recordHistory = true,
+  ) => {
+    updateDraft(
+      (current) => ({
+        ...current,
+        nodes: current.nodes.map((node) => (node.id === nodeId ? change(node) : node)),
+      }),
+      recordHistory,
+    );
   };
 
   const savePage = async () => {
@@ -168,8 +249,8 @@ export function CanvasWorkspace({
         nodes: draft.nodes,
         edges: draft.edges,
       });
-      setDraft(saved);
-      setDirty(false);
+      replaceDraft(saved);
+      setDraftDirty(false);
       await refreshPages();
       reportStatus("Canvas page saved atomically");
     } catch (error) {
@@ -321,6 +402,7 @@ export function CanvasWorkspace({
       clientY: event.clientY,
       originX: node.x,
       originY: node.y,
+      moved: false,
     };
     setSelectedNodeId(node.id);
   };
@@ -330,13 +412,50 @@ export function CanvasWorkspace({
     if (!drag || drag.pointerId !== event.pointerId) return;
     const x = Math.round((drag.originX + event.clientX - drag.clientX) / 10) * 10;
     const y = Math.round((drag.originY + event.clientY - drag.clientY) / 10) * 10;
-    updateNode(drag.nodeId, (node) => ({ ...node, x, y }));
+    if (!drag.moved && (x !== drag.originX || y !== drag.originY)) {
+      recordCurrentDraft();
+      drag.moved = true;
+    }
+    updateNode(drag.nodeId, (node) => ({ ...node, x, y }), false);
   };
 
   const endDrag = (event: ReactPointerEvent<HTMLElement>) => {
     if (dragRef.current?.pointerId !== event.pointerId) return;
     dragRef.current = null;
     event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+
+  useEffect(() => {
+    const handleUndoRedo = (event: KeyboardEvent) => {
+      if ((!event.ctrlKey && !event.metaKey) || event.altKey || event.key.toLowerCase() !== "z") {
+        return;
+      }
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+      ) {
+        return;
+      }
+      event.preventDefault();
+      if (event.shiftKey) redoCanvasRef.current();
+      else undoCanvasRef.current();
+    };
+    document.addEventListener("keydown", handleUndoRedo);
+    return () => document.removeEventListener("keydown", handleUndoRedo);
+  }, []);
+
+  const closeEditor = () => {
+    if (
+      dirtyRef.current &&
+      !window.confirm("Discard unsaved Canvas changes and return to Pages?")
+    ) {
+      return;
+    }
+    replaceDraft(null);
+    setDraftDirty(false);
+    resetHistory();
+    setSelectedNodeId(null);
   };
 
   if (!vault) {
@@ -534,7 +653,7 @@ export function CanvasWorkspace({
   return (
     <div className="trusted-surface canvas-surface canvas-editor">
       <header className="canvas-editor-header">
-        <button type="button" className="canvas-back" onClick={() => setDraft(null)}>
+        <button type="button" className="canvas-back" onClick={closeEditor}>
           <Icon name="arrow-left" /> Pages
         </button>
         <label className="canvas-title-field">
@@ -550,6 +669,24 @@ export function CanvasWorkspace({
           <small>{draft.folder || "Pages"}</small>
         </label>
         <div className="canvas-toolbar">
+          <button
+            type="button"
+            className="canvas-history-action"
+            disabled={undoStack.length === 0}
+            title="Undo Canvas change (Ctrl+Z)"
+            onClick={undoCanvas}
+          >
+            Undo
+          </button>
+          <button
+            type="button"
+            className="canvas-history-action"
+            disabled={redoStack.length === 0}
+            title="Redo Canvas change (Ctrl+Shift+Z)"
+            onClick={redoCanvas}
+          >
+            Redo
+          </button>
           <button type="button" onClick={() => addObject("note")}>
             <Icon name="edit" /> Note
           </button>

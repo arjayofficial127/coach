@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   BrowserPrivacySummary,
   BrowserSnapshot,
@@ -242,6 +242,7 @@ export function LatticeApp() {
   const recoveryHandlerRef = useRef<() => void>(() => undefined);
   const pendingRecoveryRef = useRef<PendingRecovery | null>(null);
   const recoveryTimerRef = useRef<number | null>(null);
+  const canvasDirtyRef = useRef(false);
   const [workspace, setWorkspace] = useState<WorkspacePreferences>(DEFAULT_WORKSPACE);
   const [settings, setSettings] = useState<SettingsPreferences>(DEFAULT_SETTINGS);
   const [focusIntention, setFocusIntention] = useState("");
@@ -332,6 +333,17 @@ export function LatticeApp() {
     },
     [],
   );
+
+  const confirmCanvasLeave = () => {
+    if (surface !== "pages" || !canvasDirtyRef.current) return true;
+    const confirmed = window.confirm("Discard unsaved Canvas changes and leave this page?");
+    if (confirmed) canvasDirtyRef.current = false;
+    return confirmed;
+  };
+
+  const handleCanvasDirtyChange = useCallback((dirty: boolean) => {
+    canvasDirtyRef.current = dirty;
+  }, []);
 
   const activeProfile =
     profileState?.profiles.find((profile) => profile.id === profileState.activeProfileId) ?? null;
@@ -669,6 +681,7 @@ export function LatticeApp() {
     forceNewTab = false,
     desktopId = workspace.activeDesktopId,
   ) => {
+    if (!confirmCanvasLeave()) return;
     try {
       const reusable =
         !forceNewTab &&
@@ -705,6 +718,7 @@ export function LatticeApp() {
     desktopId = workspace.activeDesktopId,
     destination: "home" | "browser" = "home",
   ) => {
+    if (!confirmCanvasLeave()) return;
     try {
       const next = await window.lattice.browser.createTab();
       setBrowserSnapshot(next, desktopId);
@@ -718,6 +732,7 @@ export function LatticeApp() {
   };
 
   const switchTab = async (tab: BrowserState) => {
+    if (!confirmCanvasLeave()) return;
     try {
       setSnapshot(await window.lattice.browser.switchTab(tab.id));
       setSurface(tab.url === "about:blank" ? "home" : "browser");
@@ -766,6 +781,7 @@ export function LatticeApp() {
   };
 
   const closeTab = async (tabId: string) => {
+    if (!confirmCanvasLeave()) return;
     try {
       const closedTab = snapshot.tabs.find((tab) => tab.id === tabId);
       const closedDesktopId = tabDesktops[tabId] ?? workspace.activeDesktopId;
@@ -798,6 +814,7 @@ export function LatticeApp() {
   };
 
   const selectDesktop = async (desktopId: string) => {
+    if (!confirmCanvasLeave()) return;
     setWorkspace((current) => ({ ...current, activeDesktopId: desktopId }));
     const firstTab = snapshot.tabs.find((tab) => tabDesktops[tab.id] === desktopId);
     if (firstTab) {
@@ -812,6 +829,7 @@ export function LatticeApp() {
 
   const addDesktop = (event: FormEvent) => {
     event.preventDefault();
+    if (!confirmCanvasLeave()) return;
     if (!desktopName.trim()) return;
     const desktop = createDesktop(desktopName, workspace.desktops.length);
     setWorkspace((current) => ({
@@ -855,6 +873,7 @@ export function LatticeApp() {
   };
 
   const closeAllTabs = async () => {
+    if (!confirmCanvasLeave()) return;
     try {
       const closed = snapshot.tabs.map((tab) => ({
         tab,
@@ -1009,6 +1028,7 @@ export function LatticeApp() {
   };
 
   const showLibrary = async () => {
+    if (!confirmCanvasLeave()) return;
     setSurface("library");
     setCaptureOpen(false);
     if (vault) {
@@ -1022,6 +1042,7 @@ export function LatticeApp() {
   };
 
   const showReadingQueue = async () => {
+    if (!confirmCanvasLeave()) return;
     setSurface("queue");
     setCaptureOpen(false);
     if (vault) setLinks(await window.lattice.vault.listSavedLinks());
@@ -1042,6 +1063,7 @@ export function LatticeApp() {
   };
 
   const showSettings = async () => {
+    if (!confirmCanvasLeave()) return;
     setSurface("settings");
     setCaptureOpen(false);
     setCommandOpen(false);
@@ -1054,6 +1076,7 @@ export function LatticeApp() {
   };
 
   const showRunnableApps = () => {
+    if (!confirmCanvasLeave()) return;
     setSurface("apps");
     setCaptureOpen(false);
     setCommandOpen(false);
@@ -1061,6 +1084,7 @@ export function LatticeApp() {
   };
 
   const showFocusHome = () => {
+    if (!confirmCanvasLeave()) return;
     setSurface("home");
     setCaptureOpen(false);
     setBrowserMenuOpen(false);
@@ -1076,6 +1100,7 @@ export function LatticeApp() {
   };
 
   const showBrowser = async () => {
+    if (!confirmCanvasLeave()) return;
     const shouldFocusLocation = !contextualTab || contextualTab.url === "about:blank";
     if (contextualTab) {
       setSurface("browser");
@@ -1219,6 +1244,7 @@ export function LatticeApp() {
       setProfileMenuOpen(false);
       return;
     }
+    if (!confirmCanvasLeave()) return;
     setProfileBusy(true);
     clearRecovery();
     setConfirmClearAvatar(false);
@@ -1538,6 +1564,7 @@ export function LatticeApp() {
       }
       if ((!event.ctrlKey && !event.metaKey) || event.altKey) return;
       if (event.key.toLowerCase() === "z" && !event.shiftKey && !isEditableTarget(event.target)) {
+        if (document.querySelector(".canvas-editor")) return;
         event.preventDefault();
         recoveryHandlerRef.current();
         return;
@@ -2623,6 +2650,7 @@ export function LatticeApp() {
                 }
                 connectVault={() => connectVault(false)}
                 openUrl={(url) => openUrl(url, true)}
+                onDirtyChange={handleCanvasDirtyChange}
                 reportStatus={setStatus}
               />
             )}
