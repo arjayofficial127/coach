@@ -639,12 +639,15 @@ export function LatticeApp() {
     setHomeQuery("");
   };
 
-  const createTab = async (desktopId = workspace.activeDesktopId) => {
+  const createTab = async (
+    desktopId = workspace.activeDesktopId,
+    destination: "home" | "browser" = "home",
+  ) => {
     try {
       const next = await window.lattice.browser.createTab();
       setBrowserSnapshot(next, desktopId);
       setAddress("");
-      setSurface("home");
+      setSurface(destination);
       setCaptureOpen(false);
       setStatus("New tab ready");
     } catch (error) {
@@ -917,15 +920,28 @@ export function LatticeApp() {
     setProfileMenuOpen(false);
   };
 
-  const showBrowser = () => {
-    setSurface(contextualTab?.url === "about:blank" || !contextualTab ? "home" : "browser");
+  const focusBrowserLocation = () => {
+    window.requestAnimationFrame(() => {
+      omniboxRef.current?.focus();
+      omniboxRef.current?.select();
+    });
+  };
+
+  const showBrowser = async () => {
+    const shouldFocusLocation = !contextualTab || contextualTab.url === "about:blank";
+    if (contextualTab) {
+      setSurface("browser");
+    } else {
+      await createTab(workspace.activeDesktopId, "browser");
+    }
     setCaptureOpen(false);
     setBrowserMenuOpen(false);
+    if (shouldFocusLocation) focusBrowserLocation();
   };
 
   const showSurface = async (target: Surface) => {
     if (target === "home") showFocusHome();
-    else if (target === "browser") showBrowser();
+    else if (target === "browser") await showBrowser();
     else if (target === "library") await showLibrary();
     else if (target === "queue") await showReadingQueue();
     else if (target === "pages") await showCanvasPages();
@@ -1277,11 +1293,7 @@ export function LatticeApp() {
       setCommandOpen(false);
       setCaptureOpen(false);
       setFocusMode(false);
-      setSurface(contextualTab?.url === "about:blank" || !contextualTab ? "home" : "browser");
-      window.requestAnimationFrame(() => {
-        omniboxRef.current?.focus();
-        omniboxRef.current?.select();
-      });
+      void showBrowser().then(focusBrowserLocation);
       return;
     }
     if (command === "new-tab") {
@@ -1618,7 +1630,7 @@ export function LatticeApp() {
             type="button"
             className={surface === "browser" ? "navigation-row active" : "navigation-row"}
             aria-current={surface === "browser" ? "page" : undefined}
-            onClick={showBrowser}
+            onClick={() => void showBrowser()}
           >
             <span className="navigation-row-icon cyan">
               <Icon name="globe" />
@@ -1984,7 +1996,7 @@ export function LatticeApp() {
               </span>
             </div>
             <div className="surface-toolbar-actions">
-              <button type="button" onClick={showBrowser}>
+              <button type="button" onClick={() => void showBrowser()}>
                 <Icon name="globe" />
                 Browse
               </button>
