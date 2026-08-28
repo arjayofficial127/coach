@@ -90,6 +90,16 @@ interface ProfileShellState {
   runnableApps: RunnableAppsState;
 }
 
+interface RecoveryNotice {
+  id: string;
+  message: string;
+  actionLabel: string;
+}
+
+interface PendingRecovery extends RecoveryNotice {
+  run: () => void | Promise<void>;
+}
+
 const railItems: Array<{ id: Surface; label: string; icon: IconName }> = [
   { id: "home", label: "Focus", icon: "home" },
   { id: "browser", label: "Browse", icon: "globe" },
@@ -142,6 +152,13 @@ function profileInitials(name: string): string {
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase() ?? "")
       .join("") || "P"
+  );
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
   );
 }
 
@@ -222,6 +239,9 @@ export function LatticeApp() {
   const omniboxRef = useRef<HTMLInputElement>(null);
   const commandInputRef = useRef<HTMLInputElement>(null);
   const commandHandlerRef = useRef<(command: ShellCommand) => void>(() => undefined);
+  const recoveryHandlerRef = useRef<() => void>(() => undefined);
+  const pendingRecoveryRef = useRef<PendingRecovery | null>(null);
+  const recoveryTimerRef = useRef<number | null>(null);
   const [workspace, setWorkspace] = useState<WorkspacePreferences>(DEFAULT_WORKSPACE);
   const [settings, setSettings] = useState<SettingsPreferences>(DEFAULT_SETTINGS);
   const [focusIntention, setFocusIntention] = useState("");
@@ -270,6 +290,48 @@ export function LatticeApp() {
   });
   const [confirmClearData, setConfirmClearData] = useState(false);
   const [clearingData, setClearingData] = useState(false);
+  const [confirmClearAvatar, setConfirmClearAvatar] = useState(false);
+  const [recoveryNotice, setRecoveryNotice] = useState<RecoveryNotice | null>(null);
+
+  const clearRecovery = () => {
+    if (recoveryTimerRef.current !== null) window.clearTimeout(recoveryTimerRef.current);
+    recoveryTimerRef.current = null;
+    pendingRecoveryRef.current = null;
+    setRecoveryNotice(null);
+  };
+
+  const offerRecovery = (
+    message: string,
+    run: () => void | Promise<void>,
+    actionLabel = "Undo",
+  ) => {
+    if (recoveryTimerRef.current !== null) window.clearTimeout(recoveryTimerRef.current);
+    const recovery = { id: crypto.randomUUID(), message, actionLabel, run };
+    pendingRecoveryRef.current = recovery;
+    setRecoveryNotice(recovery);
+    recoveryTimerRef.current = window.setTimeout(clearRecovery, 10_000);
+  };
+
+  const runRecovery = async () => {
+    const recovery = pendingRecoveryRef.current;
+    if (!recovery) return;
+    clearRecovery();
+    try {
+      await recovery.run();
+      setStatus(`${recovery.message} — recovered`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  recoveryHandlerRef.current = () => void runRecovery();
+
+  useEffect(
+    () => () => {
+      if (recoveryTimerRef.current !== null) window.clearTimeout(recoveryTimerRef.current);
+    },
+    [],
+  );
 
   const activeProfile =
     profileState?.profiles.find((profile) => profile.id === profileState.activeProfileId) ?? null;
@@ -665,8 +727,48 @@ export function LatticeApp() {
     }
   };
 
+  const restoreClosedTabs = async (
+    closed: Array<{ tab: BrowserState; desktopId: string }>,
+    activeClosedId: string,
+    placeholderId?: string,
+  ) => {
+    let next = await window.lattice.browser.snapshot();
+    const restoredAssignments: Record<string, string> = {};
+    const restoredIds = new Map<string, string>();
+    for (const entry of closed) {
+      next = await window.lattice.browser.createTab(
+        entry.tab.url === "about:blank" ? undefined : entry.tab.url,
+      );
+      restoredAssignments[next.activeTabId] = entry.desktopId;
+      restoredIds.set(entry.tab.id, next.activeTabId);
+    }
+    const placeholder = placeholderId
+      ? next.tabs.find((candidate) => candidate.id === placeholderId)
+      : null;
+    if (placeholder?.url === "about:blank" && next.tabs.length > closed.length) {
+      next = await window.lattice.browser.closeTab(placeholder.id);
+    }
+    const restoredActiveId = restoredIds.get(activeClosedId) ?? restoredIds.values().next().value;
+    if (restoredActiveId) next = await window.lattice.browser.switchTab(restoredActiveId);
+    const activeEntry = closed.find((entry) => entry.tab.id === activeClosedId) ?? closed[0];
+    setSnapshot(next);
+    setTabDesktops((current) => {
+      const restored = { ...current, ...restoredAssignments };
+      if (placeholderId && !next.tabs.some((tab) => tab.id === placeholderId)) {
+        delete restored[placeholderId];
+      }
+      return restored;
+    });
+    if (activeEntry) {
+      setWorkspace((current) => ({ ...current, activeDesktopId: activeEntry.desktopId }));
+      setSurface(activeEntry.tab.url === "about:blank" ? "home" : "browser");
+    }
+  };
+
   const closeTab = async (tabId: string) => {
     try {
+      const closedTab = snapshot.tabs.find((tab) => tab.id === tabId);
+      const closedDesktopId = tabDesktops[tabId] ?? workspace.activeDesktopId;
       const next = await window.lattice.browser.closeTab(tabId);
       setSnapshot(next);
       const remaining = { ...tabDesktops };
@@ -680,6 +782,16 @@ export function LatticeApp() {
           ? "browser"
           : "home",
       );
+      if (closedTab) {
+        const placeholderId = snapshot.tabs.length === 1 ? next.activeTabId : undefined;
+        offerRecovery(`Closed ${displayTitle(closedTab)}`, () =>
+          restoreClosedTabs(
+            [{ tab: closedTab, desktopId: closedDesktopId }],
+            closedTab.id,
+            placeholderId,
+          ),
+        );
+      }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     }
@@ -722,7 +834,11 @@ export function LatticeApp() {
   const submitDesktopRename = (event: FormEvent) => {
     event.preventDefault();
     if (!editingDesktopId) return;
-    const next = renameDesktop(workspace, editingDesktopId, editingDesktopName);
+    const renamedDesktopId = editingDesktopId;
+    const previousName = workspace.desktops.find(
+      (desktop) => desktop.id === renamedDesktopId,
+    )?.name;
+    const next = renameDesktop(workspace, renamedDesktopId, editingDesktopName);
     if (next === workspace) {
       setStatus("Choose a unique desktop name");
       return;
@@ -731,10 +847,20 @@ export function LatticeApp() {
     setEditingDesktopId(null);
     setEditingDesktopName("");
     setStatus("Desktop renamed; existing Obsidian folders were left untouched");
+    if (previousName) {
+      offerRecovery("Desktop renamed", () =>
+        setWorkspace((current) => renameDesktop(current, renamedDesktopId, previousName)),
+      );
+    }
   };
 
   const closeAllTabs = async () => {
     try {
+      const closed = snapshot.tabs.map((tab) => ({
+        tab,
+        desktopId: tabDesktops[tab.id] ?? workspace.activeDesktopId,
+      }));
+      const activeClosedId = snapshot.activeTabId;
       let next = snapshot;
       for (const tab of snapshot.tabs) next = await window.lattice.browser.closeTab(tab.id);
       setSnapshot(next);
@@ -744,6 +870,11 @@ export function LatticeApp() {
       setCaptureOpen(false);
       setWorkspaceMenuOpen(false);
       setStatus("Started a fresh browser session");
+      if (closed.length > 0) {
+        offerRecovery(`Closed ${closed.length} tab${closed.length === 1 ? "" : "s"}`, () =>
+          restoreClosedTabs(closed, activeClosedId, next.activeTabId),
+        );
+      }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     }
@@ -753,6 +884,8 @@ export function LatticeApp() {
     if (!contextualTab) return;
     const target = workspace.desktops.find((desktop) => desktop.id === targetDesktopId);
     if (!target) return;
+    const movedTabId = contextualTab.id;
+    const sourceDesktopId = tabDesktops[movedTabId] ?? workspace.activeDesktopId;
     setTabDesktops((current) =>
       moveTabToDesktop(current, workspace, contextualTab.id, targetDesktopId),
     );
@@ -760,6 +893,10 @@ export function LatticeApp() {
     setBrowserMenuOpen(false);
     setCaptureOpen(false);
     setStatus(`Moved tab to ${target.name}`);
+    offerRecovery(`Moved tab to ${target.name}`, () => {
+      setTabDesktops((current) => ({ ...current, [movedTabId]: sourceDesktopId }));
+      setWorkspace((current) => ({ ...current, activeDesktopId: sourceDesktopId }));
+    });
   };
 
   const requestDeleteActiveDesktop = async () => {
@@ -791,6 +928,8 @@ export function LatticeApp() {
     }
 
     const nextDesktopId = result.workspace.activeDesktopId;
+    const deletedDesktop = activeDesktop;
+    const deletedIndex = workspace.desktops.findIndex((desktop) => desktop.id === activeDesktop.id);
     setWorkspace(result.workspace);
     setConfirmDeleteDesktopId(null);
     setWorkspaceMenuOpen(false);
@@ -805,6 +944,15 @@ export function LatticeApp() {
       setSurface("home");
     }
     setStatus("Deleted empty desktop; Obsidian folders were untouched");
+    offerRecovery(`Deleted ${deletedDesktop.name}`, () => {
+      setWorkspace((current) => {
+        if (current.desktops.some((desktop) => desktop.id === deletedDesktop.id)) return current;
+        const desktops = [...current.desktops];
+        desktops.splice(Math.min(deletedIndex, desktops.length), 0, deletedDesktop);
+        return { ...current, desktops, activeDesktopId: deletedDesktop.id };
+      });
+      setSurface("home");
+    });
   };
 
   const connectVault = async (disposable = false) => {
@@ -975,8 +1123,11 @@ export function LatticeApp() {
   };
 
   const toggleRestoreTabs = () => {
+    const previous = settings.restoreTabs;
     setSettings((current) => ({ ...current, restoreTabs: !current.restoreTabs }));
-    setStatus(settings.restoreTabs ? "Tab restoration disabled" : "Tab restoration enabled");
+    const message = previous ? "Tab restoration disabled" : "Tab restoration enabled";
+    setStatus(message);
+    offerRecovery(message, () => setSettings((current) => ({ ...current, restoreTabs: previous })));
   };
 
   const clearWebsiteData = async () => {
@@ -1069,6 +1220,8 @@ export function LatticeApp() {
       return;
     }
     setProfileBusy(true);
+    clearRecovery();
+    setConfirmClearAvatar(false);
     setSessionReady(false);
     persistActiveProfileShell();
     try {
@@ -1104,6 +1257,8 @@ export function LatticeApp() {
     event.preventDefault();
     if (!activeProfile || !profileName.trim() || profileBusy) return;
     setProfileBusy(true);
+    const previousName = activeProfile.name;
+    const profileId = activeProfile.id;
     try {
       setProfileState(
         await window.lattice.profiles.update({ id: activeProfile.id, name: profileName }),
@@ -1111,6 +1266,11 @@ export function LatticeApp() {
       setProfileEditor(null);
       setProfileName("");
       setStatus("Profile name updated");
+      offerRecovery("Profile renamed", async () => {
+        setProfileState(
+          await window.lattice.profiles.update({ id: profileId, name: previousName }),
+        );
+      });
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     } finally {
@@ -1121,6 +1281,7 @@ export function LatticeApp() {
   const chooseProfileAvatar = async () => {
     if (!activeProfile || profileBusy) return;
     setProfileBusy(true);
+    setConfirmClearAvatar(false);
     try {
       setProfileState(await window.lattice.profiles.chooseAvatar(activeProfile.id));
       setStatus("Profile picture updated locally");
@@ -1133,9 +1294,15 @@ export function LatticeApp() {
 
   const clearProfileAvatar = async () => {
     if (!activeProfile || profileBusy) return;
+    if (!confirmClearAvatar) {
+      setConfirmClearAvatar(true);
+      setStatus("Removing the picture cannot be undone; confirm to continue");
+      return;
+    }
     setProfileBusy(true);
     try {
       setProfileState(await window.lattice.profiles.clearAvatar(activeProfile.id));
+      setConfirmClearAvatar(false);
       setStatus("Profile picture removed");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
@@ -1151,6 +1318,7 @@ export function LatticeApp() {
       setLinks([]);
       setCanvasPages([]);
       setStatus("Vault disconnected; no Markdown files were deleted");
+      offerRecovery("Vault disconnected", () => connectVault(false), "Reconnect");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     }
@@ -1176,6 +1344,15 @@ export function LatticeApp() {
             ? "Marked as read"
             : "Removed from reading queue",
       );
+      offerRecovery("Reading status changed", async () => {
+        const restored = await window.lattice.vault.setReadingStatus({
+          id: link.id,
+          status: link.readingStatus,
+        });
+        setLinks((current) =>
+          current.map((candidate) => (candidate.id === restored.id ? restored : candidate)),
+        );
+      });
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     } finally {
@@ -1198,6 +1375,7 @@ export function LatticeApp() {
   const saveLinkMetadata = async (event: FormEvent) => {
     event.preventDefault();
     if (!editingLinkId || !editingLinkTitle.trim()) return;
+    const previous = links.find((link) => link.id === editingLinkId);
     setUpdatingLinkId(editingLinkId);
     try {
       const updated = await window.lattice.vault.updateSavedLinkMetadata({
@@ -1210,6 +1388,18 @@ export function LatticeApp() {
       );
       cancelEditingLink();
       setStatus("Saved link metadata updated; note body and path were preserved");
+      if (previous) {
+        offerRecovery("Saved-link details updated", async () => {
+          const restored = await window.lattice.vault.updateSavedLinkMetadata({
+            id: previous.id,
+            title: previous.title,
+            description: previous.description,
+          });
+          setLinks((current) =>
+            current.map((candidate) => (candidate.id === restored.id ? restored : candidate)),
+          );
+        });
+      }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     } finally {
@@ -1347,6 +1537,11 @@ export function LatticeApp() {
         return;
       }
       if ((!event.ctrlKey && !event.metaKey) || event.altKey) return;
+      if (event.key.toLowerCase() === "z" && !event.shiftKey && !isEditableTarget(event.target)) {
+        event.preventDefault();
+        recoveryHandlerRef.current();
+        return;
+      }
       const command =
         event.key.toLowerCase() === "k"
           ? "search"
@@ -1534,14 +1729,25 @@ export function LatticeApp() {
                       Choose picture
                     </button>
                     {activeProfile?.avatarDataUrl && (
-                      <button
-                        type="button"
-                        className="quiet"
-                        onClick={() => void clearProfileAvatar()}
-                        disabled={profileBusy}
-                      >
-                        Remove
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className={confirmClearAvatar ? "danger-action" : "quiet"}
+                          onClick={() => void clearProfileAvatar()}
+                          disabled={profileBusy}
+                        >
+                          {confirmClearAvatar ? "Confirm remove" : "Remove"}
+                        </button>
+                        {confirmClearAvatar && (
+                          <button
+                            type="button"
+                            className="quiet"
+                            onClick={() => setConfirmClearAvatar(false)}
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </>
@@ -2704,6 +2910,23 @@ export function LatticeApp() {
           </span>
         </footer>
       </section>
+      {recoveryNotice && (
+        <aside className="recovery-bar" role="status" aria-live="polite">
+          <span>{recoveryNotice.message}</span>
+          <button type="button" onClick={() => void runRecovery()}>
+            {recoveryNotice.actionLabel}
+            {recoveryNotice.actionLabel === "Undo" && <kbd>Ctrl Z</kbd>}
+          </button>
+          <button
+            type="button"
+            className="recovery-dismiss"
+            aria-label="Dismiss recovery action"
+            onClick={clearRecovery}
+          >
+            <Icon name="close" />
+          </button>
+        </aside>
+      )}
       {commandOpen && (
         <div className="command-layer">
           <button

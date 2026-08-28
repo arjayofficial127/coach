@@ -2731,6 +2731,69 @@ kbd {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+.recovery-bar {
+  position: fixed;
+  z-index: 120;
+  right: 18px;
+  bottom: 38px;
+  display: flex;
+  min-width: 300px;
+  max-width: min(460px, calc(100vw - 36px));
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(169, 157, 255, 0.32);
+  border-radius: 12px;
+  background: rgba(29, 29, 39, 0.98);
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.48);
+  padding: 10px 10px 10px 14px;
+  color: #d9d6e5;
+  font-size: 10px;
+}
+
+.recovery-bar > span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recovery-bar button {
+  display: inline-flex;
+  height: 30px;
+  align-items: center;
+  gap: 7px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  padding: 0 10px;
+  color: #c8c0ff;
+  font-size: 9px;
+  font-weight: 680;
+}
+
+.recovery-bar button:hover {
+  background: rgba(139, 124, 246, 0.24);
+  color: white;
+}
+
+.recovery-bar kbd {
+  color: #8d88a4;
+  font-size: 7px;
+}
+
+.recovery-bar .recovery-dismiss {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+  background: transparent;
+  color: #777583;
+}
+
+.recovery-dismiss svg {
+  width: 12px;
+  height: 12px;
+}
+
 .command-layer {
   position: fixed;
   z-index: 100;
