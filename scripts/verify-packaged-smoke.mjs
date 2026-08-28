@@ -18,6 +18,7 @@ const evidenceSource = path.join(os.tmpdir(), "lattice-phase-nine", "packaged-sm
 const evidenceDirectory = path.resolve("artifacts", "phase-9");
 const phaseTenEvidenceDirectory = path.resolve("artifacts", "phase-10");
 const phaseTwelveEvidenceDirectory = path.resolve("artifacts", "phase-12");
+const phaseThirteenEvidenceDirectory = path.resolve("artifacts", "phase-13");
 const evidenceTarget = path.join(evidenceDirectory, "packaged-smoke-evidence.json");
 const screenshotTarget = path.join(evidenceDirectory, "remote-example-com.png");
 const shellScreenshotTarget = path.join(evidenceDirectory, "phase-9-shell.png");
@@ -29,6 +30,7 @@ const focusNavigationScreenshotTarget = path.join(
   "focus-navigation.png",
 );
 const profileScreenshotTarget = path.join(phaseTwelveEvidenceDirectory, "website-profiles.png");
+const runnableAppsScreenshotTarget = path.join(phaseThirteenEvidenceDirectory, "runnable-apps.png");
 const canvasTarget = path.join(evidenceDirectory, "packaged-smoke-canvas.canvas");
 const noteTarget = path.join(evidenceDirectory, "packaged-smoke-note.md");
 
@@ -38,6 +40,7 @@ await access(sourceManifestPath);
 await mkdir(evidenceDirectory, { recursive: true });
 await mkdir(phaseTenEvidenceDirectory, { recursive: true });
 await mkdir(phaseTwelveEvidenceDirectory, { recursive: true });
+await mkdir(phaseThirteenEvidenceDirectory, { recursive: true });
 await rm(evidenceSource, { force: true });
 await Promise.all(
   [
@@ -49,6 +52,7 @@ await Promise.all(
     canvasScreenshotTarget,
     focusNavigationScreenshotTarget,
     profileScreenshotTarget,
+    runnableAppsScreenshotTarget,
     canvasTarget,
     noteTarget,
   ].map((target) => rm(target, { force: true })),
@@ -224,12 +228,27 @@ if (
       "Saved links",
       "Reading queue",
       "Settings",
+      "Runnable apps",
       "Focus",
       "Browse",
     ]) ||
   !evidence.navigation?.browserRestoredAfterShortcuts
 ) {
   failures.push("focus navigation shortcuts did not route through every stable destination");
+}
+if (
+  evidence.runnableApps?.heading !== "Runnable apps" ||
+  evidence.runnableApps?.appName !== "Pomodoro" ||
+  !evidence.runnableApps?.originalResult.startsWith("Original: Stopped at") ||
+  evidence.runnableApps?.correctedResult !== "Corrected: Completed at 1h 00m" ||
+  !evidence.runnableApps?.overridden ||
+  !evidence.runnableApps?.originalPreserved ||
+  !evidence.runnableApps?.persisted ||
+  !evidence.runnableApps?.activeRunCleared ||
+  !evidence.runnableApps?.profileScoped ||
+  !evidence.runnableApps?.nativeViewHidden
+) {
+  failures.push("runnable Pomodoro workflow did not preserve its original and corrected results");
 }
 if (!evidence.desktopLifecycle.guardedDeleteBlockedForOpenTab) {
   failures.push("occupied desktop deletion was not blocked");
@@ -429,6 +448,7 @@ const handoffScreenshotBytes = await readFile(evidence.obsidianHandoff.screensho
 const canvasScreenshotBytes = await readFile(evidence.canvas.screenshotPath);
 const focusNavigationScreenshotBytes = await readFile(evidence.navigation.screenshotPath);
 const profileScreenshotBytes = await readFile(evidence.profiles.screenshotPath);
+const runnableAppsScreenshotBytes = await readFile(evidence.runnableApps.screenshotPath);
 if (screenshotBytes.byteLength !== evidence.remote.screenshotBytes) {
   throw new Error("Screenshot byte count changed before evidence collection.");
 }
@@ -539,6 +559,23 @@ if (profileScreenshotPixels.width < 900 || profileScreenshotPixels.height < 620)
 evidence.profiles.screenshotPixels = profileScreenshotPixels;
 evidence.profiles.screenshotSha256 = createHash("sha256")
   .update(profileScreenshotBytes)
+  .digest("hex");
+if (!runnableAppsScreenshotBytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) {
+  throw new Error("Phase 13 runnable-app screenshot is not a PNG file.");
+}
+if (runnableAppsScreenshotBytes.byteLength !== evidence.runnableApps.screenshotBytes) {
+  throw new Error("Phase 13 runnable-app screenshot byte count changed before collection.");
+}
+const runnableAppsScreenshotPixels = {
+  width: runnableAppsScreenshotBytes.readUInt32BE(16),
+  height: runnableAppsScreenshotBytes.readUInt32BE(20),
+};
+if (runnableAppsScreenshotPixels.width < 900 || runnableAppsScreenshotPixels.height < 620) {
+  throw new Error("Phase 13 runnable-app screenshot dimensions were not usable.");
+}
+evidence.runnableApps.screenshotPixels = runnableAppsScreenshotPixels;
+evidence.runnableApps.screenshotSha256 = createHash("sha256")
+  .update(runnableAppsScreenshotBytes)
   .digest("hex");
 evidence.remote.screenshotPixels = screenshotPixels;
 evidence.remote.screenshotSha256 = createHash("sha256").update(screenshotBytes).digest("hex");
@@ -661,6 +698,7 @@ await copyFile(evidence.obsidianHandoff.screenshotPath, handoffScreenshotTarget)
 await copyFile(evidence.canvas.screenshotPath, canvasScreenshotTarget);
 await copyFile(evidence.navigation.screenshotPath, focusNavigationScreenshotTarget);
 await copyFile(evidence.profiles.screenshotPath, profileScreenshotTarget);
+await copyFile(evidence.runnableApps.screenshotPath, runnableAppsScreenshotTarget);
 await copyFile(evidence.canvas.absolutePath, canvasTarget);
 await copyFile(evidence.note.absolutePath, noteTarget);
 const copiedScreenshotBytes = await readFile(screenshotTarget);
@@ -670,6 +708,7 @@ const copiedHandoffScreenshotBytes = await readFile(handoffScreenshotTarget);
 const copiedCanvasScreenshotBytes = await readFile(canvasScreenshotTarget);
 const copiedFocusNavigationScreenshotBytes = await readFile(focusNavigationScreenshotTarget);
 const copiedProfileScreenshotBytes = await readFile(profileScreenshotTarget);
+const copiedRunnableAppsScreenshotBytes = await readFile(runnableAppsScreenshotTarget);
 const copiedCanvasBytes = await readFile(canvasTarget);
 const copiedNoteBytes = await readFile(noteTarget);
 if (
@@ -720,6 +759,12 @@ if (
 ) {
   throw new Error("Collected profile screenshot hash changed while publishing evidence.");
 }
+if (
+  createHash("sha256").update(copiedRunnableAppsScreenshotBytes).digest("hex") !==
+  evidence.runnableApps.screenshotSha256
+) {
+  throw new Error("Collected runnable-app screenshot hash changed while publishing evidence.");
+}
 evidence.remote.artifactPath = screenshotTarget;
 evidence.shell.artifactPath = shellScreenshotTarget;
 evidence.metadataEditing.artifactPath = metadataScreenshotTarget;
@@ -728,6 +773,7 @@ evidence.canvas.screenshotArtifactPath = canvasScreenshotTarget;
 evidence.canvas.artifactPath = canvasTarget;
 evidence.navigation.artifactPath = focusNavigationScreenshotTarget;
 evidence.profiles.artifactPath = profileScreenshotTarget;
+evidence.runnableApps.artifactPath = runnableAppsScreenshotTarget;
 evidence.note.artifactPath = noteTarget;
 await writeFile(evidenceTarget, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
 console.log(`Packaged Phase 9 smoke passed. Evidence: ${evidenceTarget}`);

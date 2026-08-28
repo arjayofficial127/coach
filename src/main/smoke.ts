@@ -101,6 +101,20 @@ export interface PhaseNineSmokeEvidence {
     screenshotPath: string;
     screenshotBytes: number;
   };
+  runnableApps: {
+    heading: string;
+    appName: string;
+    originalResult: string;
+    correctedResult: string;
+    overridden: boolean;
+    originalPreserved: boolean;
+    persisted: boolean;
+    activeRunCleared: boolean;
+    profileScoped: boolean;
+    nativeViewHidden: boolean;
+    screenshotPath: string;
+    screenshotBytes: number;
+  };
   desktopLifecycle: {
     guardedDeleteBlockedForOpenTab: boolean;
     menuVisible: boolean;
@@ -612,7 +626,7 @@ export async function runPhaseNineSmoke(
     )) as boolean;
     const shortcutRouteSequence = (await window.webContents.executeJavaScript(`(async () => {
       const routes = [];
-      for (const key of ["3", "4", "5", "6", "1", "2"]) {
+      for (const key of ["3", "4", "5", "6", "7", "1", "2"]) {
         document.dispatchEvent(new KeyboardEvent("keydown", { key, altKey: true, bubbles: true }));
         await new Promise((resolve) => setTimeout(resolve, 75));
         routes.push(document.querySelector('.surface-location strong')?.textContent?.trim() ??
@@ -623,6 +637,95 @@ export async function runPhaseNineSmoke(
     const browserRestoreDeadline = Date.now() + 2_000;
     while (Date.now() < browserRestoreDeadline && !runtime.isVisible()) await delay(25);
     const browserRestoredAfterShortcuts = runtime.isVisible();
+
+    await window.webContents.executeJavaScript(
+      `document.dispatchEvent(new KeyboardEvent("keydown", { key: "7", altKey: true, bubbles: true }))`,
+    );
+    await delay(100);
+    const runnableAppsDom = (await window.webContents.executeJavaScript(`(async () => {
+      const setInput = (selector, value) => {
+        const input = document.querySelector(selector);
+        if (!(input instanceof HTMLInputElement)) throw new Error(selector + " missing");
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+        setter?.call(input, value);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      };
+      const clickButton = (label) => {
+        const button = [...document.querySelectorAll("button")].find(
+          (candidate) => candidate.textContent?.replace(/\\s+/g, " ").trim() === label,
+        );
+        if (!(button instanceof HTMLButtonElement)) throw new Error(label + " action missing");
+        button.click();
+      };
+      setInput("[data-pomodoro-task]", "Finish Phase 13 runnable apps");
+      setInput("[data-pomodoro-minutes]", "1");
+      await new Promise((resolve) => setTimeout(resolve, 75));
+      const starter = document.querySelector("[data-pomodoro-starter]");
+      if (!(starter instanceof HTMLFormElement)) throw new Error("Pomodoro starter missing");
+      starter.requestSubmit();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      clickButton("Pause");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      clickButton("Resume");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      clickButton("Stop & save");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      clickButton("Correct result");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const outcome = document.querySelector("[data-correction-outcome]");
+      if (!(outcome instanceof HTMLSelectElement)) throw new Error("Correction outcome missing");
+      const selectSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
+      selectSetter?.call(outcome, "completed");
+      outcome.dispatchEvent(new Event("change", { bubbles: true }));
+      setInput("[data-correction-minutes]", "60");
+      setInput("[data-correction-note]", "Corrected after reviewing the actual finish time");
+      await new Promise((resolve) => setTimeout(resolve, 75));
+      clickButton("Save correction");
+      await new Promise((resolve) => setTimeout(resolve, 125));
+      const run = document.querySelector("[data-pomodoro-run]");
+      const storageKey = Object.keys(localStorage).find((key) =>
+        key.startsWith("lattice.runnable-apps.v1.profile."),
+      );
+      const stored = storageKey ? JSON.parse(localStorage.getItem(storageKey) ?? "null") : null;
+      const record = stored?.pomodoro?.history?.[0];
+      return {
+        heading: document.querySelector("[data-runnable-apps] > .app-library h1")?.textContent?.trim() ?? "",
+        appName: document.querySelector("#pomodoro-heading")?.textContent?.trim() ?? "",
+        originalResult: run?.querySelector(".run-history-copy small")?.textContent?.replace(/\\s+/g, " ").trim() ?? "",
+        correctedResult: run?.querySelector("[data-effective-result]")?.textContent?.replace(/\\s+/g, " ").trim() ?? "",
+        overridden: Boolean(run?.querySelector(".override-badge")),
+        originalPreserved: record?.original?.outcome === "stopped" && record?.corrections?.[0]?.outcome === "completed",
+        persisted: record?.task === "Finish Phase 13 runnable apps" && record?.corrections?.[0]?.elapsedSeconds === 3600,
+        activeRunCleared: stored?.pomodoro?.activeRun === null,
+        profileScoped: Boolean(storageKey?.startsWith("lattice.runnable-apps.v1.profile.")),
+      };
+    })()`)) as {
+      heading: string;
+      appName: string;
+      originalResult: string;
+      correctedResult: string;
+      overridden: boolean;
+      originalPreserved: boolean;
+      persisted: boolean;
+      activeRunCleared: boolean;
+      profileScoped: boolean;
+    };
+    const nativeViewHiddenForRunnableApps = !runtime.isVisible();
+    window.setSkipTaskbar(true);
+    window.showInactive();
+    await delay(100);
+    const runnableAppsImage = await window.webContents.capturePage();
+    if (runnableAppsImage.isEmpty())
+      throw new Error("Electron returned an empty runnable-app capture.");
+    const runnableAppsScreenshot = runnableAppsImage.toPNG();
+    const runnableAppsScreenshotPath = path.join(smokeRoot, "phase-13-runnable-apps.png");
+    await writeFile(runnableAppsScreenshotPath, runnableAppsScreenshot);
+    window.hide();
+    await window.webContents.executeJavaScript(
+      `document.dispatchEvent(new KeyboardEvent("keydown", { key: "2", altKey: true, bubbles: true }))`,
+    );
+    const browserAfterAppsDeadline = Date.now() + 2_000;
+    while (Date.now() < browserAfterAppsDeadline && !runtime.isVisible()) await delay(25);
 
     // An occupied desktop cannot be deleted. Move its live native tab to the next
     // desktop, then prove the now-empty desktop needs confirmation and can be
@@ -1295,6 +1398,12 @@ export async function runPhaseNineSmoke(
         browserRestoredAfterShortcuts,
         screenshotPath: focusNavigationScreenshotPath,
         screenshotBytes: focusNavigationScreenshot.byteLength,
+      },
+      runnableApps: {
+        ...runnableAppsDom,
+        nativeViewHidden: nativeViewHiddenForRunnableApps,
+        screenshotPath: runnableAppsScreenshotPath,
+        screenshotBytes: runnableAppsScreenshot.byteLength,
       },
       desktopLifecycle: {
         guardedDeleteBlockedForOpenTab,

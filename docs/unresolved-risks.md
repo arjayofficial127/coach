@@ -1,10 +1,10 @@
-# Phase 12 unresolved risks
+# Phase 13 unresolved risks
 
-Phase 12 is an installable personal prototype, not a production general-purpose browser. The original
+Phase 13 is an installable personal prototype, not a production general-purpose browser. The original
 deny-by-default security posture remains; new capabilities must be accepted and designed
 deliberately rather than enabled as compatibility shortcuts.
 
-| Priority | Risk | Current Phase 12 position | Exit criterion |
+| Priority | Risk | Current Phase 13 position | Exit criterion |
 | --- | --- | --- | --- |
 | Critical | Arbitrary-site browser security | Electron is hardened, but Lattice does not claim Chrome-equivalent site isolation, anti-exploitation, Safe Browsing, extension review, or patch response. | Threat model, Electron upgrade SLA, security regression suite, incident/update process, and explicit product-claim boundary. |
 | Critical | Unsigned distribution | The assisted current-user installer and installed executable are intentionally `NotSigned`; there is no updater or public release channel. | Protected signing identity, signed installer and update metadata, rollback/recovery, and release-channel design. |
@@ -24,10 +24,11 @@ deliberately rather than enabled as compatibility shortcuts.
 | Medium | Canvas conflicts and reference repair | Stable IDs, containment, optimistic concurrency, backlink indexing, and explicit broken-reference diagnostics pass. There is no merge UI, filesystem watcher, external-rename inference, cross-page object deep link, wiki-link import, or automatic repair. | Conflict UX, refresh/watcher policy, rename/move policy, third-party link parsing, and adversarial concurrent-editor tests. |
 | Medium | Public-network smoke dependency | Packaged integration requires `https://example.com`, so offline, proxy, interception, or DNS failures can fail it. | Split deterministic local package checks from a networked integration gate and add proxy diagnostics. |
 | Medium | Trusted-shell stored data | Profile names/pictures, profile-scoped desktop/settings/focus preferences, and the vault display path persist locally; tab restore can be disabled and vault authority disconnected. Packaged CSP blocks network egress, but there is no unified shell-data reset. | Add a reviewed full shell/profile reset and export flow, preserve CSP, and threat-review every shell network capability. |
+| Medium | Runnable-app history and clock integrity | Pomodoro state and append-only corrections are profile-scoped in shell local storage. Elapsed time uses the local wall clock; device clock changes, sleep behavior, crashes between storage writes, export, backup, history retention, and deliberate local tampering are not hardened. | Define monotonic/wall-clock reconciliation, crash journal, retention/export/reset policy, optional Obsidian handoff, and adversarial clock/restart tests before using records as formal evidence. |
 | Medium | Runtime preference observability | Electron exposes no public getter for fully resolved view preferences. The gate proves constructor intent and effective isolation behavior instead. | Retain behavioral probes, use upstream introspection if added, and require review for preference construction changes. |
 | Medium | Supply chain | Versions and lockfile are pinned and the package source manifest is verified, but there is no CI audit, SBOM, signed provenance, or update bot. | CI audit/SBOM/provenance checks and dependency-update ownership. |
 | Low | Windows brand assets | Setup and the executable use Electron's default icon because no approved multi-resolution Lattice `.ico` asset exists. | Approve a Lattice icon, generate the Windows icon matrix, and visually verify setup, Start, taskbar, shortcuts, and Apps settings. |
 | Low | Product quality attributes | Focus navigation has keyboard routes, explicit current-page state, reduced-motion handling, and 1280/920 px visual checks. Screen-reader journeys, 200% zoom, localization, large-tab performance, memory pressure, battery use, telemetry, backup, and recovery are not characterized. | Define measurable NFRs and test them before beta. |
 
-Phase 13 must preserve the trusted-shell/remote-site separation and treat each relaxation of a
+Phase 14 must preserve the trusted-shell/remote-site separation and treat each relaxation of a
 denied browser capability as a separate security and product decision.

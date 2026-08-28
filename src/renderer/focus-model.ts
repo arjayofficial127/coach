@@ -1,4 +1,4 @@
-export type Surface = "home" | "browser" | "library" | "queue" | "pages" | "settings";
+export type Surface = "home" | "browser" | "library" | "queue" | "pages" | "apps" | "settings";
 
 export interface FocusPreferences {
   version: 1;
@@ -25,6 +25,7 @@ const surfaceShortcutMap: Record<string, Surface> = {
   "4": "library",
   "5": "queue",
   "6": "settings",
+  "7": "apps",
 };
 
 export const surfaceDetails: Record<
@@ -60,6 +61,11 @@ export const surfaceDetails: Record<
     label: "Settings",
     description: "Control local continuity and privacy",
     shortcut: "Alt 6",
+  },
+  apps: {
+    label: "Runnable apps",
+    description: "Run focused local tools and keep their results",
+    shortcut: "Alt 7",
   },
 };
 

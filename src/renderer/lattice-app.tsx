@@ -25,6 +25,13 @@ import {
 import { Icon, type IconName } from "./icon";
 import { profileStorageKey, readProfileStorage } from "./profile-shell-model";
 import {
+  DEFAULT_RUNNABLE_APPS_STATE,
+  parseRunnableAppsState,
+  RUNNABLE_APPS_STORAGE_KEY,
+  type RunnableAppsState,
+} from "./runnable-apps-model";
+import { RunnableAppsSurface } from "./runnable-apps-surface";
+import {
   buildRestorableSession,
   parseRestorableSession,
   type RestorableTab,
@@ -65,7 +72,7 @@ type CommandItem =
       id: string;
       label: string;
       detail: string;
-      action: "new-tab" | "library" | "queue";
+      action: "new-tab" | "library" | "queue" | "apps";
     };
 
 interface RestoredBrowserState {
@@ -79,12 +86,14 @@ interface ProfileShellState {
   workspace: WorkspacePreferences;
   settings: SettingsPreferences;
   focusIntention: string;
+  runnableApps: RunnableAppsState;
 }
 
 const railItems: Array<{ id: Surface; label: string; icon: IconName }> = [
   { id: "home", label: "Focus", icon: "home" },
   { id: "browser", label: "Browse", icon: "globe" },
   { id: "pages", label: "Canvas pages", icon: "grid" },
+  { id: "apps", label: "Runnable apps", icon: "timer" },
   { id: "library", label: "Saved links", icon: "bookmark" },
   { id: "settings", label: "Settings", icon: "settings" },
 ];
@@ -146,6 +155,9 @@ function loadProfileShellState(state: ProfileState, profileId: string): ProfileS
     focusIntention: parseFocusPreferences(
       readProfileStorage(localStorage, FOCUS_STORAGE_KEY, state, profileId),
     ).intention,
+    runnableApps: parseRunnableAppsState(
+      readProfileStorage(localStorage, RUNNABLE_APPS_STORAGE_KEY, state, profileId),
+    ),
   };
 }
 
@@ -212,6 +224,7 @@ export function LatticeApp() {
   const [workspace, setWorkspace] = useState<WorkspacePreferences>(DEFAULT_WORKSPACE);
   const [settings, setSettings] = useState<SettingsPreferences>(DEFAULT_SETTINGS);
   const [focusIntention, setFocusIntention] = useState("");
+  const [runnableApps, setRunnableApps] = useState<RunnableAppsState>(DEFAULT_RUNNABLE_APPS_STATE);
   const [profileState, setProfileState] = useState<ProfileState | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [profileEditor, setProfileEditor] = useState<"create" | "edit" | null>(null);
@@ -334,6 +347,15 @@ export function LatticeApp() {
         detail: `${queueCount} unread`,
         action: "queue",
       },
+      {
+        kind: "action",
+        id: "action-apps",
+        label: "Open runnable apps",
+        detail: runnableApps.pomodoro.activeRun
+          ? `Timer running · ${runnableApps.pomodoro.activeRun.task}`
+          : "Pomodoro and durable run history",
+        action: "apps",
+      },
       ...workspace.desktops.map<CommandItem>((desktop) => ({
         kind: "desktop",
         id: `desktop-${desktop.id}`,
@@ -371,7 +393,7 @@ export function LatticeApp() {
       });
     }
     return filtered.slice(0, 12);
-  }, [commandQuery, links, queueCount, snapshot.tabs, tabDesktops, workspace]);
+  }, [commandQuery, links, queueCount, runnableApps, snapshot.tabs, tabDesktops, workspace]);
 
   useEffect(() => {
     if (!profileState || !sessionReady) return;
@@ -400,6 +422,14 @@ export function LatticeApp() {
       JSON.stringify({ version: 1, intention: normalizeFocusIntention(focusIntention) }),
     );
   }, [focusIntention, profileState, sessionReady]);
+
+  useEffect(() => {
+    if (!profileState || !sessionReady) return;
+    localStorage.setItem(
+      profileStorageKey(RUNNABLE_APPS_STORAGE_KEY, profileState.activeProfileId),
+      JSON.stringify(runnableApps),
+    );
+  }, [profileState, runnableApps, sessionReady]);
 
   useEffect(() => {
     let cancelled = false;
@@ -454,6 +484,7 @@ export function LatticeApp() {
         setWorkspace(shell.workspace);
         setSettings(shell.settings);
         setFocusIntention(shell.focusIntention);
+        setRunnableApps(shell.runnableApps);
         setSnapshot(restored.snapshot);
         setTabDesktops(restored.assignments);
         const restoredActive = restored.restoredActive;
@@ -858,6 +889,13 @@ export function LatticeApp() {
     }
   };
 
+  const showRunnableApps = () => {
+    setSurface("apps");
+    setCaptureOpen(false);
+    setCommandOpen(false);
+    setBrowserMenuOpen(false);
+  };
+
   const showFocusHome = () => {
     setSurface("home");
     setCaptureOpen(false);
@@ -878,6 +916,7 @@ export function LatticeApp() {
     else if (target === "library") await showLibrary();
     else if (target === "queue") await showReadingQueue();
     else if (target === "pages") await showCanvasPages();
+    else if (target === "apps") showRunnableApps();
     else await showSettings();
   };
 
@@ -944,6 +983,10 @@ export function LatticeApp() {
       profileStorageKey(FOCUS_STORAGE_KEY, profileId),
       JSON.stringify({ version: 1, intention: normalizeFocusIntention(focusIntention) }),
     );
+    localStorage.setItem(
+      profileStorageKey(RUNNABLE_APPS_STORAGE_KEY, profileId),
+      JSON.stringify(runnableApps),
+    );
     const sessionKey = profileStorageKey(SESSION_STORAGE_KEY, profileId);
     if (settings.restoreTabs) {
       localStorage.setItem(
@@ -974,6 +1017,7 @@ export function LatticeApp() {
     );
     setSettings(shell.settings);
     setFocusIntention(shell.focusIntention);
+    setRunnableApps(shell.runnableApps);
     setSnapshot(restored.snapshot);
     setTabDesktops(restored.assignments);
     setSurface("home");
@@ -1205,6 +1249,7 @@ export function LatticeApp() {
     }
     if (item.action === "new-tab") await createTab();
     else if (item.action === "queue") await showReadingQueue();
+    else if (item.action === "apps") showRunnableApps();
     else await showLibrary();
   };
 
@@ -1240,6 +1285,7 @@ export function LatticeApp() {
       "show-pages": "pages",
       "show-library": "library",
       "show-queue": "queue",
+      "show-apps": "apps",
       "show-settings": "settings",
     };
     const target = destination[command];
@@ -1589,6 +1635,25 @@ export function LatticeApp() {
             </span>
             <b>{canvasPages.length}</b>
           </button>
+          <button
+            type="button"
+            className={surface === "apps" ? "navigation-row active" : "navigation-row"}
+            aria-current={surface === "apps" ? "page" : undefined}
+            onClick={showRunnableApps}
+          >
+            <span className="navigation-row-icon green">
+              <Icon name="timer" />
+            </span>
+            <span>
+              <strong>Runnable apps</strong>
+              <small>
+                {runnableApps.pomodoro.activeRun
+                  ? `Running · ${runnableApps.pomodoro.activeRun.task}`
+                  : "Pomodoro and run history"}
+              </small>
+            </span>
+            <kbd>7</kbd>
+          </button>
         </div>
 
         <div className="section-label">
@@ -1731,6 +1796,7 @@ export function LatticeApp() {
                   surface !== "library" &&
                   surface !== "queue" &&
                   surface !== "pages" &&
+                  surface !== "apps" &&
                   surface !== "settings"
                     ? "browser-tab active"
                     : "browser-tab"
@@ -1887,11 +1953,13 @@ export function LatticeApp() {
                       ? "home"
                       : surface === "pages"
                         ? "grid"
-                        : surface === "settings"
-                          ? "settings"
-                          : surface === "queue"
-                            ? "folder"
-                            : "bookmark"
+                        : surface === "apps"
+                          ? "timer"
+                          : surface === "settings"
+                            ? "settings"
+                            : surface === "queue"
+                              ? "folder"
+                              : "bookmark"
                   }
                 />
                 <span>
@@ -2083,6 +2151,9 @@ export function LatticeApp() {
                   </button>
                   <button type="button" onClick={() => void showCanvasPages()}>
                     <Icon name="grid" /> {canvasPages.length} canvas pages <kbd>Alt 3</kbd>
+                  </button>
+                  <button type="button" onClick={showRunnableApps}>
+                    <Icon name="timer" /> Runnable apps <kbd>Alt 7</kbd>
                   </button>
                   <button type="button" onClick={() => void showSettings()}>
                     <Icon name="settings" /> Settings <kbd>Alt 6</kbd>
@@ -2323,6 +2394,14 @@ export function LatticeApp() {
               />
             )}
 
+            {surface === "apps" && (
+              <RunnableAppsSurface
+                state={runnableApps}
+                onChange={setRunnableApps}
+                reportStatus={setStatus}
+              />
+            )}
+
             {surface === "settings" && (
               <div className="trusted-surface settings-surface">
                 <header className="settings-header">
@@ -2459,7 +2538,7 @@ export function LatticeApp() {
                     </div>
                     <div className="settings-card-copy">
                       <span className="settings-kicker">About</span>
-                      <h2>Lattice 0.12.0</h2>
+                      <h2>Lattice 0.13.0</h2>
                       <p>
                         Current privacy controls. Remote Node access, downloads, popups, device
                         permissions, and unsafe protocols remain disabled.

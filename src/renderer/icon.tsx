@@ -21,7 +21,8 @@ export type IconName =
   | "reload"
   | "search"
   | "settings"
-  | "sparkle";
+  | "sparkle"
+  | "timer";
 
 const paths: Record<IconName, ReactNode> = {
   "arrow-left": <path d="m15 18-6-6 6-6" />,
@@ -74,6 +75,12 @@ const paths: Record<IconName, ReactNode> = {
   ),
   sparkle: (
     <path d="m12 2 1.2 4.2L17 8l-3.8 1.8L12 14l-1.2-4.2L7 8l3.8-1.8ZM5 14l.7 2.3L8 17l-2.3.7L5 20l-.7-2.3L2 17l2.3-.7ZM19 14l.6 1.8 1.9.7-1.9.7L19 19l-.6-1.8-1.9-.7 1.9-.7Z" />
+  ),
+  timer: (
+    <>
+      <circle cx="12" cy="13" r="8" />
+      <path d="M9 2h6M12 5V2M17.7 7.3 19 6M12 9v4l2.6 1.6" />
+    </>
   ),
 };
 

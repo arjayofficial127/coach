@@ -21,6 +21,7 @@ const smokeEvidenceSource = path.join(
 const evidenceRoot = path.join(repositoryRoot, "artifacts", "phase-9");
 const phaseTenEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-10");
 const phaseTwelveEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-12");
+const phaseThirteenEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-13");
 const lifecycleEvidencePath = path.join(evidenceRoot, "installer-lifecycle-evidence.json");
 const installedSmokeTarget = path.join(evidenceRoot, "installed-smoke-evidence.json");
 const shellScreenshotTarget = path.join(evidenceRoot, "installed-shell.png");
@@ -34,6 +35,10 @@ const focusNavigationScreenshotTarget = path.join(
 const profileScreenshotTarget = path.join(
   phaseTwelveEvidenceRoot,
   "installed-website-profiles.png",
+);
+const runnableAppsScreenshotTarget = path.join(
+  phaseThirteenEvidenceRoot,
+  "installed-runnable-apps.png",
 );
 const remoteScreenshotTarget = path.join(evidenceRoot, "installed-remote-example-com.png");
 const noteTarget = path.join(evidenceRoot, "installed-smoke-note.md");
@@ -314,6 +319,18 @@ if (
   smokeFailures.push("installed website-profile isolation workflow failed");
 }
 if (
+  smoke.runnableApps?.heading !== "Runnable apps" ||
+  smoke.runnableApps?.appName !== "Pomodoro" ||
+  !smoke.runnableApps?.overridden ||
+  !smoke.runnableApps?.originalPreserved ||
+  !smoke.runnableApps?.persisted ||
+  !smoke.runnableApps?.activeRunCleared ||
+  !smoke.runnableApps?.profileScoped ||
+  !smoke.runnableApps?.nativeViewHidden
+) {
+  smokeFailures.push("installed runnable Pomodoro workflow failed");
+}
+if (
   !smoke.desktopLifecycle?.guardedDeleteBlockedForOpenTab ||
   !smoke.desktopLifecycle?.movedTabRetained ||
   !smoke.desktopLifecycle?.deletedEmptyDesktop ||
@@ -362,6 +379,8 @@ await copyFile(smoke.canvas.screenshotPath, canvasScreenshotTarget);
 await copyFile(smoke.navigation.screenshotPath, focusNavigationScreenshotTarget);
 await mkdir(phaseTwelveEvidenceRoot, { recursive: true });
 await copyFile(smoke.profiles.screenshotPath, profileScreenshotTarget);
+await mkdir(phaseThirteenEvidenceRoot, { recursive: true });
+await copyFile(smoke.runnableApps.screenshotPath, runnableAppsScreenshotTarget);
 await copyFile(smoke.remote.screenshotPath, remoteScreenshotTarget);
 await copyFile(smoke.note.absolutePath, noteTarget);
 await copyFile(smoke.canvas.absolutePath, canvasTarget);
@@ -372,6 +391,7 @@ smoke.canvas.screenshotArtifactPath = canvasScreenshotTarget;
 smoke.canvas.artifactPath = canvasTarget;
 smoke.navigation.artifactPath = focusNavigationScreenshotTarget;
 smoke.profiles.artifactPath = profileScreenshotTarget;
+smoke.runnableApps.artifactPath = runnableAppsScreenshotTarget;
 smoke.remote.artifactPath = remoteScreenshotTarget;
 smoke.note.artifactPath = noteTarget;
 smoke.installedExecutable = installedExecutable;

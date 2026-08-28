@@ -1,7 +1,7 @@
 {
   "nodes": [
     {
-      "id": "24cd7ec3-7aab-4bfd-a0b4-104eb234e382",
+      "id": "19241e9f-67b3-4c70-9f52-b66ad590a673",
       "x": 40,
       "y": 40,
       "width": 350,
@@ -12,7 +12,7 @@
       "latticeTitle": "Description"
     },
     {
-      "id": "0727138f-ac7b-4d9a-9b17-00b5a2990430",
+      "id": "36f8509a-95f4-428f-931e-7681d025e40e",
       "x": 430,
       "y": 40,
       "width": 350,
@@ -24,7 +24,7 @@
       "latticeDescription": "Opens through the isolated native website view."
     },
     {
-      "id": "0e704e0d-d321-4126-b45a-7746e9b4061d",
+      "id": "96ba3454-18ac-4b00-abc4-c11ccbf9ca0e",
       "x": 820,
       "y": 40,
       "width": 430,
@@ -35,37 +35,37 @@
       "latticeTitle": "Connected things",
       "latticeLinks": [
         {
-          "id": "d20ff453-76aa-454c-a152-1b37d85d92a9",
+          "id": "148e28c8-bfc7-41cb-93ce-4b77e6839b6c",
           "label": "Child page",
           "kind": "page",
-          "target": "373af1b1-2cda-47e7-b737-0bb8a35cb006"
+          "target": "490b1ad9-f958-4ee4-aea4-b1e9a58a1cca"
         },
         {
-          "id": "07715fd8-055c-40bf-9ef4-c56ac59093bd",
+          "id": "b0d7e616-8b54-4467-a506-254be06ed57f",
           "label": "Key description",
           "kind": "object",
-          "target": "24cd7ec3-7aab-4bfd-a0b4-104eb234e382"
+          "target": "19241e9f-67b3-4c70-9f52-b66ad590a673"
         },
         {
-          "id": "6fab8143-2b61-4360-b865-b29c5ef946fc",
+          "id": "addfd029-1bde-4eb4-a749-48a6789bb8fa",
           "label": "Primary source",
           "kind": "url",
           "target": "https://example.com/source"
         },
         {
-          "id": "cbe1bdbe-ff96-4003-a8d1-24db276b36f5",
+          "id": "a378a046-886a-4e04-bd5b-f6af93cec093",
           "label": "Local brief",
           "kind": "document",
           "target": "Files/brief.md"
         },
         {
-          "id": "864908e4-ec85-4c46-9991-f69c0013b45b",
+          "id": "b1f2bfac-947f-4c57-9d16-b13623eb1aa3",
           "label": "Missing image",
           "kind": "image",
           "target": "Files/missing.png"
         },
         {
-          "id": "95b6bb2d-42e7-4c7a-a4c3-4e2b15731123",
+          "id": "b966bbfb-1cd0-417c-ac71-0d37923e9dd3",
           "label": "Local data",
           "kind": "file",
           "target": "Files/data.bin"
@@ -76,11 +76,11 @@
   "edges": [],
   "lattice": {
     "version": 1,
-    "id": "fdd36c1f-d1f4-4ece-969b-2c7a12e89b49",
+    "id": "6164cabb-0646-4cc2-81d0-e444fadbcb64",
     "title": "Phase 9 research canvas",
     "description": "A connected collection of pages, objects, websites, and files.",
     "folder": "Projects/Browser",
-    "createdAt": "2026-08-28T19:30:39.324Z",
-    "updatedAt": "2026-08-28T19:30:39.374Z"
+    "createdAt": "2026-08-28T21:30:55.750Z",
+    "updatedAt": "2026-08-28T21:30:55.787Z"
   }
 }

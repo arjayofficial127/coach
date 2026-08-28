@@ -411,7 +411,9 @@ export class BrowserRuntime {
                     ? "show-queue"
                     : key === "6"
                       ? "show-settings"
-                      : null
+                      : key === "7"
+                        ? "show-apps"
+                        : null
           : (input.control || input.meta) && !input.alt
             ? key === "f" && input.shift
               ? "toggle-focus"

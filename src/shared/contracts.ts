@@ -48,6 +48,7 @@ export type ShellCommand =
   | "show-pages"
   | "show-library"
   | "show-queue"
+  | "show-apps"
   | "show-settings";
 
 export interface BrowserBounds {

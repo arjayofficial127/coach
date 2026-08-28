@@ -30,7 +30,7 @@ describe("focus preferences", () => {
 describe("focus-first navigation shortcuts", () => {
   const base = { altKey: false, ctrlKey: false, metaKey: false, shiftKey: false };
 
-  it("maps Alt+1 through Alt+6 to stable destinations", () => {
+  it("maps Alt+1 through Alt+7 to stable destinations", () => {
     expect(navigationShortcut({ ...base, altKey: true, key: "1" })).toEqual({
       kind: "surface",
       surface: "home",
@@ -42,6 +42,10 @@ describe("focus-first navigation shortcuts", () => {
     expect(navigationShortcut({ ...base, altKey: true, key: "6" })).toEqual({
       kind: "surface",
       surface: "settings",
+    });
+    expect(navigationShortcut({ ...base, altKey: true, key: "7" })).toEqual({
+      kind: "surface",
+      surface: "apps",
     });
   });
 
@@ -61,8 +65,8 @@ describe("focus-first navigation shortcuts", () => {
   });
 
   it("keeps every destination label and shortcut explicit", () => {
-    expect(Object.values(surfaceDetails)).toHaveLength(6);
-    expect(new Set(Object.values(surfaceDetails).map((item) => item.shortcut)).size).toBe(6);
+    expect(Object.values(surfaceDetails)).toHaveLength(7);
+    expect(new Set(Object.values(surfaceDetails).map((item) => item.shortcut)).size).toBe(7);
     expect(surfaceDetails.home.label).toBe("Focus");
   });
 });
