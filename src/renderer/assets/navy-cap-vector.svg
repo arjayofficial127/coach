@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Navy baseball cap</title>
+  <desc id="desc">A polished vector illustration of a navy six-panel baseball cap pointing right.</desc>
+  <defs>
+    <linearGradient id="crown" x1="0" y1="0" x2="0.82" y2="1">
+      <stop offset="0" stop-color="#263754"/>
+      <stop offset="0.48" stop-color="#14233d"/>
+      <stop offset="1" stop-color="#091426"/>
+    </linearGradient>
+    <linearGradient id="frontPanel" x1="0.22" y1="0" x2="0.78" y2="1">
+      <stop offset="0" stop-color="#314361"/>
+      <stop offset="0.55" stop-color="#172741"/>
+      <stop offset="1" stop-color="#0a162a"/>
+    </linearGradient>
+    <linearGradient id="brim" x1="0.12" y1="0.08" x2="0.88" y2="0.9">
+      <stop offset="0" stop-color="#213451"/>
+      <stop offset="0.5" stop-color="#10213b"/>
+      <stop offset="1" stop-color="#071225"/>
+    </linearGradient>
+    <linearGradient id="brimEdge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0a172b"/>
+      <stop offset="0.75" stop-color="#1e304d"/>
+      <stop offset="1" stop-color="#070f1e"/>
+    </linearGradient>
+    <radialGradient id="button" cx="45%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#3a4c69"/>
+      <stop offset="1" stop-color="#0a1528"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-40%" width="140%" height="200%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+  </defs>
+
+  <ellipse cx="599" cy="664" rx="492" ry="50" fill="#0b1220" opacity="0.18" filter="url(#shadow)"/>
+
+  <path d="M298 548C350 520 418 500 494 486C602 466 722 464 827 482C923 498 1017 535 1107 594C1123 605 1127 622 1118 636C1108 651 1089 657 1068 650C970 620 864 615 760 627C660 638 568 667 482 696C417 718 357 716 320 682C285 650 275 592 298 548Z" fill="url(#brim)" stroke="#071225" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M323 678C382 700 440 699 496 680C593 647 683 623 780 614C886 605 985 613 1068 650C972 636 884 641 797 653C693 667 605 691 516 716C438 738 361 724 323 678Z" fill="url(#brimEdge)" opacity="0.96"/>
+
+  <path d="M110 526C99 438 111 355 147 289C191 209 264 159 357 133C473 100 611 108 712 149C808 188 870 255 892 346C903 391 903 440 893 489C886 520 875 545 860 563C766 536 665 525 561 531C443 538 337 567 236 574C186 577 143 563 110 526Z" fill="url(#crown)" stroke="#071225" stroke-width="9" stroke-linejoin="round"/>
+  <path d="M374 129C449 112 535 115 606 140C687 169 749 221 783 293C816 363 817 446 790 533C714 525 637 524 561 531C472 537 389 555 310 567C286 491 286 410 310 338C336 258 383 192 446 147Z" fill="url(#frontPanel)" opacity="0.88"/>
+
+  <path d="M298 548C452 516 620 512 766 532C806 537 840 548 860 563" fill="none" stroke="#43516a" stroke-width="7" opacity="0.75" stroke-linecap="round"/>
+  <path d="M299 557C448 526 614 522 760 541C803 547 835 556 855 570" fill="none" stroke="#071225" stroke-width="8" stroke-linecap="round"/>
+
+  <path d="M374 129C331 185 307 252 299 329C290 416 307 495 345 562" fill="none" stroke="#091528" stroke-width="9" stroke-linecap="round"/>
+  <path d="M606 140C656 185 691 247 709 321C728 399 726 470 704 527" fill="none" stroke="#091528" stroke-width="9" stroke-linecap="round"/>
+  <path d="M377 131C344 189 324 257 318 328" fill="none" stroke="#526079" stroke-width="3" opacity="0.55" stroke-linecap="round"/>
+  <path d="M608 143C651 189 681 249 697 319" fill="none" stroke="#53627b" stroke-width="3" opacity="0.5" stroke-linecap="round"/>
+
+  <ellipse cx="493" cy="115" rx="37" ry="17" fill="url(#button)" stroke="#071225" stroke-width="6"/>
+  <path d="M463 116C479 108 503 106 523 113" fill="none" stroke="#627088" stroke-width="3" opacity="0.55" stroke-linecap="round"/>
+
+  <g fill="#081426" stroke="#40506a" stroke-width="3">
+    <circle cx="234" cy="274" r="11"/>
+    <circle cx="495" cy="242" r="11"/>
+    <circle cx="752" cy="260" r="10"/>
+  </g>
+  <g fill="none" stroke="#657189" stroke-width="2" opacity="0.58">
+    <circle cx="234" cy="274" r="6"/>
+    <circle cx="495" cy="242" r="6"/>
+    <circle cx="752" cy="260" r="5"/>
+  </g>
+
+  <g fill="none" stroke="#53627a" stroke-width="3" opacity="0.62" stroke-linecap="round">
+    <path d="M371 576C483 551 606 543 725 552C821 559 912 580 995 614"/>
+    <path d="M355 596C467 572 590 563 710 570C805 576 895 594 977 625"/>
+    <path d="M343 617C454 593 576 584 695 590C786 594 871 609 949 635"/>
+    <path d="M338 638C446 616 563 607 675 611C757 614 837 625 910 643"/>
+  </g>
+
+  <path d="M1110 594C1128 610 1127 629 1116 642C1106 654 1090 658 1068 650C1086 641 1099 627 1103 611C1105 604 1107 598 1110 594Z" fill="#050d1a" opacity="0.94"/>
+</svg>
