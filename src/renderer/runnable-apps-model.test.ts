@@ -84,6 +84,43 @@ describe("runnable Pomodoro app", () => {
     ).toEqual(DEFAULT_RUNNABLE_APPS_STATE);
   });
 
+  it("migrates version 1 Pomodoro data without losing active work or history", () => {
+    const legacy = JSON.stringify({
+      version: 1,
+      pomodoro: {
+        activeRun: {
+          id: "legacy-active",
+          task: "Keep this timer",
+          plannedSeconds: 1500,
+          startedAt: start,
+          accumulatedMilliseconds: 12_000,
+          runningSince: null,
+          pauseCount: 1,
+        },
+        history: [],
+      },
+    });
+    const migrated = parseRunnableAppsState(legacy);
+    expect(migrated.version).toBe(2);
+    expect(migrated.pomodoro.activeRun).toMatchObject({
+      id: "legacy-active",
+      task: "Keep this timer",
+    });
+    expect(migrated.bulletJournal.items).toEqual([]);
+  });
+
+  it("retains the explicit Daily Flow source link without inferring task completion", () => {
+    const active = startPomodoro(
+      DEFAULT_RUNNABLE_APPS_STATE,
+      { task: "Linked task", plannedMinutes: 25, sourceJournalItemId: "journal-1" },
+      start,
+      "run-linked",
+    );
+    const finished = finishPomodoro(active, "completed", "2026-08-29T00:25:00.000Z");
+    expect(finished.pomodoro.history[0]?.sourceJournalItemId).toBe("journal-1");
+    expect(finished.bulletJournal.items).toEqual([]);
+  });
+
   it("rejects an empty task and parallel active timers", () => {
     expect(() =>
       startPomodoro(DEFAULT_RUNNABLE_APPS_STATE, { task: "   ", plannedMinutes: 25 }, start),

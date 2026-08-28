@@ -1,8 +1,14 @@
+import {
+  type BulletJournalState,
+  DEFAULT_BULLET_JOURNAL_STATE,
+  parseBulletJournalState,
+} from "./bullet-journal-model";
+
 export const RUNNABLE_APPS_STORAGE_KEY = "lattice.runnable-apps.v1";
 export const MAX_POMODORO_TASK_LENGTH = 160;
 export const MAX_POMODORO_HISTORY = 500;
 
-export type RunnableAppId = "pomodoro";
+export type RunnableAppId = "pomodoro" | "daily-flow";
 export type PomodoroOutcome = "completed" | "stopped";
 
 export interface RunnableAppDefinition {
@@ -19,6 +25,12 @@ export const RUNNABLE_APP_CATALOG: RunnableAppDefinition[] = [
     description: "Run one task against a visible clock and keep an honest history.",
     status: "ready",
   },
+  {
+    id: "daily-flow",
+    name: "Daily Flow",
+    description: "Capture what has your attention and choose one clear next action.",
+    status: "ready",
+  },
 ];
 
 export interface PomodoroActiveRun {
@@ -29,6 +41,7 @@ export interface PomodoroActiveRun {
   accumulatedMilliseconds: number;
   runningSince: string | null;
   pauseCount: number;
+  sourceJournalItemId?: string;
 }
 
 export interface PomodoroOriginalResult {
@@ -52,19 +65,22 @@ export interface PomodoroRunRecord {
   startedAt: string;
   original: PomodoroOriginalResult;
   corrections: PomodoroCorrection[];
+  sourceJournalItemId?: string;
 }
 
 export interface RunnableAppsState {
-  version: 1;
+  version: 2;
   pomodoro: {
     activeRun: PomodoroActiveRun | null;
     history: PomodoroRunRecord[];
   };
+  bulletJournal: BulletJournalState;
 }
 
 export const DEFAULT_RUNNABLE_APPS_STATE: RunnableAppsState = {
-  version: 1,
+  version: 2,
   pomodoro: { activeRun: null, history: [] },
+  bulletJournal: DEFAULT_BULLET_JOURNAL_STATE,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -116,6 +132,8 @@ function parseActiveRun(value: unknown): PomodoroActiveRun | null {
     accumulatedMilliseconds,
     runningSince: value.runningSince,
     pauseCount,
+    sourceJournalItemId:
+      typeof value.sourceJournalItemId === "string" ? value.sourceJournalItemId : undefined,
   };
 }
 
@@ -167,6 +185,8 @@ function parseHistoryRecord(value: unknown): PomodoroRunRecord | null {
     corrections: Array.isArray(value.corrections)
       ? value.corrections.map(parseCorrection).filter((item): item is PomodoroCorrection => !!item)
       : [],
+    sourceJournalItemId:
+      typeof value.sourceJournalItemId === "string" ? value.sourceJournalItemId : undefined,
   };
 }
 
@@ -174,11 +194,15 @@ export function parseRunnableAppsState(serialized: string | null): RunnableAppsS
   if (!serialized) return DEFAULT_RUNNABLE_APPS_STATE;
   try {
     const value = JSON.parse(serialized) as unknown;
-    if (!isRecord(value) || value.version !== 1 || !isRecord(value.pomodoro)) {
+    if (
+      !isRecord(value) ||
+      (value.version !== 1 && value.version !== 2) ||
+      !isRecord(value.pomodoro)
+    ) {
       return DEFAULT_RUNNABLE_APPS_STATE;
     }
     return {
-      version: 1,
+      version: 2,
       pomodoro: {
         activeRun: parseActiveRun(value.pomodoro.activeRun),
         history: Array.isArray(value.pomodoro.history)
@@ -188,6 +212,10 @@ export function parseRunnableAppsState(serialized: string | null): RunnableAppsS
               .slice(0, MAX_POMODORO_HISTORY)
           : [],
       },
+      bulletJournal:
+        value.version === 2
+          ? parseBulletJournalState(value.bulletJournal)
+          : DEFAULT_BULLET_JOURNAL_STATE,
     };
   } catch {
     return DEFAULT_RUNNABLE_APPS_STATE;
@@ -201,7 +229,7 @@ export function activeElapsedMilliseconds(run: PomodoroActiveRun, now = Date.now
 
 export function startPomodoro(
   state: RunnableAppsState,
-  input: { task: string; plannedMinutes: number },
+  input: { task: string; plannedMinutes: number; sourceJournalItemId?: string },
   now = new Date().toISOString(),
   id: string = crypto.randomUUID(),
 ): RunnableAppsState {
@@ -222,6 +250,7 @@ export function startPomodoro(
         accumulatedMilliseconds: 0,
         runningSince: now,
         pauseCount: 0,
+        sourceJournalItemId: input.sourceJournalItemId,
       },
     },
   };
@@ -277,6 +306,7 @@ export function finishPomodoro(
       endedAt: now,
     },
     corrections: [],
+    sourceJournalItemId: run.sourceJournalItemId,
   };
   return {
     ...state,

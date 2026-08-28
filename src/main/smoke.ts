@@ -115,6 +115,25 @@ export interface PhaseNineSmokeEvidence {
     screenshotPath: string;
     screenshotBytes: number;
   };
+  dailyFlow: {
+    heading: string;
+    catalogCount: number;
+    nowTask: string;
+    todaySummary: string;
+    originalText: string;
+    effectiveText: string;
+    activityTypes: string[];
+    originalPreserved: boolean;
+    explicitlyCompleted: boolean;
+    linkedPomodoro: boolean;
+    linkedTimerStopped: boolean;
+    persisted: boolean;
+    profileScoped: boolean;
+    activeRunCleared: boolean;
+    nativeViewHidden: boolean;
+    screenshotPath: string;
+    screenshotBytes: number;
+  };
   desktopLifecycle: {
     guardedDeleteBlockedForOpenTab: boolean;
     menuVisible: boolean;
@@ -721,6 +740,156 @@ export async function runPhaseNineSmoke(
     const runnableAppsScreenshotPath = path.join(smokeRoot, "phase-13-runnable-apps.png");
     await writeFile(runnableAppsScreenshotPath, runnableAppsScreenshot);
     window.hide();
+
+    const dailyFlowBeforeFocus = (await window.webContents.executeJavaScript(`(async () => {
+      const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+      const setControlValue = (selector, value) => {
+        const control = document.querySelector(selector);
+        if (!(control instanceof HTMLInputElement || control instanceof HTMLSelectElement)) {
+          throw new Error(selector + " missing");
+        }
+        const prototype = control instanceof HTMLSelectElement
+          ? HTMLSelectElement.prototype
+          : HTMLInputElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+        setter?.call(control, value);
+        control.dispatchEvent(new Event(control instanceof HTMLSelectElement ? "change" : "input", {
+          bubbles: true,
+        }));
+      };
+      const clickExact = (label, root = document) => {
+        const button = [...root.querySelectorAll("button")].find(
+          (candidate) => candidate.textContent?.replace(/\\s+/g, " ").trim() === label,
+        );
+        if (!(button instanceof HTMLButtonElement)) throw new Error(label + " action missing");
+        button.click();
+      };
+      const dailyFlowButton = document.querySelector('[data-runnable-app="daily-flow"]');
+      if (!(dailyFlowButton instanceof HTMLButtonElement)) throw new Error("Daily Flow app missing");
+      dailyFlowButton.click();
+      await wait(75);
+      setControlValue("[data-journal-capture]", "Prepare Phase 14 council synthesis");
+      const captureForm = document.querySelector("[data-daily-capture]");
+      if (!(captureForm instanceof HTMLFormElement)) throw new Error("Daily capture missing");
+      captureForm.requestSubmit();
+      await wait(100);
+      const capturedItem = document.querySelector("[data-journal-item]");
+      if (!(capturedItem instanceof HTMLElement)) throw new Error("Captured journal item missing");
+      clickExact("Clarify", capturedItem);
+      await wait(50);
+      setControlValue("[data-clarify-lane]", "today");
+      const clarifyForm = capturedItem.querySelector(".clarify-task");
+      if (!(clarifyForm instanceof HTMLFormElement)) throw new Error("Clarify form missing");
+      clarifyForm.requestSubmit();
+      await wait(100);
+      const todayItem = document.querySelector("[data-journal-item]");
+      if (!(todayItem instanceof HTMLElement)) throw new Error("Today item missing");
+      clickExact("Make now", todayItem);
+      await wait(100);
+      return {
+        heading: document.querySelector("#daily-flow-heading")?.textContent?.trim() ?? "",
+        catalogCount: document.querySelectorAll("[data-runnable-app]").length,
+        nowTask: document.querySelector("[data-now-card] strong")?.textContent?.trim() ?? "",
+        todaySummary: document.querySelector(".daily-flow-list > header p")?.textContent?.trim() ?? "",
+      };
+    })()`)) as {
+      heading: string;
+      catalogCount: number;
+      nowTask: string;
+      todaySummary: string;
+    };
+    const nativeViewHiddenForDailyFlow = !runtime.isVisible();
+    window.setSkipTaskbar(true);
+    window.showInactive();
+    await delay(100);
+    const dailyFlowImage = await window.webContents.capturePage();
+    if (dailyFlowImage.isEmpty()) throw new Error("Electron returned an empty Daily Flow capture.");
+    const dailyFlowScreenshot = dailyFlowImage.toPNG();
+    const dailyFlowScreenshotPath = path.join(smokeRoot, "phase-14-daily-flow.png");
+    await writeFile(dailyFlowScreenshotPath, dailyFlowScreenshot);
+    window.hide();
+
+    const dailyFlowAfterFocus = (await window.webContents.executeJavaScript(`(async () => {
+      const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+      const setInput = (selector, value) => {
+        const input = document.querySelector(selector);
+        if (!(input instanceof HTMLInputElement)) throw new Error(selector + " missing");
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+        setter?.call(input, value);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      };
+      const clickExact = (label, root = document) => {
+        const button = [...root.querySelectorAll("button")].find(
+          (candidate) => candidate.textContent?.replace(/\\s+/g, " ").trim() === label,
+        );
+        if (!(button instanceof HTMLButtonElement)) throw new Error(label + " action missing");
+        button.click();
+      };
+      const focusButton = document.querySelector("[data-focus-journal-task]");
+      if (!(focusButton instanceof HTMLButtonElement)) throw new Error("Focus action missing");
+      focusButton.click();
+      await wait(100);
+      clickExact("Stop & save");
+      await wait(100);
+      const dailyFlowButton = document.querySelector('[data-runnable-app="daily-flow"]');
+      if (!(dailyFlowButton instanceof HTMLButtonElement)) throw new Error("Daily Flow app missing");
+      dailyFlowButton.click();
+      await wait(75);
+      const nowCard = document.querySelector("[data-now-card]");
+      if (!(nowCard instanceof HTMLElement)) throw new Error("Now card missing");
+      clickExact("Complete", nowCard);
+      await wait(100);
+      const logButton = [...document.querySelectorAll(".daily-flow-tabs button")].find((button) =>
+        button.textContent?.trim().startsWith("Log"),
+      );
+      if (!(logButton instanceof HTMLButtonElement)) throw new Error("Daily log tab missing");
+      logButton.click();
+      await wait(75);
+      const completedItem = document.querySelector("[data-journal-item]");
+      if (!(completedItem instanceof HTMLElement)) throw new Error("Completed journal item missing");
+      clickExact("Correct", completedItem);
+      await wait(50);
+      setInput("[data-journal-correction]", "Prepare and ship Phase 14 council synthesis");
+      const correctionForm = completedItem.querySelector(".correct-journal-text");
+      if (!(correctionForm instanceof HTMLFormElement)) throw new Error("Correction form missing");
+      correctionForm.requestSubmit();
+      await wait(150);
+      const storageKey = Object.keys(localStorage).find((key) =>
+        key.startsWith("lattice.runnable-apps.v1.profile."),
+      );
+      const stored = storageKey ? JSON.parse(localStorage.getItem(storageKey) ?? "null") : null;
+      const record = stored?.bulletJournal?.items?.find(
+        (item) => item?.original?.text === "Prepare Phase 14 council synthesis",
+      );
+      const corrections = record?.activity?.filter((activity) => activity?.type === "text-corrected") ?? [];
+      const latestCorrection = corrections.at(-1);
+      const linkedRun = stored?.pomodoro?.history?.find(
+        (run) => run?.sourceJournalItemId === record?.id,
+      );
+      return {
+        originalText: record?.original?.text ?? "",
+        effectiveText: latestCorrection?.text ?? record?.original?.text ?? "",
+        activityTypes: record?.activity?.map((activity) => activity?.type).filter(Boolean) ?? [],
+        originalPreserved: record?.original?.text === "Prepare Phase 14 council synthesis",
+        explicitlyCompleted: record?.activity?.some((activity) => activity?.type === "completed") ?? false,
+        linkedPomodoro: Boolean(linkedRun),
+        linkedTimerStopped: linkedRun?.original?.outcome === "stopped",
+        persisted: stored?.version === 2 && latestCorrection?.text === "Prepare and ship Phase 14 council synthesis",
+        profileScoped: Boolean(storageKey?.startsWith("lattice.runnable-apps.v1.profile.")),
+        activeRunCleared: stored?.pomodoro?.activeRun === null,
+      };
+    })()`)) as {
+      originalText: string;
+      effectiveText: string;
+      activityTypes: string[];
+      originalPreserved: boolean;
+      explicitlyCompleted: boolean;
+      linkedPomodoro: boolean;
+      linkedTimerStopped: boolean;
+      persisted: boolean;
+      profileScoped: boolean;
+      activeRunCleared: boolean;
+    };
     await window.webContents.executeJavaScript(
       `document.dispatchEvent(new KeyboardEvent("keydown", { key: "2", altKey: true, bubbles: true }))`,
     );
@@ -1404,6 +1573,13 @@ export async function runPhaseNineSmoke(
         nativeViewHidden: nativeViewHiddenForRunnableApps,
         screenshotPath: runnableAppsScreenshotPath,
         screenshotBytes: runnableAppsScreenshot.byteLength,
+      },
+      dailyFlow: {
+        ...dailyFlowBeforeFocus,
+        ...dailyFlowAfterFocus,
+        nativeViewHidden: nativeViewHiddenForDailyFlow,
+        screenshotPath: dailyFlowScreenshotPath,
+        screenshotBytes: dailyFlowScreenshot.byteLength,
       },
       desktopLifecycle: {
         guardedDeleteBlockedForOpenTab,

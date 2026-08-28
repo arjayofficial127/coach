@@ -1,13 +1,14 @@
-# Lattice — Phase 13
+# Lattice — Phase 14
 
 **Status: PASS (2026-08-29).** Lattice is an installable, focus-first personal research browser with
 secure native website tabs, restart-safe desktops, Obsidian-compatible saved links, and local
 spatial pages made of connected notes, websites, files, objects, and more pages. A read-only local
 index now shows backlinks and broken-reference diagnostics without exposing vault paths. Named
 website profiles keep personal, work, or client sign-ins and focus context separate. Local runnable
-apps now turn focused work into durable activity records, beginning with Pomodoro.
+apps now turn focused work into durable activity records. Pomodoro provides an honest timer, while
+Daily Flow combines bullet-journal capture with a deliberately bounded GTD funnel.
 
-![Phase 13 runnable Pomodoro app](artifacts/phase-13/runnable-apps.png)
+![Phase 14 Daily Flow app](artifacts/phase-14/daily-flow.png)
 
 ## What works
 
@@ -16,9 +17,15 @@ apps now turn focused work into durable activity records, beginning with Pomodor
   Chromium cookies, origin storage, cache, tabs, desktops, settings, and focus intention.
 - Profiles can use a local picture chosen through a native dialog. Lattice converts it to a bounded
   private PNG and never exposes the source path or stores website passwords/tokens.
-- Runnable apps have a dedicated local surface and profile-scoped state. The first app is a
-  Pomodoro timer with task naming, custom duration, pause/resume, explicit stop, and explicit
-  completion.
+- Runnable apps have a dedicated local surface and profile-scoped state. Pomodoro provides task
+  naming, custom duration, pause/resume, explicit stop, and explicit completion.
+- Daily Flow captures Tasks, Notes, and Events. Tasks move through Inbox, Today, Next, Waiting, and
+  Someday; Notes and Events enter the durable Log without creating task clutter.
+- Today is capped at three tasks and Now at one. Carryover is explicit rather than automatic, and
+  the original capture survives organizing, migration, completion, cancellation, reopening, and
+  corrected wording.
+- A Now task can start a linked 25-minute Pomodoro. Timer outcomes never infer task completion;
+  finishing the journal task remains a separate explicit action.
 - Every stopped or completed timer creates an immutable original result. Corrections are appended as
   visible overrides—such as **Originally stopped at 12m; corrected completed at 1h**—without
   rewriting what was first recorded.
@@ -96,17 +103,19 @@ pnpm run package
 pnpm run smoke:packaged
 pnpm run installer
 pnpm run smoke:installer
-pnpm run verify:phase13
+pnpm run verify:phase14
 ```
 
 The unsigned Windows x64 portable app is generated at
 `out/Lattice-win32-x64/Lattice.exe`. The assisted installer is generated at
-`release/Lattice-Setup-0.13.0.exe`. Windows reputation warnings are expected until a later release
+`release/Lattice-Setup-0.14.0.exe`. Windows reputation warnings are expected until a later release
 phase adds a protected signing identity. The installer and updater are intentionally not presented
 as production distribution yet.
 
 ## Evidence and decisions
 
+- [Phase 14 report](docs/phase-14-report.md)
+- [Daily Flow screenshot](artifacts/phase-14/daily-flow.png)
 - [Phase 13 report](docs/phase-13-report.md)
 - [Runnable apps screenshot](artifacts/phase-13/runnable-apps.png)
 - [Phase 12 report](docs/phase-12-report.md)
@@ -141,13 +150,17 @@ persistent partitions, verifies inactive native views stay hidden, checks profil
 and scans the profile registry for credential-shaped data. The Phase 13 gate additionally runs a
 Pomodoro through pause, resume, and stop; appends a one-hour completed correction; proves the original
 stopped result remains; verifies profile-scoped persistence; and captures the installed UI.
+The Phase 14 gate then captures and clarifies a task, chooses Today and Now, runs a linked Pomodoro,
+proves the timer does not infer completion, explicitly completes the task, appends corrected wording,
+and verifies the profile-scoped version-2 record and screenshot in both portable and installed apps.
 
 ## Current phase boundary
 
-Phase 13 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
+Phase 14 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
 automatic updates, code signing, full history/scroll restoration, or Chrome-equivalent Safe
 Browsing. It also does not claim full compatibility with every third-party JSON Canvas extension or
 automatic reference repair. Profile deletion, incognito, Chrome-profile import, provider-account
 inspection, popup-based identity flows, background notifications, sound, OS wake locks, cross-device
-timer sync, or editable/deletable timer history remain outside this phase. See the risk register
-before Phase 14.
+timer sync, or editable/deletable timer history remain outside this phase. Daily Flow projects,
+contexts, recurrence, calendars, reminders, weekly-review automation, Obsidian export, and sync also
+remain outside this phase. See the risk register before selecting Phase 15.

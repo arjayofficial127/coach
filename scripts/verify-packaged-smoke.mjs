@@ -19,6 +19,7 @@ const evidenceDirectory = path.resolve("artifacts", "phase-9");
 const phaseTenEvidenceDirectory = path.resolve("artifacts", "phase-10");
 const phaseTwelveEvidenceDirectory = path.resolve("artifacts", "phase-12");
 const phaseThirteenEvidenceDirectory = path.resolve("artifacts", "phase-13");
+const phaseFourteenEvidenceDirectory = path.resolve("artifacts", "phase-14");
 const evidenceTarget = path.join(evidenceDirectory, "packaged-smoke-evidence.json");
 const screenshotTarget = path.join(evidenceDirectory, "remote-example-com.png");
 const shellScreenshotTarget = path.join(evidenceDirectory, "phase-9-shell.png");
@@ -31,6 +32,7 @@ const focusNavigationScreenshotTarget = path.join(
 );
 const profileScreenshotTarget = path.join(phaseTwelveEvidenceDirectory, "website-profiles.png");
 const runnableAppsScreenshotTarget = path.join(phaseThirteenEvidenceDirectory, "runnable-apps.png");
+const dailyFlowScreenshotTarget = path.join(phaseFourteenEvidenceDirectory, "daily-flow.png");
 const canvasTarget = path.join(evidenceDirectory, "packaged-smoke-canvas.canvas");
 const noteTarget = path.join(evidenceDirectory, "packaged-smoke-note.md");
 
@@ -41,6 +43,7 @@ await mkdir(evidenceDirectory, { recursive: true });
 await mkdir(phaseTenEvidenceDirectory, { recursive: true });
 await mkdir(phaseTwelveEvidenceDirectory, { recursive: true });
 await mkdir(phaseThirteenEvidenceDirectory, { recursive: true });
+await mkdir(phaseFourteenEvidenceDirectory, { recursive: true });
 await rm(evidenceSource, { force: true });
 await Promise.all(
   [
@@ -53,6 +56,7 @@ await Promise.all(
     focusNavigationScreenshotTarget,
     profileScreenshotTarget,
     runnableAppsScreenshotTarget,
+    dailyFlowScreenshotTarget,
     canvasTarget,
     noteTarget,
   ].map((target) => rm(target, { force: true })),
@@ -249,6 +253,29 @@ if (
   !evidence.runnableApps?.nativeViewHidden
 ) {
   failures.push("runnable Pomodoro workflow did not preserve its original and corrected results");
+}
+if (
+  evidence.dailyFlow?.heading !== "Daily Flow" ||
+  evidence.dailyFlow?.catalogCount !== 2 ||
+  evidence.dailyFlow?.nowTask !== "Prepare Phase 14 council synthesis" ||
+  evidence.dailyFlow?.todaySummary !== "1 of 3 chosen" ||
+  evidence.dailyFlow?.originalText !== "Prepare Phase 14 council synthesis" ||
+  evidence.dailyFlow?.effectiveText !== "Prepare and ship Phase 14 council synthesis" ||
+  !["organized", "now-set", "completed", "text-corrected"].every((type) =>
+    evidence.dailyFlow?.activityTypes?.includes(type),
+  ) ||
+  !evidence.dailyFlow?.originalPreserved ||
+  !evidence.dailyFlow?.explicitlyCompleted ||
+  !evidence.dailyFlow?.linkedPomodoro ||
+  !evidence.dailyFlow?.linkedTimerStopped ||
+  !evidence.dailyFlow?.persisted ||
+  !evidence.dailyFlow?.profileScoped ||
+  !evidence.dailyFlow?.activeRunCleared ||
+  !evidence.dailyFlow?.nativeViewHidden
+) {
+  failures.push(
+    "Daily Flow capture, GTD, linked focus, correction, or persistence workflow failed",
+  );
 }
 if (!evidence.desktopLifecycle.guardedDeleteBlockedForOpenTab) {
   failures.push("occupied desktop deletion was not blocked");
@@ -449,6 +476,7 @@ const canvasScreenshotBytes = await readFile(evidence.canvas.screenshotPath);
 const focusNavigationScreenshotBytes = await readFile(evidence.navigation.screenshotPath);
 const profileScreenshotBytes = await readFile(evidence.profiles.screenshotPath);
 const runnableAppsScreenshotBytes = await readFile(evidence.runnableApps.screenshotPath);
+const dailyFlowScreenshotBytes = await readFile(evidence.dailyFlow.screenshotPath);
 if (screenshotBytes.byteLength !== evidence.remote.screenshotBytes) {
   throw new Error("Screenshot byte count changed before evidence collection.");
 }
@@ -577,6 +605,23 @@ evidence.runnableApps.screenshotPixels = runnableAppsScreenshotPixels;
 evidence.runnableApps.screenshotSha256 = createHash("sha256")
   .update(runnableAppsScreenshotBytes)
   .digest("hex");
+if (!dailyFlowScreenshotBytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) {
+  throw new Error("Phase 14 Daily Flow screenshot is not a PNG file.");
+}
+if (dailyFlowScreenshotBytes.byteLength !== evidence.dailyFlow.screenshotBytes) {
+  throw new Error("Phase 14 Daily Flow screenshot byte count changed before collection.");
+}
+const dailyFlowScreenshotPixels = {
+  width: dailyFlowScreenshotBytes.readUInt32BE(16),
+  height: dailyFlowScreenshotBytes.readUInt32BE(20),
+};
+if (dailyFlowScreenshotPixels.width < 900 || dailyFlowScreenshotPixels.height < 620) {
+  throw new Error("Phase 14 Daily Flow screenshot dimensions were not usable.");
+}
+evidence.dailyFlow.screenshotPixels = dailyFlowScreenshotPixels;
+evidence.dailyFlow.screenshotSha256 = createHash("sha256")
+  .update(dailyFlowScreenshotBytes)
+  .digest("hex");
 evidence.remote.screenshotPixels = screenshotPixels;
 evidence.remote.screenshotSha256 = createHash("sha256").update(screenshotBytes).digest("hex");
 const noteBytes = await readFile(evidence.note.absolutePath);
@@ -699,6 +744,7 @@ await copyFile(evidence.canvas.screenshotPath, canvasScreenshotTarget);
 await copyFile(evidence.navigation.screenshotPath, focusNavigationScreenshotTarget);
 await copyFile(evidence.profiles.screenshotPath, profileScreenshotTarget);
 await copyFile(evidence.runnableApps.screenshotPath, runnableAppsScreenshotTarget);
+await copyFile(evidence.dailyFlow.screenshotPath, dailyFlowScreenshotTarget);
 await copyFile(evidence.canvas.absolutePath, canvasTarget);
 await copyFile(evidence.note.absolutePath, noteTarget);
 const copiedScreenshotBytes = await readFile(screenshotTarget);
@@ -709,6 +755,7 @@ const copiedCanvasScreenshotBytes = await readFile(canvasScreenshotTarget);
 const copiedFocusNavigationScreenshotBytes = await readFile(focusNavigationScreenshotTarget);
 const copiedProfileScreenshotBytes = await readFile(profileScreenshotTarget);
 const copiedRunnableAppsScreenshotBytes = await readFile(runnableAppsScreenshotTarget);
+const copiedDailyFlowScreenshotBytes = await readFile(dailyFlowScreenshotTarget);
 const copiedCanvasBytes = await readFile(canvasTarget);
 const copiedNoteBytes = await readFile(noteTarget);
 if (
@@ -765,6 +812,12 @@ if (
 ) {
   throw new Error("Collected runnable-app screenshot hash changed while publishing evidence.");
 }
+if (
+  createHash("sha256").update(copiedDailyFlowScreenshotBytes).digest("hex") !==
+  evidence.dailyFlow.screenshotSha256
+) {
+  throw new Error("Collected Daily Flow screenshot hash changed while publishing evidence.");
+}
 evidence.remote.artifactPath = screenshotTarget;
 evidence.shell.artifactPath = shellScreenshotTarget;
 evidence.metadataEditing.artifactPath = metadataScreenshotTarget;
@@ -774,6 +827,7 @@ evidence.canvas.artifactPath = canvasTarget;
 evidence.navigation.artifactPath = focusNavigationScreenshotTarget;
 evidence.profiles.artifactPath = profileScreenshotTarget;
 evidence.runnableApps.artifactPath = runnableAppsScreenshotTarget;
+evidence.dailyFlow.artifactPath = dailyFlowScreenshotTarget;
 evidence.note.artifactPath = noteTarget;
 await writeFile(evidenceTarget, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
 console.log(`Packaged Phase 9 smoke passed. Evidence: ${evidenceTarget}`);

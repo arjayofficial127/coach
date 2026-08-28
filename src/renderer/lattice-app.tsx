@@ -12,6 +12,7 @@ import type {
   VaultInfo,
   VaultReferenceIndex,
 } from "../shared/contracts";
+import { journalItemsForLane } from "./bullet-journal-model";
 import { CanvasWorkspace } from "./canvas-workspace";
 import {
   FOCUS_STORAGE_KEY,
@@ -314,6 +315,7 @@ export function LatticeApp() {
   const visibleLinks = surface === "queue" ? queuedLinks : filteredLinks;
   const queueCount = links.filter((link) => link.readingStatus === "queued").length;
   const nextQueuedLink = queuedLinks[0] ?? null;
+  const dailyFlowInboxCount = journalItemsForLane(runnableApps.bulletJournal, "inbox").length;
   const recentCanvasPage = useMemo(
     () =>
       [...canvasPages].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0] ??
@@ -353,7 +355,9 @@ export function LatticeApp() {
         label: "Open runnable apps",
         detail: runnableApps.pomodoro.activeRun
           ? `Timer running · ${runnableApps.pomodoro.activeRun.task}`
-          : "Pomodoro and durable run history",
+          : dailyFlowInboxCount > 0
+            ? `${dailyFlowInboxCount} Daily Flow task${dailyFlowInboxCount === 1 ? "" : "s"} to clarify`
+            : "Pomodoro · Daily Flow",
         action: "apps",
       },
       ...workspace.desktops.map<CommandItem>((desktop) => ({
@@ -393,7 +397,16 @@ export function LatticeApp() {
       });
     }
     return filtered.slice(0, 12);
-  }, [commandQuery, links, queueCount, runnableApps, snapshot.tabs, tabDesktops, workspace]);
+  }, [
+    commandQuery,
+    dailyFlowInboxCount,
+    links,
+    queueCount,
+    runnableApps,
+    snapshot.tabs,
+    tabDesktops,
+    workspace,
+  ]);
 
   useEffect(() => {
     if (!profileState || !sessionReady) return;
@@ -1649,7 +1662,9 @@ export function LatticeApp() {
               <small>
                 {runnableApps.pomodoro.activeRun
                   ? `Running · ${runnableApps.pomodoro.activeRun.task}`
-                  : "Pomodoro and run history"}
+                  : dailyFlowInboxCount > 0
+                    ? `${dailyFlowInboxCount} to clarify`
+                    : "Pomodoro · Daily Flow"}
               </small>
             </span>
             <kbd>7</kbd>
@@ -2538,7 +2553,7 @@ export function LatticeApp() {
                     </div>
                     <div className="settings-card-copy">
                       <span className="settings-kicker">About</span>
-                      <h2>Lattice 0.13.0</h2>
+                      <h2>Lattice 0.14.0</h2>
                       <p>
                         Current privacy controls. Remote Node access, downloads, popups, device
                         permissions, and unsafe protocols remain disabled.

@@ -22,6 +22,7 @@ const evidenceRoot = path.join(repositoryRoot, "artifacts", "phase-9");
 const phaseTenEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-10");
 const phaseTwelveEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-12");
 const phaseThirteenEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-13");
+const phaseFourteenEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-14");
 const lifecycleEvidencePath = path.join(evidenceRoot, "installer-lifecycle-evidence.json");
 const installedSmokeTarget = path.join(evidenceRoot, "installed-smoke-evidence.json");
 const shellScreenshotTarget = path.join(evidenceRoot, "installed-shell.png");
@@ -40,6 +41,7 @@ const runnableAppsScreenshotTarget = path.join(
   phaseThirteenEvidenceRoot,
   "installed-runnable-apps.png",
 );
+const dailyFlowScreenshotTarget = path.join(phaseFourteenEvidenceRoot, "installed-daily-flow.png");
 const remoteScreenshotTarget = path.join(evidenceRoot, "installed-remote-example-com.png");
 const noteTarget = path.join(evidenceRoot, "installed-smoke-note.md");
 const canvasTarget = path.join(evidenceRoot, "installed-smoke-canvas.canvas");
@@ -205,6 +207,9 @@ await Promise.all(
     handoffScreenshotTarget,
     canvasScreenshotTarget,
     focusNavigationScreenshotTarget,
+    profileScreenshotTarget,
+    runnableAppsScreenshotTarget,
+    dailyFlowScreenshotTarget,
     remoteScreenshotTarget,
     noteTarget,
     canvasTarget,
@@ -331,6 +336,24 @@ if (
   smokeFailures.push("installed runnable Pomodoro workflow failed");
 }
 if (
+  smoke.dailyFlow?.heading !== "Daily Flow" ||
+  smoke.dailyFlow?.catalogCount !== 2 ||
+  smoke.dailyFlow?.nowTask !== "Prepare Phase 14 council synthesis" ||
+  smoke.dailyFlow?.todaySummary !== "1 of 3 chosen" ||
+  smoke.dailyFlow?.originalText !== "Prepare Phase 14 council synthesis" ||
+  smoke.dailyFlow?.effectiveText !== "Prepare and ship Phase 14 council synthesis" ||
+  !smoke.dailyFlow?.originalPreserved ||
+  !smoke.dailyFlow?.explicitlyCompleted ||
+  !smoke.dailyFlow?.linkedPomodoro ||
+  !smoke.dailyFlow?.linkedTimerStopped ||
+  !smoke.dailyFlow?.persisted ||
+  !smoke.dailyFlow?.profileScoped ||
+  !smoke.dailyFlow?.activeRunCleared ||
+  !smoke.dailyFlow?.nativeViewHidden
+) {
+  smokeFailures.push("installed Daily Flow workflow failed");
+}
+if (
   !smoke.desktopLifecycle?.guardedDeleteBlockedForOpenTab ||
   !smoke.desktopLifecycle?.movedTabRetained ||
   !smoke.desktopLifecycle?.deletedEmptyDesktop ||
@@ -381,6 +404,8 @@ await mkdir(phaseTwelveEvidenceRoot, { recursive: true });
 await copyFile(smoke.profiles.screenshotPath, profileScreenshotTarget);
 await mkdir(phaseThirteenEvidenceRoot, { recursive: true });
 await copyFile(smoke.runnableApps.screenshotPath, runnableAppsScreenshotTarget);
+await mkdir(phaseFourteenEvidenceRoot, { recursive: true });
+await copyFile(smoke.dailyFlow.screenshotPath, dailyFlowScreenshotTarget);
 await copyFile(smoke.remote.screenshotPath, remoteScreenshotTarget);
 await copyFile(smoke.note.absolutePath, noteTarget);
 await copyFile(smoke.canvas.absolutePath, canvasTarget);
@@ -392,6 +417,7 @@ smoke.canvas.artifactPath = canvasTarget;
 smoke.navigation.artifactPath = focusNavigationScreenshotTarget;
 smoke.profiles.artifactPath = profileScreenshotTarget;
 smoke.runnableApps.artifactPath = runnableAppsScreenshotTarget;
+smoke.dailyFlow.artifactPath = dailyFlowScreenshotTarget;
 smoke.remote.artifactPath = remoteScreenshotTarget;
 smoke.note.artifactPath = noteTarget;
 smoke.installedExecutable = installedExecutable;
