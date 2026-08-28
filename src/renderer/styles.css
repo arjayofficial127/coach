@@ -876,7 +876,14 @@ kbd {
   align-items: end;
   border-bottom: 1px solid var(--line);
   background: #101017;
-  padding: 0 8px;
+  padding: 0
+    max(8px, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 8px)) 0 8px;
+  -webkit-app-region: drag;
+}
+
+.tabs-viewport,
+.tab-strip button {
+  -webkit-app-region: no-drag;
 }
 
 .desktop-context {

@@ -29,6 +29,12 @@ async function createMainWindow(): Promise<void> {
     minHeight: 620,
     show: false,
     autoHideMenuBar: true,
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: "#101017",
+      symbolColor: "#e9e9f2",
+      height: 43,
+    },
     backgroundColor: "#11151c",
     webPreferences: {
       partition: "persist:lattice-shell",
