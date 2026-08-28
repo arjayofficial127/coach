@@ -21,6 +21,7 @@ let tabs: BrowserState[] = [
   },
 ];
 let vault: VaultInfo | null = null;
+let privacySummary = { cookieCount: 3, cacheBytes: 4_820_000 };
 let links: SavedLinkRecord[] = [
   {
     id: "preview-design-systems",
@@ -133,6 +134,11 @@ export function installBrowserPreviewBridge(): void {
         return snapshot();
       },
       setVisible: async () => undefined,
+      privacySummary: async () => ({ ...privacySummary }),
+      clearWebsiteData: async () => {
+        privacySummary = { cookieCount: 0, cacheBytes: 0 };
+        return { ...privacySummary };
+      },
       onState: (listener) => {
         listeners.add(listener);
         return () => listeners.delete(listener);
@@ -195,6 +201,9 @@ export function installBrowserPreviewBridge(): void {
         };
         links = links.map((link) => (link.id === input.id ? updated : link));
         return { ...updated };
+      },
+      disconnect: async () => {
+        vault = null;
       },
     },
   };

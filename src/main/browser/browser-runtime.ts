@@ -9,7 +9,12 @@ import type {
   WebPreferences,
 } from "electron";
 import { app, WebContentsView } from "electron";
-import type { BrowserBounds, BrowserSnapshot, BrowserState } from "../../shared/contracts";
+import type {
+  BrowserBounds,
+  BrowserPrivacySummary,
+  BrowserSnapshot,
+  BrowserState,
+} from "../../shared/contracts";
 import { IPC } from "../../shared/contracts";
 import { constrainBrowserBounds } from "../policies/bounds";
 import { isAllowedRemoteNavigation, normalizeHttpUrl } from "../policies/navigation";
@@ -161,6 +166,73 @@ export class BrowserRuntime {
 
   isVisible(): boolean {
     return !this.closed && this.activeTab().view.getVisible();
+  }
+
+  async privacySummary(): Promise<BrowserPrivacySummary> {
+    const [cookies, cacheBytes] = await Promise.all([
+      this.remoteSession.cookies.get({}),
+      this.remoteSession.getCacheSize(),
+    ]);
+    return { cookieCount: cookies.length, cacheBytes };
+  }
+
+  async clearWebsiteData(): Promise<BrowserPrivacySummary> {
+    await Promise.all([
+      this.remoteSession.clearData({
+        dataTypes: [
+          "backgroundFetch",
+          "cache",
+          "cookies",
+          "fileSystems",
+          "indexedDB",
+          "localStorage",
+          "serviceWorkers",
+          "webSQL",
+        ],
+      }),
+      this.remoteSession.clearAuthCache(),
+    ]);
+    return this.privacySummary();
+  }
+
+  async collectPrivacyClearProbe(): Promise<{
+    before: BrowserPrivacySummary;
+    after: BrowserPrivacySummary;
+    cookieSeeded: boolean;
+    localStorageSeeded: boolean;
+    cacheStorageSeeded: boolean;
+    cookieCleared: boolean;
+    localStorageCleared: boolean;
+    cacheStorageCleared: boolean;
+  }> {
+    const tab = this.activeTab();
+    const seeded = (await tab.contents.executeJavaScript(`(async () => {
+      document.cookie = "lattice_privacy_probe=present; SameSite=Lax";
+      localStorage.setItem("lattice_privacy_probe", "present");
+      const cache = await caches.open("lattice-privacy-probe");
+      await cache.put("/lattice-privacy-probe", new Response("present"));
+      return {
+        cookieSeeded: document.cookie.includes("lattice_privacy_probe=present"),
+        localStorageSeeded: localStorage.getItem("lattice_privacy_probe") === "present",
+        cacheStorageSeeded: (await caches.keys()).includes("lattice-privacy-probe")
+      };
+    })()`)) as {
+      cookieSeeded: boolean;
+      localStorageSeeded: boolean;
+      cacheStorageSeeded: boolean;
+    };
+    const before = await this.privacySummary();
+    const after = await this.clearWebsiteData();
+    const cleared = (await tab.contents.executeJavaScript(`(async () => ({
+      cookieCleared: !document.cookie.includes("lattice_privacy_probe=present"),
+      localStorageCleared: localStorage.getItem("lattice_privacy_probe") === null,
+      cacheStorageCleared: !(await caches.keys()).includes("lattice-privacy-probe")
+    }))()`)) as {
+      cookieCleared: boolean;
+      localStorageCleared: boolean;
+      cacheStorageCleared: boolean;
+    };
+    return { before, after, ...seeded, ...cleared };
   }
 
   async collectSecurityProbe(): Promise<{

@@ -14,15 +14,11 @@ const sourceManifestPath = path.resolve(
   "resources",
   "source-manifest.json",
 );
-const evidenceSource = path.join(
-  os.tmpdir(),
-  "lattice-phase-three",
-  "packaged-smoke-evidence.json",
-);
-const evidenceDirectory = path.resolve("artifacts", "phase-3");
+const evidenceSource = path.join(os.tmpdir(), "lattice-phase-four", "packaged-smoke-evidence.json");
+const evidenceDirectory = path.resolve("artifacts", "phase-4");
 const evidenceTarget = path.join(evidenceDirectory, "packaged-smoke-evidence.json");
 const screenshotTarget = path.join(evidenceDirectory, "remote-example-com.png");
-const shellScreenshotTarget = path.join(evidenceDirectory, "phase-3-shell.png");
+const shellScreenshotTarget = path.join(evidenceDirectory, "phase-4-shell.png");
 const noteTarget = path.join(evidenceDirectory, "packaged-smoke-note.md");
 
 await access(executable);
@@ -37,7 +33,7 @@ await Promise.all(
 );
 
 await new Promise((resolve, reject) => {
-  const child = spawn(executable, ["--phase3-smoke"], { stdio: "inherit", windowsHide: true });
+  const child = spawn(executable, ["--phase4-smoke"], { stdio: "inherit", windowsHide: true });
   const timeout = setTimeout(() => {
     child.kill();
     reject(new Error("Packaged smoke exceeded the 30-second timeout."));
@@ -151,13 +147,38 @@ if (!evidence.readingQueue.markedRead || !evidence.readingQueue.requeued) {
 if (
   evidence.readingQueue.heading !== "Reading queue" ||
   !evidence.readingQueue.summary.startsWith("1 unread") ||
-  evidence.readingQueue.itemTitle !== "Phase 3 packaged smoke" ||
+  evidence.readingQueue.itemTitle !== "Phase 4 packaged smoke" ||
   !evidence.readingQueue.markReadVisible
 ) {
   failures.push("packaged reading queue UI did not expose the queued Markdown item");
 }
 if (!evidence.readingQueue.nativeViewHidden) {
   failures.push("native website view remained visible beneath the trusted reading queue");
+}
+if (
+  !evidence.privacy.cookieSeeded ||
+  !evidence.privacy.localStorageSeeded ||
+  !evidence.privacy.cacheStorageSeeded
+) {
+  failures.push("privacy smoke could not seed isolated website data");
+}
+if (
+  !evidence.privacy.cookieCleared ||
+  !evidence.privacy.localStorageCleared ||
+  !evidence.privacy.cacheStorageCleared ||
+  evidence.privacy.after.cookieCount !== 0
+) {
+  failures.push("isolated website data was not cleared completely");
+}
+if (
+  evidence.privacy.settingsHeading !== "Settings" ||
+  !evidence.privacy.settingsPrivacyText.startsWith("0 cookies") ||
+  !evidence.privacy.restoreTabsEnabled
+) {
+  failures.push("packaged Settings UI did not report the cleared privacy state");
+}
+if (!evidence.privacy.nativeViewHidden) {
+  failures.push("native website view remained visible beneath trusted Settings");
 }
 if (!evidence.note.disposableVault) failures.push("note was not written to a disposable vault");
 if (!evidence.note.obsidianDirectoryPresent)
@@ -172,6 +193,9 @@ if (evidence.note.bytesWritten < 1 || evidence.note.bytesWritten !== evidence.no
 if (evidence.note.temporaryFilesRemaining !== 0) failures.push("temporary note files remain");
 if (evidence.note.libraryCount !== 1 || !evidence.note.libraryRoundTrip) {
   failures.push("saved note did not round-trip through the Obsidian library reader");
+}
+if (!evidence.note.disconnectedWithoutDeleting) {
+  failures.push("disconnecting the vault removed or retained authority over the Markdown note");
 }
 if (
   !vaultPanelBounds ||
@@ -222,17 +246,17 @@ if (screenshotPixels.width < 100 || screenshotPixels.height < 100) {
   throw new Error("WebContentsView screenshot dimensions were not usable.");
 }
 if (!shellScreenshotBytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) {
-  throw new Error("Phase 3 shell screenshot is not a PNG file.");
+  throw new Error("Phase 4 shell screenshot is not a PNG file.");
 }
 if (shellScreenshotBytes.byteLength !== evidence.shell.screenshotBytes) {
-  throw new Error("Phase 3 shell screenshot byte count changed before evidence collection.");
+  throw new Error("Phase 4 shell screenshot byte count changed before evidence collection.");
 }
 const shellScreenshotPixels = {
   width: shellScreenshotBytes.readUInt32BE(16),
   height: shellScreenshotBytes.readUInt32BE(20),
 };
 if (shellScreenshotPixels.width < 900 || shellScreenshotPixels.height < 620) {
-  throw new Error("Phase 3 shell screenshot dimensions were not usable.");
+  throw new Error("Phase 4 shell screenshot dimensions were not usable.");
 }
 evidence.shell.screenshotPixels = shellScreenshotPixels;
 evidence.shell.screenshotSha256 = createHash("sha256").update(shellScreenshotBytes).digest("hex");
@@ -277,7 +301,7 @@ if (signatureResult.status !== 0) {
 }
 const authenticodeStatus = signatureResult.stdout.trim();
 if (authenticodeStatus !== "NotSigned") {
-  throw new Error(`Expected an unsigned Phase 3 executable, got ${authenticodeStatus}.`);
+  throw new Error(`Expected an unsigned Phase 4 executable, got ${authenticodeStatus}.`);
 }
 const fuseWire = await getCurrentFuseWire(executable);
 const expectedFuses = {
@@ -354,4 +378,4 @@ evidence.remote.artifactPath = screenshotTarget;
 evidence.shell.artifactPath = shellScreenshotTarget;
 evidence.note.artifactPath = noteTarget;
 await writeFile(evidenceTarget, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
-console.log(`Packaged Phase 3 smoke passed. Evidence: ${evidenceTarget}`);
+console.log(`Packaged Phase 4 smoke passed. Evidence: ${evidenceTarget}`);

@@ -9,6 +9,8 @@ export const IPC = {
   browserSwitchTab: "browser:switch-tab",
   browserCloseTab: "browser:close-tab",
   browserSetVisible: "browser:set-visible",
+  browserPrivacySummary: "browser:privacy-summary",
+  browserClearWebsiteData: "browser:clear-website-data",
   browserState: "browser:state",
   shellCommand: "shell:command",
   vaultCreateDisposable: "vault:create-disposable",
@@ -17,6 +19,7 @@ export const IPC = {
   vaultSaveProbeNote: "vault:save-probe-note",
   vaultListSavedLinks: "vault:list-saved-links",
   vaultSetReadingStatus: "vault:set-reading-status",
+  vaultDisconnect: "vault:disconnect",
 } as const;
 
 export type ShellCommand = "focus-location" | "new-tab" | "close-tab" | "search";
@@ -41,6 +44,11 @@ export interface BrowserState {
 export interface BrowserSnapshot {
   activeTabId: string;
   tabs: BrowserState[];
+}
+
+export interface BrowserPrivacySummary {
+  cookieCount: number;
+  cacheBytes: number;
 }
 
 export interface VaultInfo {
@@ -110,6 +118,8 @@ export interface LatticeApi {
     switchTab(tabId: string): Promise<BrowserSnapshot>;
     closeTab(tabId: string): Promise<BrowserSnapshot>;
     setVisible(visible: boolean): Promise<void>;
+    privacySummary(): Promise<BrowserPrivacySummary>;
+    clearWebsiteData(): Promise<BrowserPrivacySummary>;
     onState(listener: (state: BrowserState) => void): () => void;
   };
   vault: {
@@ -119,5 +129,6 @@ export interface LatticeApi {
     saveProbeNote(input: ProbeNoteInput): Promise<SaveNoteResult>;
     listSavedLinks(): Promise<SavedLinkRecord[]>;
     setReadingStatus(input: SetReadingStatusInput): Promise<SavedLinkRecord>;
+    disconnect(): Promise<void>;
   };
 }

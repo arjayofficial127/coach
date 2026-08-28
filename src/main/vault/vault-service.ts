@@ -102,6 +102,11 @@ export class VaultService {
     return updated;
   }
 
+  async disconnect(): Promise<void> {
+    this.activeVault = null;
+    if (this.statePath) await rm(this.statePath, { force: true });
+  }
+
   private async setActiveVault(
     directory: string,
     disposable: boolean,

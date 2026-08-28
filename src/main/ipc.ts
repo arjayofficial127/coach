@@ -86,6 +86,8 @@ export function registerIpc(
   handle(IPC.browserSetVisible, (_event, payload) =>
     browser.setVisible(z.boolean().parse(payload)),
   );
+  handle(IPC.browserPrivacySummary, () => browser.privacySummary());
+  handle(IPC.browserClearWebsiteData, () => browser.clearWebsiteData());
   handle(IPC.vaultCreateDisposable, () => vault.createDisposable());
   handle(IPC.vaultChoose, () => vault.choose());
   handle(IPC.vaultCurrent, () => vault.current());
@@ -96,6 +98,7 @@ export function registerIpc(
   handle(IPC.vaultSetReadingStatus, (_event, payload) =>
     vault.setReadingStatus(readingStatusSchema.parse(payload)),
   );
+  handle(IPC.vaultDisconnect, () => vault.disconnect());
 
   return () => {
     for (const channel of Object.values(IPC)) {

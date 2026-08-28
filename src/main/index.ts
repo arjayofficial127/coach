@@ -4,7 +4,7 @@ import { BrowserRuntime } from "./browser/browser-runtime";
 import { registerIpc } from "./ipc";
 import { isTrustedShellUrl } from "./policies/shell-origin";
 import { installLatticeProtocol, registerLatticeScheme } from "./protocol";
-import { runPhaseThreeSmoke } from "./smoke";
+import { runPhaseFourSmoke } from "./smoke";
 import { VaultService } from "./vault/vault-service";
 
 registerLatticeScheme();
@@ -77,10 +77,10 @@ async function createMainWindow(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
-  if (process.argv.includes("--phase3-smoke")) {
+  if (process.argv.includes("--phase4-smoke")) {
     try {
       const rendererRoot = path.join(__dirname, "../renderer");
-      const evidence = await runPhaseThreeSmoke(rendererRoot, path.join(__dirname, "preload.cjs"));
+      const evidence = await runPhaseFourSmoke(rendererRoot, path.join(__dirname, "preload.cjs"));
       console.log(JSON.stringify(evidence));
       app.exit(0);
     } catch (error) {

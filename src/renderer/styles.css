@@ -1161,6 +1161,203 @@ kbd {
   line-height: 1.6;
 }
 
+.settings-surface {
+  padding: 38px 40px 60px;
+}
+
+.settings-header {
+  max-width: 720px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 23px;
+}
+
+.settings-header h1 {
+  margin: 7px 0 5px;
+  color: var(--text);
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+.settings-header p {
+  margin: 0;
+  color: var(--subtle);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.settings-grid {
+  display: grid;
+  max-width: 720px;
+  gap: 11px;
+  padding-top: 24px;
+}
+
+.settings-card {
+  display: grid;
+  min-height: 94px;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.022);
+  padding: 15px 17px;
+}
+
+.settings-card:hover {
+  border-color: rgba(139, 124, 246, 0.16);
+}
+
+.settings-card-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 10px;
+}
+
+.settings-card-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.settings-card-icon.violet {
+  background: var(--accent-soft);
+  color: #aea3ff;
+}
+
+.settings-card-icon.cyan {
+  background: rgba(79, 202, 214, 0.1);
+  color: #69cbd4;
+}
+
+.settings-card-icon.green {
+  background: rgba(117, 212, 168, 0.1);
+  color: var(--green);
+}
+
+.settings-card-icon.amber {
+  background: rgba(224, 166, 77, 0.1);
+  color: #d9a95f;
+}
+
+.settings-card-copy {
+  min-width: 0;
+}
+
+.settings-kicker {
+  color: #6f6c7b;
+  font-size: 7px;
+  font-weight: 720;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.settings-card h2 {
+  margin: 5px 0 5px;
+  color: #d3d0db;
+  font-size: 12px;
+  font-weight: 630;
+}
+
+.settings-card p {
+  max-width: 490px;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #777582;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.settings-switch {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: #202029;
+  transition: 150ms ease;
+}
+
+.settings-switch span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #777481;
+  transition: 150ms ease;
+}
+
+.settings-switch.active {
+  border-color: transparent;
+  background: var(--accent);
+}
+
+.settings-switch.active span {
+  left: 19px;
+  background: white;
+}
+
+.settings-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.settings-action,
+.settings-cancel {
+  min-height: 31px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface-2);
+  padding: 0 11px;
+  color: #a4a1ae;
+  font-size: 8px;
+  font-weight: 620;
+  white-space: nowrap;
+}
+
+.settings-action:hover,
+.settings-cancel:hover {
+  border-color: rgba(139, 124, 246, 0.3);
+}
+
+.settings-action.primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: white;
+}
+
+.settings-action.warning {
+  border-color: rgba(234, 125, 104, 0.32);
+  background: rgba(234, 125, 104, 0.09);
+  color: #e9a093;
+}
+
+.settings-action:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.settings-cancel {
+  border-color: transparent;
+  background: transparent;
+  color: #777481;
+}
+
+.settings-badge {
+  border: 1px solid rgba(117, 212, 168, 0.18);
+  border-radius: 999px;
+  background: rgba(117, 212, 168, 0.07);
+  padding: 6px 9px;
+  color: #83b79d;
+  font-size: 8px;
+  font-weight: 650;
+}
+
 .empty-library > div {
   display: flex;
   gap: 8px;

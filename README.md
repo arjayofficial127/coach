@@ -1,10 +1,10 @@
-# Lattice — Phase 3
+# Lattice — Phase 4
 
 **Status: PASS (2026-08-29).** Lattice is a working personal research browser with secure native
 website tabs, restart-safe desktops, fast local search, Obsidian-compatible saved links, and a
-durable reading queue.
+durable reading queue plus explicit privacy controls.
 
-![Packaged Phase 3 reading queue](artifacts/phase-3/phase-3-shell.png)
+![Packaged Phase 4 settings](artifacts/phase-4/phase-4-shell.png)
 
 ## What works
 
@@ -18,6 +18,10 @@ durable reading queue.
 - Pages can be queued during capture, marked read, or queued again from the local library.
 - Reading state lives in the Markdown note and works across every desktop without a private
   database.
+- Settings report cookies and cache from Lattice's isolated website profile.
+- Website cookies, cache, local storage, IndexedDB, service workers, and related data can be cleared
+  through an explicit two-step action.
+- Tab restoration can be disabled, and a vault can be disconnected without deleting Markdown.
 - Saving a page atomically writes Markdown under `Saved Links/<Desktop>/` with a stable desktop ID,
   URL, title, and description.
 - The in-app library reads those files recursively and filters them by desktop or text.
@@ -48,7 +52,7 @@ Run the quality and release gates:
 pnpm run check
 pnpm run package
 pnpm run smoke:packaged
-pnpm run verify:phase3
+pnpm run verify:phase4
 ```
 
 The unsigned Windows x64 app is generated at
@@ -57,23 +61,24 @@ Windows reputation warnings are expected until a later phase adds code signing a
 
 ## Evidence and decisions
 
-- [Phase 3 report](docs/phase-3-report.md)
-- [Packaged smoke evidence](artifacts/phase-3/packaged-smoke-evidence.json)
-- [Packaged reading-queue screenshot](artifacts/phase-3/phase-3-shell.png)
-- [Real WebContentsView screenshot](artifacts/phase-3/remote-example-com.png)
-- [Generated queued Markdown](artifacts/phase-3/packaged-smoke-note.md)
+- [Phase 4 report](docs/phase-4-report.md)
+- [Packaged smoke evidence](artifacts/phase-4/packaged-smoke-evidence.json)
+- [Packaged Settings screenshot](artifacts/phase-4/phase-4-shell.png)
+- [Real WebContentsView screenshot](artifacts/phase-4/remote-example-com.png)
+- [Generated queued Markdown](artifacts/phase-4/packaged-smoke-note.md)
 - [Remaining risks](docs/unresolved-risks.md)
 - [Architecture decisions](docs/decisions/)
-- [Historical Phase 2 report](docs/phase-2-report.md)
+- [Historical Phase 3 report](docs/phase-3-report.md)
 
 The packaged evidence is bound to the exact source manifest used to build it. The smoke gate also
 checks Authenticode state, Electron fuses, CSP, session separation, effective remote isolation,
 native tab lifecycle, reload reconciliation, command/native-view composition, layout bounds,
-screenshot hashes, atomic reading-state transitions, and library read-back.
+screenshot hashes, atomic reading-state transitions, privacy clearing, non-destructive vault
+disconnect, and library read-back.
 
 ## Current phase boundary
 
-Phase 3 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
+Phase 4 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
 an installer, updates, code signing, full history/scroll restoration, or Chrome-equivalent Safe
 Browsing. Those capabilities require explicit policy and security work; see the risk register
-before Phase 4.
+before Phase 5.

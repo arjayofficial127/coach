@@ -21,6 +21,8 @@ const api: LatticeApi = {
     switchTab: (tabId) => ipcRenderer.invoke(IPC.browserSwitchTab, tabId),
     closeTab: (tabId) => ipcRenderer.invoke(IPC.browserCloseTab, tabId),
     setVisible: (visible) => ipcRenderer.invoke(IPC.browserSetVisible, visible),
+    privacySummary: () => ipcRenderer.invoke(IPC.browserPrivacySummary),
+    clearWebsiteData: () => ipcRenderer.invoke(IPC.browserClearWebsiteData),
     onState: (listener) => {
       const handler = (_event: Electron.IpcRendererEvent, state: BrowserState) => listener(state);
       ipcRenderer.on(IPC.browserState, handler);
@@ -34,6 +36,7 @@ const api: LatticeApi = {
     saveProbeNote: (input) => ipcRenderer.invoke(IPC.vaultSaveProbeNote, input),
     listSavedLinks: () => ipcRenderer.invoke(IPC.vaultListSavedLinks),
     setReadingStatus: (input) => ipcRenderer.invoke(IPC.vaultSetReadingStatus, input),
+    disconnect: () => ipcRenderer.invoke(IPC.vaultDisconnect),
   },
 };
 

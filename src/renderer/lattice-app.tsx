@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type {
+  BrowserPrivacySummary,
   BrowserSnapshot,
   BrowserState,
   SavedLinkRecord,
@@ -13,6 +14,7 @@ import {
   type RestorableTab,
   reconcileRestoredSession,
 } from "./session-model";
+import { parseSettingsPreferences, type SettingsPreferences } from "./settings-model";
 import {
   createDesktop,
   DEFAULT_WORKSPACE,
@@ -21,10 +23,11 @@ import {
   type WorkspacePreferences,
 } from "./workspace-model";
 
-type Surface = "home" | "browser" | "library" | "queue";
+type Surface = "home" | "browser" | "library" | "queue" | "settings";
 
 const WORKSPACE_STORAGE_KEY = "lattice.workspace.v1";
 const SESSION_STORAGE_KEY = "lattice.session.v1";
+const SETTINGS_STORAGE_KEY = "lattice.settings.v1";
 const emptySnapshot: BrowserSnapshot = { activeTabId: "", tabs: [] };
 
 type CommandItem =
@@ -54,7 +57,7 @@ const quickStarts = [
   { title: "Explore GitHub", url: "https://github.com", tone: "rose", glyph: "⌘" },
 ];
 
-const railItems: Array<{ id: Surface | "settings"; label: string; icon: IconName }> = [
+const railItems: Array<{ id: Surface; label: string; icon: IconName }> = [
   { id: "home", label: "Home", icon: "home" },
   { id: "browser", label: "Browser", icon: "globe" },
   { id: "library", label: "Library", icon: "library" },
@@ -84,8 +87,15 @@ function relativeDate(input: string): string {
   return days === 1 ? "Yesterday" : `${days}d ago`;
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1_024) return `${bytes} B`;
+  if (bytes < 1_048_576) return `${(bytes / 1_024).toFixed(1)} KB`;
+  return `${(bytes / 1_048_576).toFixed(1)} MB`;
+}
+
 export function LatticeApp() {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const webStageRef = useRef<HTMLElement>(null);
   const omniboxRef = useRef<HTMLInputElement>(null);
   const commandInputRef = useRef<HTMLInputElement>(null);
   const restorePromiseRef = useRef<Promise<RestoredBrowserState> | null>(null);
@@ -93,7 +103,11 @@ export function LatticeApp() {
   const [workspace, setWorkspace] = useState<WorkspacePreferences>(() =>
     parseWorkspacePreferences(localStorage.getItem(WORKSPACE_STORAGE_KEY)),
   );
+  const [settings, setSettings] = useState<SettingsPreferences>(() =>
+    parseSettingsPreferences(localStorage.getItem(SETTINGS_STORAGE_KEY)),
+  );
   const initialWorkspaceRef = useRef(workspace);
+  const initialSettingsRef = useRef(settings);
   const [snapshot, setSnapshot] = useState<BrowserSnapshot>(emptySnapshot);
   const [tabDesktops, setTabDesktops] = useState<Record<string, string>>({});
   const [surface, setSurface] = useState<Surface>("home");
@@ -116,6 +130,12 @@ export function LatticeApp() {
   const [commandQuery, setCommandQuery] = useState("");
   const [sessionReady, setSessionReady] = useState(false);
   const [updatingLinkId, setUpdatingLinkId] = useState<string | null>(null);
+  const [privacy, setPrivacy] = useState<BrowserPrivacySummary>({
+    cookieCount: 0,
+    cacheBytes: 0,
+  });
+  const [confirmClearData, setConfirmClearData] = useState(false);
+  const [clearingData, setClearingData] = useState(false);
 
   const activeTab = snapshot.tabs.find((tab) => tab.id === snapshot.activeTabId) ?? null;
   const activeDesktop =
@@ -228,6 +248,11 @@ export function LatticeApp() {
   }, [workspace]);
 
   useEffect(() => {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    if (!settings.restoreTabs) localStorage.removeItem(SESSION_STORAGE_KEY);
+  }, [settings]);
+
+  useEffect(() => {
     let cancelled = false;
     void window.lattice.vault.current().then(async (selected) => {
       if (cancelled || !selected) return;
@@ -245,6 +270,7 @@ export function LatticeApp() {
   useEffect(() => {
     let cancelled = false;
     const initialWorkspace = initialWorkspaceRef.current;
+    const initialSettings = initialSettingsRef.current;
     const unsubscribe = window.lattice.browser.onState((state) => {
       setSnapshot((current) => {
         const exists = current.tabs.some((tab) => tab.id === state.id);
@@ -259,10 +285,12 @@ export function LatticeApp() {
     if (!restorePromiseRef.current) {
       restorePromiseRef.current = (async () => {
         const initial = await window.lattice.browser.snapshot();
-        const saved = parseRestorableSession(
-          localStorage.getItem(SESSION_STORAGE_KEY),
-          new Set(initialWorkspace.desktops.map((desktop) => desktop.id)),
-        );
+        const saved = initialSettings.restoreTabs
+          ? parseRestorableSession(
+              localStorage.getItem(SESSION_STORAGE_KEY),
+              new Set(initialWorkspace.desktops.map((desktop) => desktop.id)),
+            )
+          : { version: 1 as const, tabs: [] };
         if (saved.tabs.length === 0) {
           return {
             snapshot: initial,
@@ -344,13 +372,13 @@ export function LatticeApp() {
   }, []);
 
   useEffect(() => {
-    if (!sessionReady) return;
+    if (!sessionReady || !settings.restoreTabs) return;
     const timeout = window.setTimeout(() => {
       const session = buildRestorableSession(snapshot, tabDesktops, workspace.activeDesktopId);
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
     }, 150);
     return () => window.clearTimeout(timeout);
-  }, [sessionReady, snapshot, tabDesktops, workspace.activeDesktopId]);
+  }, [sessionReady, settings.restoreTabs, snapshot, tabDesktops, workspace.activeDesktopId]);
 
   useEffect(() => {
     if (!contextualTab || contextualTab.url === "about:blank") {
@@ -389,6 +417,10 @@ export function LatticeApp() {
     if (!commandOpen) return;
     commandInputRef.current?.focus();
   }, [commandOpen]);
+
+  useEffect(() => {
+    if (surface !== "browser") webStageRef.current?.scrollTo({ top: 0 });
+  }, [surface]);
 
   const setBrowserSnapshot = (next: BrowserSnapshot, desktopId = workspace.activeDesktopId) => {
     setSnapshot(next);
@@ -592,6 +624,52 @@ export function LatticeApp() {
     if (vault) setLinks(await window.lattice.vault.listSavedLinks());
   };
 
+  const showSettings = async () => {
+    setSurface("settings");
+    setCaptureOpen(false);
+    setCommandOpen(false);
+    setConfirmClearData(false);
+    try {
+      setPrivacy(await window.lattice.browser.privacySummary());
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const toggleRestoreTabs = () => {
+    setSettings((current) => ({ ...current, restoreTabs: !current.restoreTabs }));
+    setStatus(settings.restoreTabs ? "Tab restoration disabled" : "Tab restoration enabled");
+  };
+
+  const clearWebsiteData = async () => {
+    if (!confirmClearData) {
+      setConfirmClearData(true);
+      setStatus("Confirm clearing website cookies, cache, and local storage");
+      return;
+    }
+    setClearingData(true);
+    try {
+      setPrivacy(await window.lattice.browser.clearWebsiteData());
+      setConfirmClearData(false);
+      setStatus("Website data cleared; open sites may ask you to sign in again");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setClearingData(false);
+    }
+  };
+
+  const disconnectVault = async () => {
+    try {
+      await window.lattice.vault.disconnect();
+      setVault(null);
+      setLinks([]);
+      setStatus("Vault disconnected; no Markdown files were deleted");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    }
+  };
+
   const updateReadingStatus = async (
     link: SavedLinkRecord,
     readingStatus: SavedLinkRecord["readingStatus"],
@@ -663,7 +741,9 @@ export function LatticeApp() {
       ? "library"
       : surface === "home"
         ? "home"
-        : "browser";
+        : surface === "settings"
+          ? "settings"
+          : "browser";
 
   commandHandlerRef.current = (command) => {
     if (command === "search") {
@@ -745,7 +825,7 @@ export function LatticeApp() {
                   setCaptureOpen(false);
                 } else if (item.id === "browser") {
                   setSurface(activeTab?.url === "about:blank" ? "home" : "browser");
-                } else setStatus("Settings arrive in a later phase");
+                } else void showSettings();
               }}
             >
               <Icon name={item.icon} />
@@ -918,7 +998,10 @@ export function LatticeApp() {
               <div
                 key={tab.id}
                 className={
-                  tab.id === snapshot.activeTabId && surface !== "library" && surface !== "queue"
+                  tab.id === snapshot.activeTabId &&
+                  surface !== "library" &&
+                  surface !== "queue" &&
+                  surface !== "settings"
                     ? "browser-tab active"
                     : "browser-tab"
                 }
@@ -1016,7 +1099,7 @@ export function LatticeApp() {
         </form>
 
         <div className="content-stage">
-          <main className="web-stage">
+          <main ref={webStageRef} className="web-stage">
             <div ref={viewportRef} className="native-view-slot">
               Native WebContentsView surface
             </div>
@@ -1192,6 +1275,127 @@ export function LatticeApp() {
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {surface === "settings" && (
+              <div className="trusted-surface settings-surface">
+                <header className="settings-header">
+                  <span className="eyebrow">Local control</span>
+                  <h1>Settings</h1>
+                  <p>Control continuity and private data without changing website permissions.</p>
+                </header>
+                <div className="settings-grid">
+                  <section className="settings-card">
+                    <div className="settings-card-icon violet">
+                      <Icon name="reload" />
+                    </div>
+                    <div className="settings-card-copy">
+                      <span className="settings-kicker">Browsing continuity</span>
+                      <h2>Restore tabs on launch</h2>
+                      <p>
+                        Remember HTTPS URLs and desktop membership. History, forms, and page content
+                        are never serialized by Lattice.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className={
+                        settings.restoreTabs ? "settings-switch active" : "settings-switch"
+                      }
+                      role="switch"
+                      aria-checked={settings.restoreTabs}
+                      aria-label="Restore tabs on launch"
+                      onClick={toggleRestoreTabs}
+                    >
+                      <span />
+                    </button>
+                  </section>
+
+                  <section className="settings-card">
+                    <div className="settings-card-icon cyan">
+                      <Icon name="globe" />
+                    </div>
+                    <div className="settings-card-copy">
+                      <span className="settings-kicker">Isolated website profile</span>
+                      <h2>Cookies and cache</h2>
+                      <p>
+                        {privacy.cookieCount} cookies · {formatBytes(privacy.cacheBytes)} cached.
+                        Clearing signs you out of websites but does not touch Obsidian notes.
+                      </p>
+                    </div>
+                    <div className="settings-card-actions">
+                      <button
+                        type="button"
+                        className={confirmClearData ? "settings-action warning" : "settings-action"}
+                        disabled={clearingData}
+                        onClick={() => void clearWebsiteData()}
+                      >
+                        {clearingData
+                          ? "Clearing…"
+                          : confirmClearData
+                            ? "Confirm clear"
+                            : "Clear website data"}
+                      </button>
+                      {confirmClearData && (
+                        <button
+                          type="button"
+                          className="settings-cancel"
+                          onClick={() => setConfirmClearData(false)}
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </section>
+
+                  <section className="settings-card">
+                    <div className="settings-card-icon green">
+                      <Icon name="folder" />
+                    </div>
+                    <div className="settings-card-copy">
+                      <span className="settings-kicker">Obsidian</span>
+                      <h2>{vault ? "Vault connected" : "No vault connected"}</h2>
+                      <p>
+                        {vault
+                          ? `${vault.displayPath}. Disconnecting forgets this location and never deletes Markdown.`
+                          : "Choose a local Obsidian vault to capture pages and manage your reading queue."}
+                      </p>
+                    </div>
+                    {vault ? (
+                      <button
+                        type="button"
+                        className="settings-action"
+                        onClick={() => void disconnectVault()}
+                      >
+                        Disconnect vault
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="settings-action primary"
+                        onClick={() => void connectVault(false)}
+                      >
+                        Connect vault
+                      </button>
+                    )}
+                  </section>
+
+                  <section className="settings-card about-card">
+                    <div className="settings-card-icon amber">
+                      <Icon name="lock" />
+                    </div>
+                    <div className="settings-card-copy">
+                      <span className="settings-kicker">About</span>
+                      <h2>Lattice 0.4.0</h2>
+                      <p>
+                        Phase 4 privacy controls. Remote Node access, downloads, popups, device
+                        permissions, and unsafe protocols remain disabled.
+                      </p>
+                    </div>
+                    <span className="settings-badge">Local-first</span>
+                  </section>
+                </div>
               </div>
             )}
           </main>

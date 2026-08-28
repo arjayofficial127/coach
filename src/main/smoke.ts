@@ -14,7 +14,7 @@ import { registerIpc } from "./ipc";
 import { installLatticeProtocol } from "./protocol";
 import { VaultService } from "./vault/vault-service";
 
-export interface PhaseThreeSmokeEvidence {
+export interface PhaseFourSmokeEvidence {
   packaged: boolean;
   versions: { electron: string; chromium: string; node: string };
   shell: {
@@ -79,6 +79,20 @@ export interface PhaseThreeSmokeEvidence {
     markReadVisible: boolean;
     nativeViewHidden: boolean;
   };
+  privacy: {
+    before: { cookieCount: number; cacheBytes: number };
+    after: { cookieCount: number; cacheBytes: number };
+    cookieSeeded: boolean;
+    localStorageSeeded: boolean;
+    cacheStorageSeeded: boolean;
+    cookieCleared: boolean;
+    localStorageCleared: boolean;
+    cacheStorageCleared: boolean;
+    settingsHeading: string;
+    settingsPrivacyText: string;
+    restoreTabsEnabled: boolean;
+    nativeViewHidden: boolean;
+  };
   note: {
     vaultPath: string;
     disposableVault: boolean;
@@ -91,6 +105,7 @@ export interface PhaseThreeSmokeEvidence {
     temporaryFilesRemaining: number;
     libraryCount: number;
     libraryRoundTrip: boolean;
+    disconnectedWithoutDeleting: boolean;
   };
   evidencePath: string;
 }
@@ -107,7 +122,7 @@ interface ShellProbeResult {
     markedRead: SavedLinkRecord;
     requeued: SavedLinkRecord;
   };
-  tabs: PhaseThreeSmokeEvidence["tabs"];
+  tabs: PhaseFourSmokeEvidence["tabs"];
 }
 
 interface SessionDomResult {
@@ -122,6 +137,12 @@ interface QueueDomResult {
   summary: string;
   itemTitle: string;
   markReadVisible: boolean;
+}
+
+interface SettingsDomResult {
+  heading: string;
+  privacyText: string;
+  restoreTabsEnabled: boolean;
 }
 
 function delay(milliseconds: number): Promise<void> {
@@ -140,11 +161,11 @@ async function waitForRendererBounds(runtime: BrowserRuntime): Promise<BrowserBo
   throw new Error("The packaged React renderer did not report usable native-view bounds.");
 }
 
-export async function runPhaseThreeSmoke(
+export async function runPhaseFourSmoke(
   rendererRoot: string,
   preloadPath: string,
-): Promise<PhaseThreeSmokeEvidence> {
-  const smokeRoot = path.join(os.tmpdir(), "lattice-phase-three");
+): Promise<PhaseFourSmokeEvidence> {
+  const smokeRoot = path.join(os.tmpdir(), "lattice-phase-four");
   await mkdir(smokeRoot, { recursive: true });
 
   const window = new BrowserWindow({
@@ -205,8 +226,8 @@ export async function runPhaseThreeSmoke(
       const closedSnapshot = await window.lattice.browser.closeTab(createdTabId);
       const vault = await window.lattice.vault.createDisposable();
       const note = await window.lattice.vault.saveProbeNote({
-        title: "Phase 3 packaged smoke",
-        url: "https://example.com/phase-three",
+        title: "Phase 4 packaged smoke",
+        url: "https://example.com/phase-four",
         description: "Atomic Markdown written into a desktop folder and read back through the packaged library.",
         folder: "Research",
         desktopId: "research",
@@ -270,8 +291,9 @@ export async function runPhaseThreeSmoke(
       if (sessionDom?.status.includes("Restored 2 tabs") && sessionDom.tabTitle) break;
       await delay(25);
     }
-    if (!sessionDom) throw new Error("The Phase 3 session UI did not become ready.");
+    if (!sessionDom) throw new Error("The Phase 4 session UI did not become ready.");
     const afterReload = runtime.snapshot();
+    const privacyProbe = await runtime.collectPrivacyClearProbe();
 
     await window.webContents.executeJavaScript(
       `document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }))`,
@@ -309,8 +331,27 @@ export async function runPhaseThreeSmoke(
       if (queueDom.heading === "Reading queue" && queueDom.itemTitle) break;
       await delay(25);
     }
-    if (!queueDom) throw new Error("The Phase 3 reading queue UI did not become ready.");
+    if (!queueDom) throw new Error("The Phase 4 reading queue UI did not become ready.");
     const nativeViewHiddenForQueue = !runtime.isVisible();
+
+    await window.webContents.executeJavaScript(`(() => {
+      const button = document.querySelector('button[aria-label="Settings"]');
+      if (!(button instanceof HTMLButtonElement)) throw new Error("Settings button missing");
+      button.click();
+    })()`);
+    const settingsDeadline = Date.now() + 2_000;
+    let settingsDom: SettingsDomResult | null = null;
+    while (Date.now() < settingsDeadline) {
+      settingsDom = (await window.webContents.executeJavaScript(`(() => ({
+        heading: document.querySelector(".settings-header h1")?.textContent?.trim() ?? "",
+        privacyText: document.querySelectorAll(".settings-card p")[1]?.textContent?.trim() ?? "",
+        restoreTabsEnabled: document.querySelector('[role="switch"][aria-label="Restore tabs on launch"]')?.getAttribute("aria-checked") === "true"
+      }))()`)) as SettingsDomResult;
+      if (settingsDom.heading === "Settings" && settingsDom.privacyText) break;
+      await delay(25);
+    }
+    if (!settingsDom) throw new Error("The Phase 4 settings UI did not become ready.");
+    const nativeViewHiddenForSettings = !runtime.isVisible();
 
     // Chromium only exposes composed surfaces while the owning window is shown. Keep
     // the smoke window out of the taskbar and avoid taking focus.
@@ -321,8 +362,16 @@ export async function runPhaseThreeSmoke(
     const shellImage = await window.webContents.capturePage();
     if (shellImage.isEmpty()) throw new Error("Electron returned an empty shell capture.");
     const shellScreenshot = shellImage.toPNG();
-    const shellScreenshotPath = path.join(smokeRoot, "phase-3-shell.png");
+    const shellScreenshotPath = path.join(smokeRoot, "phase-4-shell.png");
     await writeFile(shellScreenshotPath, shellScreenshot);
+
+    await window.webContents.executeJavaScript(`(async () => {
+      await window.lattice.vault.disconnect();
+    })()`);
+    const disconnectedVault = await window.webContents.executeJavaScript(
+      `window.lattice.vault.current()`,
+    );
+    const noteAfterDisconnect = await stat(shellProbe.note.absolutePath);
 
     runtime.setVisible(true);
     const probe = await runtime.collectSecurityProbe();
@@ -340,7 +389,7 @@ export async function runPhaseThreeSmoke(
       smokeRoot,
       app.isPackaged ? "packaged-smoke-evidence.json" : "dev-smoke-evidence.json",
     );
-    const evidence: PhaseThreeSmokeEvidence = {
+    const evidence: PhaseFourSmokeEvidence = {
       packaged: app.isPackaged,
       versions: {
         electron: process.versions.electron ?? "unknown",
@@ -401,6 +450,13 @@ export async function runPhaseThreeSmoke(
         markReadVisible: queueDom.markReadVisible,
         nativeViewHidden: nativeViewHiddenForQueue,
       },
+      privacy: {
+        ...privacyProbe,
+        settingsHeading: settingsDom.heading,
+        settingsPrivacyText: settingsDom.privacyText,
+        restoreTabsEnabled: settingsDom.restoreTabsEnabled,
+        nativeViewHidden: nativeViewHiddenForSettings,
+      },
       note: {
         vaultPath: shellProbe.vault.displayPath,
         disposableVault: shellProbe.vault.disposable,
@@ -420,6 +476,7 @@ export async function runPhaseThreeSmoke(
             link.desktopId === shellProbe.note.desktopId &&
             link.description === shellProbe.note.description,
         ),
+        disconnectedWithoutDeleting: disconnectedVault === null && noteAfterDisconnect.isFile(),
       },
       evidencePath,
     };
