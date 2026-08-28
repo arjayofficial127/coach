@@ -69,6 +69,9 @@ artifacts/*
 !artifacts/phase-9/installed-remote-example-com.png
 !artifacts/phase-9/installed-smoke-note.md
 !artifacts/phase-9/installed-smoke-canvas.canvas
+!artifacts/phase-10/
+!artifacts/phase-10/focus-navigation.png
+!artifacts/phase-10/installed-focus-navigation.png
 .package-source/
 dist/
 *.log

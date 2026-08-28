@@ -9,6 +9,15 @@ import type {
   VaultInfo,
 } from "../shared/contracts";
 import { CanvasWorkspace } from "./canvas-workspace";
+import {
+  FOCUS_STORAGE_KEY,
+  MAX_FOCUS_INTENTION_LENGTH,
+  navigationShortcut,
+  normalizeFocusIntention,
+  parseFocusPreferences,
+  type Surface,
+  surfaceDetails,
+} from "./focus-model";
 import { Icon, type IconName } from "./icon";
 import {
   buildRestorableSession,
@@ -26,8 +35,6 @@ import {
   renameDesktop,
   type WorkspacePreferences,
 } from "./workspace-model";
-
-type Surface = "home" | "browser" | "library" | "queue" | "pages" | "settings";
 
 const WORKSPACE_STORAGE_KEY = "lattice.workspace.v1";
 const SESSION_STORAGE_KEY = "lattice.session.v1";
@@ -54,17 +61,11 @@ interface RestoredBrowserState {
   restoredActive: RestorableTab | null;
 }
 
-const quickStarts = [
-  { title: "Search the web", url: "https://www.google.com", tone: "violet", glyph: "G" },
-  { title: "Open Wikipedia", url: "https://www.wikipedia.org", tone: "cyan", glyph: "W" },
-  { title: "Read Hacker News", url: "https://news.ycombinator.com", tone: "amber", glyph: "Y" },
-  { title: "Explore GitHub", url: "https://github.com", tone: "rose", glyph: "⌘" },
-];
-
 const railItems: Array<{ id: Surface; label: string; icon: IconName }> = [
-  { id: "home", label: "Home", icon: "home" },
-  { id: "browser", label: "Browser", icon: "globe" },
-  { id: "library", label: "Library", icon: "library" },
+  { id: "home", label: "Focus", icon: "home" },
+  { id: "browser", label: "Browse", icon: "globe" },
+  { id: "pages", label: "Canvas pages", icon: "grid" },
+  { id: "library", label: "Saved links", icon: "bookmark" },
   { id: "settings", label: "Settings", icon: "settings" },
 ];
 
@@ -112,10 +113,16 @@ export function LatticeApp() {
   );
   const initialWorkspaceRef = useRef(workspace);
   const initialSettingsRef = useRef(settings);
+  const [focusIntention, setFocusIntention] = useState(
+    () => parseFocusPreferences(localStorage.getItem(FOCUS_STORAGE_KEY)).intention,
+  );
+  const [focusMode, setFocusMode] = useState(false);
+  const [requestedCanvasPageId, setRequestedCanvasPageId] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<BrowserSnapshot>(emptySnapshot);
   const [tabDesktops, setTabDesktops] = useState<Record<string, string>>({});
   const [surface, setSurface] = useState<Surface>("home");
   const [address, setAddress] = useState("");
+  const [homeQuery, setHomeQuery] = useState("");
   const [vault, setVault] = useState<VaultInfo | null>(null);
   const [links, setLinks] = useState<SavedLinkRecord[]>([]);
   const [canvasPages, setCanvasPages] = useState<CanvasPageSummary[]>([]);
@@ -157,6 +164,7 @@ export function LatticeApp() {
   );
   const contextualTab =
     activeTab && tabDesktops[activeTab.id] === workspace.activeDesktopId ? activeTab : null;
+  const resumableTab = contextualTab && contextualTab.url !== "about:blank" ? contextualTab : null;
   const filteredLinks = useMemo(() => {
     const query = libraryQuery.trim().toLowerCase();
     return links.filter((link) => {
@@ -188,6 +196,13 @@ export function LatticeApp() {
   }, [libraryQuery, links]);
   const visibleLinks = surface === "queue" ? queuedLinks : filteredLinks;
   const queueCount = links.filter((link) => link.readingStatus === "queued").length;
+  const nextQueuedLink = queuedLinks[0] ?? null;
+  const recentCanvasPage = useMemo(
+    () =>
+      [...canvasPages].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0] ??
+      null,
+    [canvasPages],
+  );
   const commandItems = useMemo(() => {
     const query = commandQuery.trim();
     const normalizedQuery = query.toLowerCase();
@@ -262,6 +277,13 @@ export function LatticeApp() {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     if (!settings.restoreTabs) localStorage.removeItem(SESSION_STORAGE_KEY);
   }, [settings]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      FOCUS_STORAGE_KEY,
+      JSON.stringify({ version: 1, intention: normalizeFocusIntention(focusIntention) }),
+    );
+  }, [focusIntention]);
 
   useEffect(() => {
     let cancelled = false;
@@ -475,6 +497,13 @@ export function LatticeApp() {
     event.preventDefault();
     if (!address.trim()) return;
     await openUrl(address);
+  };
+
+  const navigateFromFocus = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!homeQuery.trim()) return;
+    await openUrl(homeQuery);
+    setHomeQuery("");
   };
 
   const createTab = async (desktopId = workspace.activeDesktopId) => {
@@ -704,7 +733,8 @@ export function LatticeApp() {
     if (vault) setLinks(await window.lattice.vault.listSavedLinks());
   };
 
-  const showCanvasPages = async () => {
+  const showCanvasPages = async (pageId: string | null = null) => {
+    setRequestedCanvasPageId(pageId);
     setSurface("pages");
     setCaptureOpen(false);
     if (vault) setCanvasPages(await window.lattice.vault.listCanvasPages());
@@ -720,6 +750,51 @@ export function LatticeApp() {
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     }
+  };
+
+  const showFocusHome = () => {
+    setSurface("home");
+    setCaptureOpen(false);
+    setBrowserMenuOpen(false);
+    setCommandOpen(false);
+  };
+
+  const showBrowser = () => {
+    setSurface(contextualTab?.url === "about:blank" || !contextualTab ? "home" : "browser");
+    setCaptureOpen(false);
+    setBrowserMenuOpen(false);
+  };
+
+  const showSurface = async (target: Surface) => {
+    if (target === "home") showFocusHome();
+    else if (target === "browser") showBrowser();
+    else if (target === "library") await showLibrary();
+    else if (target === "queue") await showReadingQueue();
+    else if (target === "pages") await showCanvasPages();
+    else await showSettings();
+  };
+
+  const setDistractionFree = (enabled: boolean) => {
+    setFocusMode(enabled);
+    setCaptureOpen(false);
+    setCommandOpen(false);
+    setWorkspaceMenuOpen(false);
+    setBrowserMenuOpen(false);
+    setStatus(enabled ? "Focus view on — press Escape to show navigation" : "Navigation restored");
+  };
+
+  const toggleDistractionFree = () => {
+    setFocusMode((current) => {
+      const enabled = !current;
+      setCaptureOpen(false);
+      setCommandOpen(false);
+      setWorkspaceMenuOpen(false);
+      setBrowserMenuOpen(false);
+      setStatus(
+        enabled ? "Focus view on — press Escape to show navigation" : "Navigation restored",
+      );
+      return enabled;
+    });
   };
 
   const toggleRestoreTabs = () => {
@@ -881,14 +956,7 @@ export function LatticeApp() {
     else await showLibrary();
   };
 
-  const activeRailItem =
-    surface === "library" || surface === "queue" || surface === "pages"
-      ? "library"
-      : surface === "home"
-        ? "home"
-        : surface === "settings"
-          ? "settings"
-          : "browser";
+  const activeRailItem = surface === "library" || surface === "queue" ? "library" : surface;
 
   commandHandlerRef.current = (command) => {
     if (command === "search") {
@@ -898,6 +966,8 @@ export function LatticeApp() {
     if (command === "focus-location") {
       setCommandOpen(false);
       setCaptureOpen(false);
+      setFocusMode(false);
+      setSurface(contextualTab?.url === "about:blank" || !contextualTab ? "home" : "browser");
       window.requestAnimationFrame(() => {
         omniboxRef.current?.focus();
         omniboxRef.current?.select();
@@ -906,6 +976,23 @@ export function LatticeApp() {
     }
     if (command === "new-tab") {
       void createTab();
+      return;
+    }
+    if (command === "toggle-focus") {
+      toggleDistractionFree();
+      return;
+    }
+    const destination: Partial<Record<ShellCommand, Surface>> = {
+      "show-focus": "home",
+      "show-browser": "browser",
+      "show-pages": "pages",
+      "show-library": "library",
+      "show-queue": "queue",
+      "show-settings": "settings",
+    };
+    const target = destination[command];
+    if (target) {
+      void showSurface(target);
       return;
     }
     if (contextualTab) void closeTab(contextualTab.id);
@@ -920,6 +1007,20 @@ export function LatticeApp() {
         setCommandOpen(false);
         setCaptureOpen(false);
         setWorkspaceMenuOpen(false);
+        setBrowserMenuOpen(false);
+        setFocusMode(false);
+        return;
+      }
+      const focusShortcut = navigationShortcut(event);
+      if (focusShortcut) {
+        event.preventDefault();
+        commandHandlerRef.current(
+          focusShortcut.kind === "toggle-focus"
+            ? "toggle-focus"
+            : focusShortcut.surface === "home"
+              ? "show-focus"
+              : (`show-${focusShortcut.surface}` as ShellCommand),
+        );
         return;
       }
       if ((!event.ctrlKey && !event.metaKey) || event.altKey) return;
@@ -945,13 +1046,13 @@ export function LatticeApp() {
   }, []);
 
   return (
-    <div className="lattice-shell">
+    <div className={focusMode ? "lattice-shell focus-mode" : "lattice-shell"}>
       <nav className="activity-rail" aria-label="Primary navigation">
         <button
           className="brand-mark"
           type="button"
-          onClick={() => setSurface("home")}
-          aria-label="Lattice home"
+          onClick={showFocusHome}
+          aria-label="Open Focus"
         >
           <span>L</span>
         </button>
@@ -962,16 +1063,9 @@ export function LatticeApp() {
               key={item.id}
               className={activeRailItem === item.id ? "rail-button active" : "rail-button"}
               aria-label={item.label}
+              aria-current={activeRailItem === item.id ? "page" : undefined}
               title={item.label}
-              onClick={() => {
-                if (item.id === "library") void showLibrary();
-                else if (item.id === "home") {
-                  setSurface("home");
-                  setCaptureOpen(false);
-                } else if (item.id === "browser") {
-                  setSurface(activeTab?.url === "about:blank" ? "home" : "browser");
-                } else void showSettings();
-              }}
+              onClick={() => void showSurface(item.id)}
             >
               <Icon name={item.icon} />
             </button>
@@ -1037,6 +1131,61 @@ export function LatticeApp() {
           <span>Search everything</span>
           <kbd>⌘ K</kbd>
         </button>
+
+        <div className="section-label navigation-label">
+          <span>Navigate</span>
+        </div>
+        <div className="focus-navigation">
+          <button
+            type="button"
+            className={surface === "home" ? "navigation-row active" : "navigation-row"}
+            aria-current={surface === "home" ? "page" : undefined}
+            onClick={showFocusHome}
+          >
+            <span className="navigation-row-icon violet">
+              <Icon name="home" />
+            </span>
+            <span>
+              <strong>Focus</strong>
+              <small>Choose one next step</small>
+            </span>
+            <kbd>1</kbd>
+          </button>
+          <button
+            type="button"
+            className={surface === "browser" ? "navigation-row active" : "navigation-row"}
+            aria-current={surface === "browser" ? "page" : undefined}
+            onClick={showBrowser}
+          >
+            <span className="navigation-row-icon cyan">
+              <Icon name="globe" />
+            </span>
+            <span>
+              <strong>Browse</strong>
+              <small>{contextualTab ? displayTitle(contextualTab) : "Start somewhere new"}</small>
+            </span>
+            <kbd>2</kbd>
+          </button>
+          <button
+            type="button"
+            className={
+              surface === "pages"
+                ? "library-row navigation-row active"
+                : "library-row navigation-row"
+            }
+            aria-current={surface === "pages" ? "page" : undefined}
+            onClick={() => void showCanvasPages()}
+          >
+            <span className="navigation-row-icon amber">
+              <Icon name="grid" />
+            </span>
+            <span>
+              <strong>Canvas pages</strong>
+              <small>Connected thinking space</small>
+            </span>
+            <b>{canvasPages.length}</b>
+          </button>
+        </div>
 
         <div className="section-label">
           <span>Desktops</span>
@@ -1116,22 +1265,26 @@ export function LatticeApp() {
         <div className="section-label library-label">
           <span>Library</span>
         </div>
-        <button type="button" className="library-row" onClick={() => void showLibrary()}>
+        <button
+          type="button"
+          className={surface === "library" ? "library-row active" : "library-row"}
+          aria-current={surface === "library" ? "page" : undefined}
+          onClick={() => void showLibrary()}
+        >
           <Icon name="bookmark" />
           <span>Saved links</span>
           <b>{links.length}</b>
         </button>
-        <button type="button" className="library-row" onClick={() => void showReadingQueue()}>
+        <button
+          type="button"
+          className={surface === "queue" ? "library-row active" : "library-row"}
+          aria-current={surface === "queue" ? "page" : undefined}
+          onClick={() => void showReadingQueue()}
+        >
           <Icon name="folder" />
           <span>Reading queue</span>
           <b>{queueCount}</b>
         </button>
-        <button type="button" className="library-row" onClick={() => void showCanvasPages()}>
-          <Icon name="library" />
-          <span>Canvas pages</span>
-          <b>{canvasPages.length}</b>
-        </button>
-
         <div className="workspace-spacer" />
         <div className={vault ? "vault-card connected" : "vault-card"}>
           <div className="vault-card-icon">
@@ -1151,7 +1304,15 @@ export function LatticeApp() {
         </div>
       </aside>
 
-      <section className={captureOpen ? "content-shell drawer-open" : "content-shell"}>
+      <section
+        className={[
+          "content-shell",
+          captureOpen ? "drawer-open" : "",
+          focusMode ? "focus-content" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         <header className="tab-strip">
           <div className="desktop-context">
             <span className={`context-dot ${activeDesktop?.color ?? "violet"}`} />
@@ -1207,92 +1368,183 @@ export function LatticeApp() {
           <div className="window-drag-space" />
         </header>
 
-        <form className="browser-toolbar" onSubmit={navigate}>
-          <div className="navigation-actions">
+        {surface === "browser" && (
+          <form className="browser-toolbar" onSubmit={navigate}>
+            <div className="navigation-actions">
+              <button
+                type="button"
+                disabled={!contextualTab?.canGoBack}
+                onClick={() => window.lattice.browser.back()}
+                aria-label="Back"
+              >
+                <Icon name="arrow-left" />
+              </button>
+              <button
+                type="button"
+                disabled={!contextualTab?.canGoForward}
+                onClick={() => window.lattice.browser.forward()}
+                aria-label="Forward"
+              >
+                <Icon name="arrow-right" />
+              </button>
+              <button
+                type="button"
+                onClick={() => window.lattice.browser.reload()}
+                aria-label="Reload"
+              >
+                <Icon name="reload" />
+              </button>
+            </div>
+            <label className="omnibox">
+              <Icon name={contextualTab?.url.startsWith("https://") ? "lock" : "search"} />
+              <span className="sr-only">Web address</span>
+              <input
+                ref={omniboxRef}
+                value={address}
+                onChange={(event) => setAddress(event.target.value)}
+                placeholder="Search or enter an address"
+                spellCheck={false}
+              />
+              {address && (
+                <button type="button" onClick={() => setAddress("")} aria-label="Clear address">
+                  <Icon name="close" />
+                </button>
+              )}
+            </label>
             <button
+              className={captureOpen ? "save-page-button active" : "save-page-button"}
               type="button"
-              disabled={!contextualTab?.canGoBack}
-              onClick={() => window.lattice.browser.back()}
-              aria-label="Back"
+              onClick={openCapture}
+              disabled={!contextualTab || contextualTab.url === "about:blank"}
             >
-              <Icon name="arrow-left" />
+              <Icon name="bookmark" />
+              <span>Save</span>
             </button>
             <button
+              className="focus-toolbar-button"
               type="button"
-              disabled={!contextualTab?.canGoForward}
-              onClick={() => window.lattice.browser.forward()}
-              aria-label="Forward"
+              aria-pressed={focusMode}
+              title="Focus view (Ctrl+Shift+F)"
+              onClick={toggleDistractionFree}
             >
-              <Icon name="arrow-right" />
+              <Icon name="sparkle" />
+              <span>Focus</span>
             </button>
-            <button
-              type="button"
-              onClick={() => window.lattice.browser.reload()}
-              aria-label="Reload"
-            >
-              <Icon name="reload" />
-            </button>
-          </div>
-          <label className="omnibox">
-            <Icon name={contextualTab?.url.startsWith("https://") ? "lock" : "search"} />
-            <span className="sr-only">Web address</span>
-            <input
-              ref={omniboxRef}
-              value={address}
-              onChange={(event) => setAddress(event.target.value)}
-              placeholder="Search or enter an address"
-              spellCheck={false}
-            />
-            {address && (
-              <button type="button" onClick={() => setAddress("")} aria-label="Clear address">
-                <Icon name="close" />
+            <div className="browser-actions">
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="More browser actions"
+                aria-expanded={browserMenuOpen}
+                disabled={!contextualTab}
+                onClick={() => setBrowserMenuOpen((open) => !open)}
+              >
+                <Icon name="more" />
+              </button>
+              {browserMenuOpen && contextualTab && (
+                <div className="browser-actions-menu">
+                  <span>Move tab to</span>
+                  {workspace.desktops
+                    .filter((desktop) => desktop.id !== workspace.activeDesktopId)
+                    .map((desktop) => (
+                      <button
+                        type="button"
+                        key={desktop.id}
+                        data-move-tab-to={desktop.id}
+                        onClick={() => moveActiveTab(desktop.id)}
+                      >
+                        <span className={`context-dot ${desktop.color}`} />
+                        <span>
+                          <strong>{desktop.name}</strong>
+                          <small>Keep page open</small>
+                        </span>
+                      </button>
+                    ))}
+                  {workspace.desktops.length <= 1 && <p>Create another desktop first</p>}
+                </div>
+              )}
+            </div>
+          </form>
+        )}
+
+        {surface !== "browser" && (
+          <header className="surface-toolbar">
+            <div className="surface-toolbar-context">
+              {surface !== "home" && (
+                <button type="button" className="surface-back" onClick={showFocusHome}>
+                  <Icon name="arrow-left" />
+                  Focus
+                </button>
+              )}
+              <span className="surface-location">
+                <Icon
+                  name={
+                    surface === "home"
+                      ? "home"
+                      : surface === "pages"
+                        ? "grid"
+                        : surface === "settings"
+                          ? "settings"
+                          : surface === "queue"
+                            ? "folder"
+                            : "bookmark"
+                  }
+                />
+                <span>
+                  <strong>{surfaceDetails[surface].label}</strong>
+                  <small>{surfaceDetails[surface].description}</small>
+                </span>
+              </span>
+            </div>
+            <div className="surface-toolbar-actions">
+              <button type="button" onClick={showBrowser}>
+                <Icon name="globe" />
+                Browse
+              </button>
+              <button
+                type="button"
+                className="focus-toolbar-button"
+                aria-pressed={focusMode}
+                onClick={toggleDistractionFree}
+              >
+                <Icon name="sparkle" />
+                Focus view
+                <kbd>⌃⇧F</kbd>
+              </button>
+            </div>
+          </header>
+        )}
+
+        <header className="focus-session-bar" role="toolbar" aria-label="Focus view controls">
+          <span className="focus-session-mark">
+            <Icon name="sparkle" />
+          </span>
+          <span className="focus-session-copy">
+            <strong>{focusIntention || surfaceDetails[surface].label}</strong>
+            <small>
+              Focus view ·{" "}
+              {surface === "browser" && contextualTab
+                ? displayTitle(contextualTab)
+                : surfaceDetails[surface].description}
+            </small>
+          </span>
+          <div className="focus-session-actions">
+            {surface === "browser" && contextualTab?.url !== "about:blank" && (
+              <button type="button" onClick={openCapture}>
+                <Icon name="bookmark" />
+                Save
               </button>
             )}
-          </label>
-          <button
-            className={captureOpen ? "save-page-button active" : "save-page-button"}
-            type="button"
-            onClick={openCapture}
-            disabled={!contextualTab || contextualTab.url === "about:blank"}
-          >
-            <Icon name="bookmark" />
-            <span>Save</span>
-          </button>
-          <div className="browser-actions">
             <button
-              className="icon-button"
               type="button"
-              aria-label="More browser actions"
-              aria-expanded={browserMenuOpen}
-              disabled={!contextualTab}
-              onClick={() => setBrowserMenuOpen((open) => !open)}
+              className="exit-focus-button"
+              onClick={() => setDistractionFree(false)}
             >
-              <Icon name="more" />
+              Show navigation
+              <kbd>Esc</kbd>
             </button>
-            {browserMenuOpen && contextualTab && (
-              <div className="browser-actions-menu">
-                <span>Move tab to</span>
-                {workspace.desktops
-                  .filter((desktop) => desktop.id !== workspace.activeDesktopId)
-                  .map((desktop) => (
-                    <button
-                      type="button"
-                      key={desktop.id}
-                      data-move-tab-to={desktop.id}
-                      onClick={() => moveActiveTab(desktop.id)}
-                    >
-                      <span className={`context-dot ${desktop.color}`} />
-                      <span>
-                        <strong>{desktop.name}</strong>
-                        <small>Keep page open</small>
-                      </span>
-                    </button>
-                  ))}
-                {workspace.desktops.length <= 1 && <p>Create another desktop first</p>}
-              </div>
-            )}
           </div>
-        </form>
+        </header>
 
         <div className="content-stage">
           <main ref={webStageRef} className="web-stage">
@@ -1303,44 +1555,140 @@ export function LatticeApp() {
               <div className="trusted-surface home-surface">
                 <div className="home-hero">
                   <span className="hero-kicker">
-                    <Icon name="sparkle" /> {activeDesktop?.name ?? "Research"} desktop
+                    <Icon name="sparkle" /> Focus · {activeDesktop?.name ?? "Research"}
                   </span>
-                  <h1>Where will your curiosity take you?</h1>
-                  <p>Browse freely. Keep what matters. Your notes stay local.</p>
-                  <form className="hero-search" onSubmit={navigate}>
+                  <h1>Welcome back. Choose one thing.</h1>
+                  <p>You do not need to recover every open thread at once.</p>
+                  <label className="focus-intention">
+                    <span>What matters now?</span>
+                    <input
+                      value={focusIntention}
+                      onChange={(event) => setFocusIntention(event.target.value)}
+                      onBlur={() =>
+                        setFocusIntention((current) => normalizeFocusIntention(current))
+                      }
+                      maxLength={MAX_FOCUS_INTENTION_LENGTH}
+                      placeholder="Name one outcome — optional"
+                    />
+                    <small>Kept only on this computer</small>
+                  </label>
+                  <form className="hero-search" onSubmit={navigateFromFocus}>
                     <Icon name="search" />
                     <input
-                      value={address}
-                      onChange={(event) => setAddress(event.target.value)}
-                      placeholder="Search the web or paste a link"
+                      ref={omniboxRef}
+                      value={homeQuery}
+                      onChange={(event) => setHomeQuery(event.target.value)}
+                      placeholder="Start a focused search or paste a link"
                     />
                     <button type="submit">
                       Go <span>↗</span>
                     </button>
                   </form>
                 </div>
-                <div className="quick-grid">
-                  {quickStarts.map((item) => (
+                <section className="resume-section" aria-labelledby="resume-heading">
+                  <header>
+                    <div>
+                      <span className="eyebrow">A gentle way back</span>
+                      <h2 id="resume-heading">Resume one thread</h2>
+                    </div>
+                    <span>Focus view hides everything else until you press Esc.</span>
+                  </header>
+                  <div className="resume-grid">
                     <button
                       type="button"
-                      key={item.url}
-                      className="quick-card"
-                      onClick={() => void openUrl(item.url)}
+                      className="resume-card primary-resume"
+                      onClick={() => {
+                        if (resumableTab) {
+                          void switchTab(resumableTab).then(() => setDistractionFree(true));
+                        } else {
+                          omniboxRef.current?.focus();
+                        }
+                      }}
                     >
-                      <span className={`quick-glyph ${item.tone}`}>{item.glyph}</span>
+                      <span className="resume-icon violet">
+                        <Icon name="globe" />
+                      </span>
                       <span>
-                        <strong>{item.title}</strong>
-                        <small>{displayHost(item.url)}</small>
+                        <small>{resumableTab ? "Continue browsing" : "Begin"}</small>
+                        <strong>
+                          {resumableTab ? displayTitle(resumableTab) : "Start a focused search"}
+                        </strong>
+                        <em>
+                          {resumableTab
+                            ? displayHost(resumableTab.url)
+                            : "Use the search field above"}
+                        </em>
                       </span>
                       <Icon name="arrow-right" />
                     </button>
-                  ))}
-                </div>
+                    <button
+                      type="button"
+                      className="resume-card"
+                      onClick={() => {
+                        if (nextQueuedLink) {
+                          void openUrl(nextQueuedLink.url, true).then(() =>
+                            setDistractionFree(true),
+                          );
+                        } else {
+                          void showReadingQueue();
+                        }
+                      }}
+                    >
+                      <span className="resume-icon cyan">
+                        <Icon name="bookmark" />
+                      </span>
+                      <span>
+                        <small>{nextQueuedLink ? "Read next" : "Reading queue"}</small>
+                        <strong>{nextQueuedLink?.title ?? "Nothing waiting for you"}</strong>
+                        <em>
+                          {nextQueuedLink
+                            ? displayHost(nextQueuedLink.url)
+                            : "Add only what is worth returning to"}
+                        </em>
+                      </span>
+                      <b>{queueCount}</b>
+                    </button>
+                    <button
+                      type="button"
+                      className="resume-card"
+                      onClick={() => {
+                        void showCanvasPages(recentCanvasPage?.id ?? null).then(() =>
+                          setDistractionFree(true),
+                        );
+                      }}
+                    >
+                      <span className="resume-icon amber">
+                        <Icon name="grid" />
+                      </span>
+                      <span>
+                        <small>{recentCanvasPage ? "Return to a canvas" : "Canvas pages"}</small>
+                        <strong>{recentCanvasPage?.title ?? "Map the work visually"}</strong>
+                        <em>
+                          {recentCanvasPage
+                            ? `${recentCanvasPage.nodeCount} objects · ${relativeDate(recentCanvasPage.updatedAt)}`
+                            : "Keep related websites, notes, and files together"}
+                        </em>
+                      </span>
+                      <Icon name="arrow-right" />
+                    </button>
+                  </div>
+                </section>
+                <nav className="home-destination-strip" aria-label="All destinations">
+                  <button type="button" onClick={() => void showLibrary()}>
+                    <Icon name="bookmark" /> {links.length} saved links <kbd>Alt 4</kbd>
+                  </button>
+                  <button type="button" onClick={() => void showCanvasPages()}>
+                    <Icon name="grid" /> {canvasPages.length} canvas pages <kbd>Alt 3</kbd>
+                  </button>
+                  <button type="button" onClick={() => void showSettings()}>
+                    <Icon name="settings" /> Settings <kbd>Alt 6</kbd>
+                  </button>
+                </nav>
                 <div className="privacy-note">
                   <Icon name="lock" />
                   <span>
-                    <strong>Private by design</strong>Your workspace and Markdown stay on this
-                    computer.
+                    <strong>Local and calm by design</strong>Your intention, workspace, and Markdown
+                    stay on this computer.
                   </span>
                 </div>
               </div>
@@ -1541,6 +1889,7 @@ export function LatticeApp() {
               <CanvasWorkspace
                 vault={vault}
                 pages={canvasPages}
+                initialPageId={requestedCanvasPageId}
                 onPagesChange={setCanvasPages}
                 connectVault={() => connectVault(false)}
                 openUrl={(url) => openUrl(url, true)}
@@ -1657,7 +2006,7 @@ export function LatticeApp() {
                     </div>
                     <div className="settings-card-copy">
                       <span className="settings-kicker">About</span>
-                      <h2>Lattice 0.9.0</h2>
+                      <h2>Lattice 0.10.0</h2>
                       <p>
                         Current privacy controls. Remote Node access, downloads, popups, device
                         permissions, and unsafe protocols remain disabled.

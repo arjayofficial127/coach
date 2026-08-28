@@ -1,14 +1,21 @@
-# Lattice — Phase 9
+# Lattice — Phase 10
 
-**Status: PASS (2026-08-29).** Lattice is an installable personal research browser with secure native
-website tabs, restart-safe desktops, Obsidian-compatible saved links, and local spatial pages made
-of connected notes, websites, files, objects, and more pages.
+**Status: PASS (2026-08-29).** Lattice is an installable, focus-first personal research browser with
+secure native website tabs, restart-safe desktops, Obsidian-compatible saved links, and local
+spatial pages made of connected notes, websites, files, objects, and more pages.
 
-![Phase 9 canvas workspace](artifacts/phase-9/phase-9-canvas.png)
+![Phase 10 focus-first navigation](artifacts/phase-10/focus-navigation.png)
 
 ## What works
 
 - Real HTTPS websites render in isolated native `WebContentsView` tabs.
+- Focus is a calm return point with one optional local intention and one-action resume choices for
+  the active website, next reading item, and latest canvas page.
+- Six labeled destinations remain stable across the rail, workspace panel, internal toolbars, and
+  `Alt+1` through `Alt+6` shortcuts—even when a native website has keyboard focus.
+- Focus view hides navigation and tab chrome without trapping the user: Save remains available over
+  websites, while **Show navigation**, `Escape`, and `Ctrl/Cmd+Shift+F` restore the full shell.
+- Internal pages use their own orientation toolbar instead of irrelevant browser controls.
 - Tabs retain their URL, active state, and desktop membership across app restarts.
 - The global command palette searches actions, desktops, open tabs, saved links, and the web.
 - `Ctrl/Cmd+K`, `L`, `T`, and `W` work even while a native website has focus.
@@ -73,18 +80,20 @@ pnpm run package
 pnpm run smoke:packaged
 pnpm run installer
 pnpm run smoke:installer
-pnpm run verify:phase9
+pnpm run verify:phase10
 ```
 
 The unsigned Windows x64 portable app is generated at
 `out/Lattice-win32-x64/Lattice.exe`. The assisted installer is generated at
-`release/Lattice-Setup-0.9.0.exe`. Windows reputation warnings are expected until a later release
+`release/Lattice-Setup-0.10.0.exe`. Windows reputation warnings are expected until a later release
 phase adds a protected signing identity. The installer and updater are intentionally not presented
 as production distribution yet.
 
 ## Evidence and decisions
 
-- [Phase 9 report](docs/phase-9-report.md)
+- [Phase 10 report](docs/phase-10-report.md)
+- [Focus navigation screenshot](artifacts/phase-10/focus-navigation.png)
+- [Phase 9 canvas and data report](docs/phase-9-report.md)
 - [Packaged smoke evidence](artifacts/phase-9/packaged-smoke-evidence.json)
 - [Installed-app smoke evidence](artifacts/phase-9/installed-smoke-evidence.json)
 - [Installer lifecycle evidence](artifacts/phase-9/installer-lifecycle-evidence.json)
@@ -103,12 +112,13 @@ checks Authenticode state, Electron fuses, CSP, session separation, effective re
 native tab lifecycle, reload reconciliation, command/native-view composition, guarded desktop
 deletion, live tab movement, atomic metadata editing with body/path preservation, layout bounds,
 safe stable-ID Obsidian/Explorer handoff, JSON Canvas shape, nested page indexing, all typed link
-kinds, page/object/file actions, website-object isolation, screenshot hashes, reading-state
-transitions, privacy clearing, non-destructive vault disconnect, and library read-back.
+kinds, page/object/file actions, website-object isolation, focus entry/exit, stable destination
+shortcuts, screenshot hashes, reading-state transitions, privacy clearing, non-destructive vault
+disconnect, and library read-back.
 
 ## Current phase boundary
 
-Phase 9 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
+Phase 10 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
 automatic updates, code signing, full history/scroll restoration, or Chrome-equivalent Safe
 Browsing. It also does not claim full compatibility with every third-party JSON Canvas extension or
-repair externally broken page/file links. See the risk register before Phase 10.
+repair externally broken page/file links. See the risk register before Phase 11.

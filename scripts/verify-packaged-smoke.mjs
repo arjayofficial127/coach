@@ -16,12 +16,17 @@ const sourceManifestPath = path.resolve(
 );
 const evidenceSource = path.join(os.tmpdir(), "lattice-phase-nine", "packaged-smoke-evidence.json");
 const evidenceDirectory = path.resolve("artifacts", "phase-9");
+const phaseTenEvidenceDirectory = path.resolve("artifacts", "phase-10");
 const evidenceTarget = path.join(evidenceDirectory, "packaged-smoke-evidence.json");
 const screenshotTarget = path.join(evidenceDirectory, "remote-example-com.png");
 const shellScreenshotTarget = path.join(evidenceDirectory, "phase-9-shell.png");
 const metadataScreenshotTarget = path.join(evidenceDirectory, "phase-9-metadata-editor.png");
 const handoffScreenshotTarget = path.join(evidenceDirectory, "phase-9-obsidian-handoff.png");
 const canvasScreenshotTarget = path.join(evidenceDirectory, "phase-9-canvas.png");
+const focusNavigationScreenshotTarget = path.join(
+  phaseTenEvidenceDirectory,
+  "focus-navigation.png",
+);
 const canvasTarget = path.join(evidenceDirectory, "packaged-smoke-canvas.canvas");
 const noteTarget = path.join(evidenceDirectory, "packaged-smoke-note.md");
 
@@ -29,6 +34,7 @@ await access(executable);
 await access(appAsar);
 await access(sourceManifestPath);
 await mkdir(evidenceDirectory, { recursive: true });
+await mkdir(phaseTenEvidenceDirectory, { recursive: true });
 await rm(evidenceSource, { force: true });
 await Promise.all(
   [
@@ -38,6 +44,7 @@ await Promise.all(
     metadataScreenshotTarget,
     handoffScreenshotTarget,
     canvasScreenshotTarget,
+    focusNavigationScreenshotTarget,
     canvasTarget,
     noteTarget,
   ].map((target) => rm(target, { force: true })),
@@ -89,11 +96,33 @@ if (
 }
 const nativeSlotBounds = evidence.shell.nativeSlotBounds;
 const vaultPanelBounds = evidence.shell.vaultPanelBounds;
-const roundedSlotBounds = Object.fromEntries(
-  Object.entries(nativeSlotBounds ?? {}).map(([key, value]) => [key, Math.floor(value)]),
-);
-if (JSON.stringify(rendererBounds) !== JSON.stringify(roundedSlotBounds)) {
-  failures.push("native view bounds did not match the React layout slot");
+const contentSize = evidence.shell.windowContentSize;
+const expectedConstrainedBounds =
+  nativeSlotBounds && contentSize
+    ? {
+        x: Math.min(Math.max(0, Math.floor(nativeSlotBounds.x)), contentSize.width - 1),
+        y: Math.min(Math.max(0, Math.floor(nativeSlotBounds.y)), contentSize.height - 1),
+        width: Math.max(
+          1,
+          Math.min(
+            Math.floor(nativeSlotBounds.width),
+            contentSize.width - Math.floor(nativeSlotBounds.x),
+          ),
+        ),
+        height: Math.max(
+          1,
+          Math.min(
+            Math.floor(nativeSlotBounds.height),
+            contentSize.height - Math.floor(nativeSlotBounds.y),
+          ),
+        ),
+      }
+    : null;
+if (
+  !expectedConstrainedBounds ||
+  JSON.stringify(rendererBounds) !== JSON.stringify(expectedConstrainedBounds)
+) {
+  failures.push("native view bounds did not match the safely constrained React layout slot");
 }
 if (!vaultPanelBounds || rendererBounds.x + rendererBounds.width > vaultPanelBounds.x) {
   failures.push("native view overlaps the trusted vault panel");
@@ -148,6 +177,35 @@ if (!evidence.session.commandPaletteVisible) {
 }
 if (!evidence.session.nativeViewHiddenWhilePaletteOpen) {
   failures.push("native website view remained above the trusted command palette");
+}
+if (
+  evidence.navigation?.heading !== "Welcome back. Choose one thing." ||
+  evidence.navigation?.resumeCardCount !== 3 ||
+  evidence.navigation?.intention !== "Finish one meaningful thread"
+) {
+  failures.push("focus home did not expose the intended calm resume model");
+}
+if (
+  !evidence.navigation?.focusMode ||
+  !evidence.navigation?.chromeHidden ||
+  !evidence.navigation?.nativeViewHidden ||
+  !evidence.navigation?.escapeRestoredNavigation
+) {
+  failures.push("distraction-free focus view was not reversible or isolated");
+}
+if (
+  JSON.stringify(evidence.navigation?.shortcutRouteSequence) !==
+    JSON.stringify([
+      "Canvas pages",
+      "Saved links",
+      "Reading queue",
+      "Settings",
+      "Focus",
+      "Browse",
+    ]) ||
+  !evidence.navigation?.browserRestoredAfterShortcuts
+) {
+  failures.push("focus navigation shortcuts did not route through every stable destination");
 }
 if (!evidence.desktopLifecycle.guardedDeleteBlockedForOpenTab) {
   failures.push("occupied desktop deletion was not blocked");
@@ -337,6 +395,7 @@ const shellScreenshotBytes = await readFile(evidence.shell.screenshotPath);
 const metadataScreenshotBytes = await readFile(evidence.metadataEditing.screenshotPath);
 const handoffScreenshotBytes = await readFile(evidence.obsidianHandoff.screenshotPath);
 const canvasScreenshotBytes = await readFile(evidence.canvas.screenshotPath);
+const focusNavigationScreenshotBytes = await readFile(evidence.navigation.screenshotPath);
 if (screenshotBytes.byteLength !== evidence.remote.screenshotBytes) {
   throw new Error("Screenshot byte count changed before evidence collection.");
 }
@@ -414,6 +473,23 @@ if (canvasScreenshotPixels.width < 900 || canvasScreenshotPixels.height < 620) {
 }
 evidence.canvas.screenshotPixels = canvasScreenshotPixels;
 evidence.canvas.screenshotSha256 = createHash("sha256").update(canvasScreenshotBytes).digest("hex");
+if (!focusNavigationScreenshotBytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) {
+  throw new Error("Phase 10 focus navigation screenshot is not a PNG file.");
+}
+if (focusNavigationScreenshotBytes.byteLength !== evidence.navigation.screenshotBytes) {
+  throw new Error("Phase 10 focus navigation screenshot byte count changed before collection.");
+}
+const focusNavigationPixels = {
+  width: focusNavigationScreenshotBytes.readUInt32BE(16),
+  height: focusNavigationScreenshotBytes.readUInt32BE(20),
+};
+if (focusNavigationPixels.width < 900 || focusNavigationPixels.height < 620) {
+  throw new Error("Phase 10 focus navigation screenshot dimensions were not usable.");
+}
+evidence.navigation.screenshotPixels = focusNavigationPixels;
+evidence.navigation.screenshotSha256 = createHash("sha256")
+  .update(focusNavigationScreenshotBytes)
+  .digest("hex");
 evidence.remote.screenshotPixels = screenshotPixels;
 evidence.remote.screenshotSha256 = createHash("sha256").update(screenshotBytes).digest("hex");
 const noteBytes = await readFile(evidence.note.absolutePath);
@@ -533,6 +609,7 @@ await copyFile(evidence.shell.screenshotPath, shellScreenshotTarget);
 await copyFile(evidence.metadataEditing.screenshotPath, metadataScreenshotTarget);
 await copyFile(evidence.obsidianHandoff.screenshotPath, handoffScreenshotTarget);
 await copyFile(evidence.canvas.screenshotPath, canvasScreenshotTarget);
+await copyFile(evidence.navigation.screenshotPath, focusNavigationScreenshotTarget);
 await copyFile(evidence.canvas.absolutePath, canvasTarget);
 await copyFile(evidence.note.absolutePath, noteTarget);
 const copiedScreenshotBytes = await readFile(screenshotTarget);
@@ -540,6 +617,7 @@ const copiedShellScreenshotBytes = await readFile(shellScreenshotTarget);
 const copiedMetadataScreenshotBytes = await readFile(metadataScreenshotTarget);
 const copiedHandoffScreenshotBytes = await readFile(handoffScreenshotTarget);
 const copiedCanvasScreenshotBytes = await readFile(canvasScreenshotTarget);
+const copiedFocusNavigationScreenshotBytes = await readFile(focusNavigationScreenshotTarget);
 const copiedCanvasBytes = await readFile(canvasTarget);
 const copiedNoteBytes = await readFile(noteTarget);
 if (
@@ -578,12 +656,19 @@ if (
 if (createHash("sha256").update(copiedCanvasBytes).digest("hex") !== evidence.canvas.sha256) {
   throw new Error("Collected JSON Canvas hash changed while publishing evidence.");
 }
+if (
+  createHash("sha256").update(copiedFocusNavigationScreenshotBytes).digest("hex") !==
+  evidence.navigation.screenshotSha256
+) {
+  throw new Error("Collected focus navigation screenshot hash changed while publishing evidence.");
+}
 evidence.remote.artifactPath = screenshotTarget;
 evidence.shell.artifactPath = shellScreenshotTarget;
 evidence.metadataEditing.artifactPath = metadataScreenshotTarget;
 evidence.obsidianHandoff.artifactPath = handoffScreenshotTarget;
 evidence.canvas.screenshotArtifactPath = canvasScreenshotTarget;
 evidence.canvas.artifactPath = canvasTarget;
+evidence.navigation.artifactPath = focusNavigationScreenshotTarget;
 evidence.note.artifactPath = noteTarget;
 await writeFile(evidenceTarget, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
 console.log(`Packaged Phase 9 smoke passed. Evidence: ${evidenceTarget}`);

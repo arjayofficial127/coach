@@ -1,6 +1,8 @@
 import {
   type FormEvent,
   type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -19,6 +21,7 @@ import { Icon } from "./icon";
 interface CanvasWorkspaceProps {
   vault: VaultInfo | null;
   pages: CanvasPageSummary[];
+  initialPageId?: string | null;
   onPagesChange(pages: CanvasPageSummary[]): void;
   connectVault(): Promise<void>;
   openUrl(url: string): Promise<void>;
@@ -66,6 +69,7 @@ function defaultTarget(
 export function CanvasWorkspace({
   vault,
   pages,
+  initialPageId,
   onPagesChange,
   connectVault,
   openUrl,
@@ -94,17 +98,24 @@ export function CanvasWorkspace({
     onPagesChange(await window.lattice.vault.listCanvasPages());
   };
 
-  const openPage = async (pageId: string) => {
-    try {
-      const page = await window.lattice.vault.getCanvasPage(pageId);
-      setDraft(page);
-      setDirty(false);
-      setSelectedNodeId(null);
-      reportStatus(`Opened canvas page “${page.title}”`);
-    } catch (error) {
-      reportStatus(error instanceof Error ? error.message : String(error));
-    }
-  };
+  const openPage = useCallback(
+    async (pageId: string) => {
+      try {
+        const page = await window.lattice.vault.getCanvasPage(pageId);
+        setDraft(page);
+        setDirty(false);
+        setSelectedNodeId(null);
+        reportStatus(`Opened canvas page “${page.title}”`);
+      } catch (error) {
+        reportStatus(error instanceof Error ? error.message : String(error));
+      }
+    },
+    [reportStatus],
+  );
+
+  useEffect(() => {
+    if (initialPageId) void openPage(initialPageId);
+  }, [initialPageId, openPage]);
 
   const createPage = async (event: FormEvent) => {
     event.preventDefault();

@@ -30,7 +30,18 @@ export const IPC = {
   vaultDisconnect: "vault:disconnect",
 } as const;
 
-export type ShellCommand = "focus-location" | "new-tab" | "close-tab" | "search";
+export type ShellCommand =
+  | "focus-location"
+  | "new-tab"
+  | "close-tab"
+  | "search"
+  | "toggle-focus"
+  | "show-focus"
+  | "show-browser"
+  | "show-pages"
+  | "show-library"
+  | "show-queue"
+  | "show-settings";
 
 export interface BrowserBounds {
   x: number;

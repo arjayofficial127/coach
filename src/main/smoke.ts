@@ -25,6 +25,7 @@ export interface PhaseNineSmokeEvidence {
     domReady: boolean;
     bridgeVisible: boolean;
     contentSecurityPolicy: string | null;
+    windowContentSize: { width: number; height: number };
     rendererReportedBounds: BrowserBounds;
     nativeSlotBounds: BrowserBounds;
     vaultPanelBounds: BrowserBounds;
@@ -70,6 +71,20 @@ export interface PhaseNineSmokeEvidence {
     tabTitle: string;
     commandPaletteVisible: boolean;
     nativeViewHiddenWhilePaletteOpen: boolean;
+  };
+  navigation: {
+    heading: string;
+    resumeCardCount: number;
+    destinations: string[];
+    intention: string;
+    focusMode: boolean;
+    chromeHidden: boolean;
+    nativeViewHidden: boolean;
+    escapeRestoredNavigation: boolean;
+    shortcutRouteSequence: string[];
+    browserRestoredAfterShortcuts: boolean;
+    screenshotPath: string;
+    screenshotBytes: number;
   };
   desktopLifecycle: {
     guardedDeleteBlockedForOpenTab: boolean;
@@ -310,7 +325,7 @@ export async function runPhaseNineSmoke(
     await window.loadURL("lattice://app/index.html");
     const shellUrl = window.webContents.getURL();
     const shellTitle = window.webContents.getTitle();
-    const rendererReportedBounds = await waitForRendererBounds(runtime);
+    let rendererReportedBounds = await waitForRendererBounds(runtime);
     const shellResponse = await window.webContents.session.fetch("lattice://app/index.html");
     const contentSecurityPolicy = shellResponse.headers.get("content-security-policy");
 
@@ -421,6 +436,12 @@ export async function runPhaseNineSmoke(
         }
       };
     })()`)) as ShellProbeResult;
+    // Hidden BrowserWindow content bounds can settle once after the first renderer
+    // probe. Re-sample the IPC-published native slot after that work so the evidence
+    // compares two values from the same stable layout generation.
+    await delay(100);
+    rendererReportedBounds = await waitForRendererBounds(runtime);
+    const [windowContentWidth = 1, windowContentHeight = 1] = window.getContentSize();
 
     const initialNoteBytes = await readFile(shellProbe.note.absolutePath);
     const obsidianStats = await stat(path.join(shellProbe.vault.displayPath, ".obsidian"));
@@ -501,6 +522,78 @@ export async function runPhaseNineSmoke(
     await window.webContents.executeJavaScript(
       `document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`,
     );
+
+    // Phase 10 adds a calm return point and a reversible distraction-free view.
+    // Exercise it through the same trusted renderer used by the packaged app, then
+    // restore Browse before continuing the long-running Phase 9 regression.
+    const navigationDom = (await window.webContents.executeJavaScript(`(async () => {
+      const focus = document.querySelector('button[aria-label="Focus"]');
+      if (!(focus instanceof HTMLButtonElement)) throw new Error("Focus destination missing");
+      focus.click();
+      await new Promise((resolve) => setTimeout(resolve, 75));
+      const intention = document.querySelector('.focus-intention input');
+      if (!(intention instanceof HTMLInputElement)) throw new Error("Focus intention missing");
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setter?.call(intention, "Finish one meaningful thread");
+      intention.dispatchEvent(new Event("input", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const focusView = document.querySelector('.surface-toolbar .focus-toolbar-button');
+      if (!(focusView instanceof HTMLButtonElement)) throw new Error("Focus view action missing");
+      focusView.click();
+      await new Promise((resolve) => setTimeout(resolve, 75));
+      return {
+        heading: document.querySelector('.home-hero h1')?.textContent?.trim() ?? "",
+        resumeCardCount: document.querySelectorAll('.resume-card').length,
+        destinations: [...document.querySelectorAll('.home-destination-strip button')]
+          .map((button) => button.textContent?.replace(/\\s+/g, " ").trim() ?? ""),
+        intention: document.querySelector('.focus-session-copy strong')?.textContent?.trim() ?? "",
+        focusMode: document.querySelector('.lattice-shell')?.classList.contains('focus-mode') ?? false,
+        chromeHidden: getComputedStyle(document.querySelector('.activity-rail')).display === 'none' &&
+          getComputedStyle(document.querySelector('.workspace-panel')).display === 'none' &&
+          getComputedStyle(document.querySelector('.tab-strip')).display === 'none'
+      };
+    })()`)) as {
+      heading: string;
+      resumeCardCount: number;
+      destinations: string[];
+      intention: string;
+      focusMode: boolean;
+      chromeHidden: boolean;
+    };
+    const nativeViewHiddenForFocus = !runtime.isVisible();
+    window.setSkipTaskbar(true);
+    window.showInactive();
+    await delay(100);
+    const focusNavigationImage = await window.webContents.capturePage();
+    if (focusNavigationImage.isEmpty()) {
+      throw new Error("Electron returned an empty focus-navigation capture.");
+    }
+    const focusNavigationScreenshot = focusNavigationImage.toPNG();
+    const focusNavigationScreenshotPath = path.join(smokeRoot, "phase-10-focus-navigation.png");
+    await writeFile(focusNavigationScreenshotPath, focusNavigationScreenshot);
+    window.hide();
+
+    await window.webContents.executeJavaScript(
+      `document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`,
+    );
+    await delay(75);
+    const escapeRestoredNavigation = (await window.webContents.executeJavaScript(
+      `!document.querySelector('.lattice-shell')?.classList.contains('focus-mode') &&
+        getComputedStyle(document.querySelector('.activity-rail')).display !== 'none'`,
+    )) as boolean;
+    const shortcutRouteSequence = (await window.webContents.executeJavaScript(`(async () => {
+      const routes = [];
+      for (const key of ["3", "4", "5", "6", "1", "2"]) {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key, altKey: true, bubbles: true }));
+        await new Promise((resolve) => setTimeout(resolve, 75));
+        routes.push(document.querySelector('.surface-location strong')?.textContent?.trim() ??
+          (document.querySelector('.browser-toolbar') ? "Browse" : ""));
+      }
+      return routes;
+    })()`)) as string[];
+    const browserRestoreDeadline = Date.now() + 2_000;
+    while (Date.now() < browserRestoreDeadline && !runtime.isVisible()) await delay(25);
+    const browserRestoredAfterShortcuts = runtime.isVisible();
 
     // An occupied desktop cannot be deleted. Move its live native tab to the next
     // desktop, then prove the now-empty desktop needs confirmation and can be
@@ -982,6 +1075,7 @@ export async function runPhaseNineSmoke(
         domReady: shellProbe.domReady,
         bridgeVisible: shellProbe.bridgeVisible,
         contentSecurityPolicy,
+        windowContentSize: { width: windowContentWidth, height: windowContentHeight },
         rendererReportedBounds,
         nativeSlotBounds: shellProbe.nativeSlotBounds,
         vaultPanelBounds: shellProbe.vaultPanelBounds,
@@ -1013,6 +1107,15 @@ export async function runPhaseNineSmoke(
         tabTitle: sessionDom.tabTitle,
         commandPaletteVisible,
         nativeViewHiddenWhilePaletteOpen,
+      },
+      navigation: {
+        ...navigationDom,
+        nativeViewHidden: nativeViewHiddenForFocus,
+        escapeRestoredNavigation,
+        shortcutRouteSequence,
+        browserRestoredAfterShortcuts,
+        screenshotPath: focusNavigationScreenshotPath,
+        screenshotBytes: focusNavigationScreenshot.byteLength,
       },
       desktopLifecycle: {
         guardedDeleteBlockedForOpenTab,

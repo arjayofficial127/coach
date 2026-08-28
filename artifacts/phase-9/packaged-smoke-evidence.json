@@ -11,31 +11,35 @@
     "domReady": true,
     "bridgeVisible": true,
     "contentSecurityPolicy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'self' data:; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'",
+    "windowContentSize": {
+      "width": 986,
+      "height": 657
+    },
     "rendererReportedBounds": {
       "x": 278,
       "y": 93,
       "width": 708,
-      "height": 540
+      "height": 564
     },
     "nativeSlotBounds": {
       "x": 278,
       "y": 93,
       "width": 708.4000244140625,
-      "height": 540.6000366210938
+      "height": 582
     },
     "vaultPanelBounds": {
       "x": 986.4000244140625,
       "y": 93,
       "width": 0,
-      "height": 540.6000366210938
+      "height": 582
     },
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-9-shell.png",
-    "screenshotBytes": 201860,
+    "screenshotBytes": 215423,
     "screenshotPixels": {
       "width": 1233,
       "height": 822
     },
-    "screenshotSha256": "1ace1a0d329295af3e8cb38a9c4ff91fa64400eb9615ca8ab7868156e34bf77c",
+    "screenshotSha256": "b12dbd99be67e1b24b30732b80b5b7f77f33fa4e18376972a7b537fb6b907cfe",
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\phase-9-shell.png"
   },
   "remote": {
@@ -100,6 +104,37 @@
     "commandPaletteVisible": true,
     "nativeViewHiddenWhilePaletteOpen": true
   },
+  "navigation": {
+    "heading": "Welcome back. Choose one thing.",
+    "resumeCardCount": 3,
+    "destinations": [
+      "1 saved links Alt 4",
+      "2 canvas pages Alt 3",
+      "Settings Alt 6"
+    ],
+    "intention": "Finish one meaningful thread",
+    "focusMode": true,
+    "chromeHidden": true,
+    "nativeViewHidden": true,
+    "escapeRestoredNavigation": true,
+    "shortcutRouteSequence": [
+      "Canvas pages",
+      "Saved links",
+      "Reading queue",
+      "Settings",
+      "Focus",
+      "Browse"
+    ],
+    "browserRestoredAfterShortcuts": true,
+    "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-10-focus-navigation.png",
+    "screenshotBytes": 194435,
+    "screenshotPixels": {
+      "width": 1233,
+      "height": 822
+    },
+    "screenshotSha256": "7515bf3d04b3b4d03d0d3bf5ca9c65072536a4cc22e32395ebbefeb9a861b03d",
+    "artifactPath": "C:\\coach\\artifacts\\phase-10\\focus-navigation.png"
+  },
   "desktopLifecycle": {
     "guardedDeleteBlockedForOpenTab": true,
     "menuVisible": true,
@@ -122,12 +157,12 @@
     "readingStatePreserved": true,
     "temporaryFilesRemaining": 0,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-9-metadata-editor.png",
-    "screenshotBytes": 181559,
+    "screenshotBytes": 195744,
     "screenshotPixels": {
       "width": 1233,
       "height": 822
     },
-    "screenshotSha256": "82ff1253d1efe711e9dbec5ff9a388cc2695f5dc779cb88a75efbb6dcb39b3f8",
+    "screenshotSha256": "cdd733ace89de98a28d9447414af553e711fe5587d6390bc66be07540ac9f280",
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\phase-9-metadata-editor.png"
   },
   "obsidianHandoff": {
@@ -136,16 +171,16 @@
     "notePathNotRendered": true,
     "openInvocations": 1,
     "revealInvocations": 1,
-    "obsidianUri": "obsidian://open?path=C%3A%2FUsers%2Farvin%2FAppData%2FLocal%2FTemp%2Flattice-disposable-vaults%2Fvault-756dc9e0-2341-417b-a539-1e0baaed0daf%2FSaved%20Links%2FResearch%2F2026-08-28%20-%20Phase%208%20packaged%20smoke%20-%205b845571.md",
+    "obsidianUri": "obsidian://open?path=C%3A%2FUsers%2Farvin%2FAppData%2FLocal%2FTemp%2Flattice-disposable-vaults%2Fvault-5c117a17-f257-4b98-94ce-1fed0747f00d%2FSaved%20Links%2FResearch%2F2026-08-28%20-%20Phase%208%20packaged%20smoke%20-%20c11887f3.md",
     "decodedPathMatches": true,
     "revealedPathMatches": true,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-9-obsidian-handoff.png",
-    "screenshotBytes": 189897,
+    "screenshotBytes": 204979,
     "screenshotPixels": {
       "width": 1233,
       "height": 822
     },
-    "screenshotSha256": "3612638644411c8d7f0e019d89928cc5165abdf06f9920b009209bc5f3141e05",
+    "screenshotSha256": "a95f7b1cee44767614cf1d9d6522cedba1d3b02d38b0fa1391127c3143c36a02",
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\phase-9-obsidian-handoff.png"
   },
   "readingQueue": {
@@ -185,15 +220,15 @@
     "nativeViewHidden": true,
     "pathNotRendered": true,
     "temporaryFilesRemaining": 0,
-    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-756dc9e0-2341-417b-a539-1e0baaed0daf\\Lattice Pages\\Projects\\Browser\\Phase 9 research canvas-0f085fa9.canvas",
-    "sha256": "30c47f3ddab377a46c2f02a72d6d90b0f54f6cfc5d9c9ac143eb1365dc425547",
+    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-5c117a17-f257-4b98-94ce-1fed0747f00d\\Lattice Pages\\Projects\\Browser\\Phase 9 research canvas-c0b903d5.canvas",
+    "sha256": "3e97978ce18febcf9217d899c39464f9fdeb60246eaa1fcef8ac75127406a3d7",
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-9-canvas.png",
-    "screenshotBytes": 119028,
+    "screenshotBytes": 135206,
     "screenshotPixels": {
       "width": 1233,
       "height": 822
     },
-    "screenshotSha256": "76715bbe279541b0828424be631ceb7da14c45d313d4ec741acb7c364c1d9731",
+    "screenshotSha256": "2d2c25d72ae63fff22362b073adcbaab8731f9e8370b2d712c8b956fbd736497",
     "screenshotArtifactPath": "C:\\coach\\artifacts\\phase-9\\phase-9-canvas.png",
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\packaged-smoke-canvas.canvas"
   },
@@ -218,14 +253,14 @@
     "nativeViewHidden": true
   },
   "note": {
-    "vaultPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-756dc9e0-2341-417b-a539-1e0baaed0daf",
+    "vaultPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-5c117a17-f257-4b98-94ce-1fed0747f00d",
     "disposableVault": true,
     "obsidianDirectoryPresent": true,
-    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-756dc9e0-2341-417b-a539-1e0baaed0daf\\Saved Links\\Research\\2026-08-28 - Phase 8 packaged smoke - 5b845571.md",
-    "relativePath": "Saved Links\\Research\\2026-08-28 - Phase 8 packaged smoke - 5b845571.md",
+    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-5c117a17-f257-4b98-94ce-1fed0747f00d\\Saved Links\\Research\\2026-08-28 - Phase 8 packaged smoke - c11887f3.md",
+    "relativePath": "Saved Links\\Research\\2026-08-28 - Phase 8 packaged smoke - c11887f3.md",
     "bytesWritten": 597,
     "bytesReadBack": 597,
-    "sha256": "709e4f47d8588ddea243af7f3fe894bcc50eaa239b729365b20aeccb978dff7f",
+    "sha256": "1ab78a7a741c74b788ef399ae1645cc9b568d2b24a84e7df7983a5607720471d",
     "temporaryFilesRemaining": 0,
     "libraryCount": 1,
     "libraryRoundTrip": true,
@@ -233,17 +268,17 @@
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\packaged-smoke-note.md"
   },
   "evidencePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\packaged-smoke-evidence.json",
-  "verifiedAt": "2026-08-28T18:25:47.272Z",
+  "verifiedAt": "2026-08-28T18:48:49.344Z",
   "package": {
     "executable": "C:\\coach\\out\\Lattice-win32-x64\\Lattice.exe",
     "appAsar": "C:\\coach\\out\\Lattice-win32-x64\\resources\\app.asar",
     "sourceManifestPath": "C:\\coach\\out\\Lattice-win32-x64\\resources\\source-manifest.json",
-    "sourceManifestSha256": "16acf4f678d1f8a63209d242f79b4b8a60380e351bf453a669409fdf49b9a3f3",
-    "sourceManifestFiles": 54,
+    "sourceManifestSha256": "1884754126c9dff9b30fa2b55d27cae867b94e04933e4479bed65a6c3842f850",
+    "sourceManifestFiles": 56,
     "bytes": 244440576,
-    "sha256": "7a3bc0b1637a77b9626b8ff4944b8b36fbaabd1696af0afed5a820d25d86054d",
-    "asarBytes": 952748,
-    "asarSha256": "0f9e686a32c255552957d996a5f6355f1462c45a1162d5433020422dec56cd0b",
+    "sha256": "d8082c8a149a500153bc0c5a66584cc07b6d4af77c967381c82902c3be1551b2",
+    "asarBytes": 973326,
+    "asarSha256": "4965801887ea1c481f54c5cc2a050a59493a7e0c4088df12fe4dc4f15342c20a",
     "authenticodeStatus": "NotSigned",
     "signed": false,
     "fuses": {

@@ -11,26 +11,30 @@
     "domReady": true,
     "bridgeVisible": true,
     "contentSecurityPolicy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'self' data:; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'",
+    "windowContentSize": {
+      "width": 986,
+      "height": 657
+    },
     "rendererReportedBounds": {
       "x": 278,
       "y": 93,
       "width": 708,
-      "height": 566
+      "height": 564
     },
     "nativeSlotBounds": {
       "x": 278,
       "y": 93,
       "width": 708.4000244140625,
-      "height": 540.6000366210938
+      "height": 582
     },
     "vaultPanelBounds": {
       "x": 986.4000244140625,
       "y": 93,
       "width": 0,
-      "height": 540.6000366210938
+      "height": 582
     },
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-9-shell.png",
-    "screenshotBytes": 201924,
+    "screenshotBytes": 215772,
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\installed-shell.png"
   },
   "remote": {
@@ -90,6 +94,32 @@
     "commandPaletteVisible": true,
     "nativeViewHiddenWhilePaletteOpen": true
   },
+  "navigation": {
+    "heading": "Welcome back. Choose one thing.",
+    "resumeCardCount": 3,
+    "destinations": [
+      "1 saved links Alt 4",
+      "2 canvas pages Alt 3",
+      "Settings Alt 6"
+    ],
+    "intention": "Finish one meaningful thread",
+    "focusMode": true,
+    "chromeHidden": true,
+    "nativeViewHidden": true,
+    "escapeRestoredNavigation": true,
+    "shortcutRouteSequence": [
+      "Canvas pages",
+      "Saved links",
+      "Reading queue",
+      "Settings",
+      "Focus",
+      "Browse"
+    ],
+    "browserRestoredAfterShortcuts": true,
+    "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-10-focus-navigation.png",
+    "screenshotBytes": 194435,
+    "artifactPath": "C:\\coach\\artifacts\\phase-10\\installed-focus-navigation.png"
+  },
   "desktopLifecycle": {
     "guardedDeleteBlockedForOpenTab": true,
     "menuVisible": true,
@@ -112,7 +142,7 @@
     "readingStatePreserved": true,
     "temporaryFilesRemaining": 0,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-9-metadata-editor.png",
-    "screenshotBytes": 181414,
+    "screenshotBytes": 195964,
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\installed-metadata-editor.png"
   },
   "obsidianHandoff": {
@@ -121,11 +151,11 @@
     "notePathNotRendered": true,
     "openInvocations": 1,
     "revealInvocations": 1,
-    "obsidianUri": "obsidian://open?path=C%3A%2FUsers%2Farvin%2FAppData%2FLocal%2FTemp%2Flattice-disposable-vaults%2Fvault-782296c6-bbf6-413c-a6cd-d5b7832a1e82%2FSaved%20Links%2FResearch%2F2026-08-28%20-%20Phase%208%20packaged%20smoke%20-%2048b7aeac.md",
+    "obsidianUri": "obsidian://open?path=C%3A%2FUsers%2Farvin%2FAppData%2FLocal%2FTemp%2Flattice-disposable-vaults%2Fvault-cffff3f2-124c-486c-a5a3-77af8941c321%2FSaved%20Links%2FResearch%2F2026-08-28%20-%20Phase%208%20packaged%20smoke%20-%2071fa34d9.md",
     "decodedPathMatches": true,
     "revealedPathMatches": true,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-9-obsidian-handoff.png",
-    "screenshotBytes": 189756,
+    "screenshotBytes": 205011,
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\installed-obsidian-handoff.png"
   },
   "readingQueue": {
@@ -165,10 +195,10 @@
     "nativeViewHidden": true,
     "pathNotRendered": true,
     "temporaryFilesRemaining": 0,
-    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-782296c6-bbf6-413c-a6cd-d5b7832a1e82\\Lattice Pages\\Projects\\Browser\\Phase 9 research canvas-f168a2d9.canvas",
-    "sha256": "48d867557b07e4a29c625378235eb6c653b950aaff57909837e248521af52818",
+    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-cffff3f2-124c-486c-a5a3-77af8941c321\\Lattice Pages\\Projects\\Browser\\Phase 9 research canvas-7d659f3c.canvas",
+    "sha256": "ff4704e29245dceacd39618649fff87e6d3569d3c5087ea6771d308363fc6a6c",
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-9-canvas.png",
-    "screenshotBytes": 118946,
+    "screenshotBytes": 135241,
     "screenshotArtifactPath": "C:\\coach\\artifacts\\phase-9\\installed-canvas.png",
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\installed-smoke-canvas.canvas"
   },
@@ -193,14 +223,14 @@
     "nativeViewHidden": true
   },
   "note": {
-    "vaultPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-782296c6-bbf6-413c-a6cd-d5b7832a1e82",
+    "vaultPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-cffff3f2-124c-486c-a5a3-77af8941c321",
     "disposableVault": true,
     "obsidianDirectoryPresent": true,
-    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-782296c6-bbf6-413c-a6cd-d5b7832a1e82\\Saved Links\\Research\\2026-08-28 - Phase 8 packaged smoke - 48b7aeac.md",
-    "relativePath": "Saved Links\\Research\\2026-08-28 - Phase 8 packaged smoke - 48b7aeac.md",
+    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-cffff3f2-124c-486c-a5a3-77af8941c321\\Saved Links\\Research\\2026-08-28 - Phase 8 packaged smoke - 71fa34d9.md",
+    "relativePath": "Saved Links\\Research\\2026-08-28 - Phase 8 packaged smoke - 71fa34d9.md",
     "bytesWritten": 597,
     "bytesReadBack": 597,
-    "sha256": "97dfba78b6b2c326ff9fa0990aea1784b6aea72182db70912d3614de76537b7d",
+    "sha256": "b3e79031eebe98bfc049b9010b2b62491d0d327b8eb765e666ceaab1e2714988",
     "temporaryFilesRemaining": 0,
     "libraryCount": 1,
     "libraryRoundTrip": true,
@@ -208,6 +238,6 @@
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\installed-smoke-note.md"
   },
   "evidencePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\packaged-smoke-evidence.json",
-  "installedExecutable": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine-install-41584\\Lattice.exe",
-  "installedExecutableSha256": "7a3bc0b1637a77b9626b8ff4944b8b36fbaabd1696af0afed5a820d25d86054d"
+  "installedExecutable": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine-install-57972\\Lattice.exe",
+  "installedExecutableSha256": "d8082c8a149a500153bc0c5a66584cc07b6d4af77c967381c82902c3be1551b2"
 }

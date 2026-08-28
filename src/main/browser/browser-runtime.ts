@@ -14,6 +14,7 @@ import type {
   BrowserPrivacySummary,
   BrowserSnapshot,
   BrowserState,
+  ShellCommand,
 } from "../../shared/contracts";
 import { IPC } from "../../shared/contracts";
 import { constrainBrowserBounds } from "../policies/bounds";
@@ -369,17 +370,36 @@ export class BrowserRuntime {
 
   private configureTab(tab: TabRecord): void {
     tab.contents.on("before-input-event", (event, input) => {
-      if (input.type !== "keyDown" || (!input.control && !input.meta)) return;
-      const command =
-        input.key.toLowerCase() === "l"
-          ? "focus-location"
-          : input.key.toLowerCase() === "t"
-            ? "new-tab"
-            : input.key.toLowerCase() === "w"
-              ? "close-tab"
-              : input.key.toLowerCase() === "k"
-                ? "search"
-                : null;
+      if (input.type !== "keyDown") return;
+      const key = input.key.toLowerCase();
+      const command: ShellCommand | null =
+        input.alt && !input.control && !input.meta && !input.shift
+          ? key === "1"
+            ? "show-focus"
+            : key === "2"
+              ? "show-browser"
+              : key === "3"
+                ? "show-pages"
+                : key === "4"
+                  ? "show-library"
+                  : key === "5"
+                    ? "show-queue"
+                    : key === "6"
+                      ? "show-settings"
+                      : null
+          : (input.control || input.meta) && !input.alt
+            ? key === "f" && input.shift
+              ? "toggle-focus"
+              : !input.shift && key === "l"
+                ? "focus-location"
+                : !input.shift && key === "t"
+                  ? "new-tab"
+                  : !input.shift && key === "w"
+                    ? "close-tab"
+                    : !input.shift && key === "k"
+                      ? "search"
+                      : null
+            : null;
       if (!command) return;
       event.preventDefault();
       if (!this.window.isDestroyed()) this.window.webContents.send(IPC.shellCommand, command);

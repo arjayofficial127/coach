@@ -19,12 +19,17 @@ const smokeEvidenceSource = path.join(
   "packaged-smoke-evidence.json",
 );
 const evidenceRoot = path.join(repositoryRoot, "artifacts", "phase-9");
+const phaseTenEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-10");
 const lifecycleEvidencePath = path.join(evidenceRoot, "installer-lifecycle-evidence.json");
 const installedSmokeTarget = path.join(evidenceRoot, "installed-smoke-evidence.json");
 const shellScreenshotTarget = path.join(evidenceRoot, "installed-shell.png");
 const metadataScreenshotTarget = path.join(evidenceRoot, "installed-metadata-editor.png");
 const handoffScreenshotTarget = path.join(evidenceRoot, "installed-obsidian-handoff.png");
 const canvasScreenshotTarget = path.join(evidenceRoot, "installed-canvas.png");
+const focusNavigationScreenshotTarget = path.join(
+  phaseTenEvidenceRoot,
+  "installed-focus-navigation.png",
+);
 const remoteScreenshotTarget = path.join(evidenceRoot, "installed-remote-example-com.png");
 const noteTarget = path.join(evidenceRoot, "installed-smoke-note.md");
 const canvasTarget = path.join(evidenceRoot, "installed-smoke-canvas.canvas");
@@ -180,6 +185,7 @@ if (await exists(startMenuShortcut)) {
 await rm(installRoot, { recursive: true, force: true });
 await rm(smokeEvidenceSource, { force: true });
 await mkdir(evidenceRoot, { recursive: true });
+await mkdir(phaseTenEvidenceRoot, { recursive: true });
 await Promise.all(
   [
     lifecycleEvidencePath,
@@ -188,6 +194,7 @@ await Promise.all(
     metadataScreenshotTarget,
     handoffScreenshotTarget,
     canvasScreenshotTarget,
+    focusNavigationScreenshotTarget,
     remoteScreenshotTarget,
     noteTarget,
     canvasTarget,
@@ -272,6 +279,17 @@ if (
 if (!smoke.webContentsDestroyedAfterClose) {
   smokeFailures.push("installed native web contents did not close cleanly");
 }
+if (
+  smoke.navigation?.heading !== "Welcome back. Choose one thing." ||
+  smoke.navigation?.resumeCardCount !== 3 ||
+  !smoke.navigation?.focusMode ||
+  !smoke.navigation?.chromeHidden ||
+  !smoke.navigation?.nativeViewHidden ||
+  !smoke.navigation?.escapeRestoredNavigation ||
+  !smoke.navigation?.browserRestoredAfterShortcuts
+) {
+  smokeFailures.push("installed focus-first navigation workflow failed");
+}
 if (!smoke.note?.libraryRoundTrip || !smoke.note?.disconnectedWithoutDeleting) {
   smokeFailures.push("installed Obsidian Markdown workflow failed");
 }
@@ -324,6 +342,7 @@ await copyFile(smoke.shell.screenshotPath, shellScreenshotTarget);
 await copyFile(smoke.metadataEditing.screenshotPath, metadataScreenshotTarget);
 await copyFile(smoke.obsidianHandoff.screenshotPath, handoffScreenshotTarget);
 await copyFile(smoke.canvas.screenshotPath, canvasScreenshotTarget);
+await copyFile(smoke.navigation.screenshotPath, focusNavigationScreenshotTarget);
 await copyFile(smoke.remote.screenshotPath, remoteScreenshotTarget);
 await copyFile(smoke.note.absolutePath, noteTarget);
 await copyFile(smoke.canvas.absolutePath, canvasTarget);
@@ -332,6 +351,7 @@ smoke.metadataEditing.artifactPath = metadataScreenshotTarget;
 smoke.obsidianHandoff.artifactPath = handoffScreenshotTarget;
 smoke.canvas.screenshotArtifactPath = canvasScreenshotTarget;
 smoke.canvas.artifactPath = canvasTarget;
+smoke.navigation.artifactPath = focusNavigationScreenshotTarget;
 smoke.remote.artifactPath = remoteScreenshotTarget;
 smoke.note.artifactPath = noteTarget;
 smoke.installedExecutable = installedExecutable;
