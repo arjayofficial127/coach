@@ -271,6 +271,15 @@ svg {
   color: var(--text);
 }
 
+.workspace-menu button.danger-action {
+  color: #d8939d;
+}
+
+.workspace-menu button.danger-action:hover {
+  background: rgba(222, 92, 111, 0.09);
+  color: #f1acb6;
+}
+
 .workspace-menu button svg {
   width: 13px;
   height: 13px;
@@ -758,9 +767,81 @@ kbd {
 }
 
 .navigation-actions svg,
-.browser-toolbar > .icon-button svg {
+.browser-actions > .icon-button svg {
   width: 15px;
   height: 15px;
+}
+
+.browser-actions {
+  position: relative;
+}
+
+.browser-actions > .icon-button {
+  width: 31px;
+  height: 31px;
+}
+
+.browser-actions-menu {
+  position: absolute;
+  z-index: 40;
+  top: 38px;
+  right: 0;
+  display: grid;
+  width: 230px;
+  gap: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: 11px;
+  background: #1a1a23;
+  box-shadow: var(--shadow);
+  padding: 6px;
+}
+
+.browser-actions-menu > span {
+  padding: 6px 8px 4px;
+  color: var(--subtle);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.browser-actions-menu button {
+  display: grid;
+  min-height: 44px;
+  grid-template-columns: 12px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  border-radius: 7px;
+  background: transparent;
+  padding: 6px 8px;
+  color: #b1afbc;
+  text-align: left;
+}
+
+.browser-actions-menu button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.browser-actions-menu .context-dot + span {
+  display: grid;
+  gap: 2px;
+}
+
+.browser-actions-menu button strong {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.browser-actions-menu button small,
+.browser-actions-menu p {
+  margin: 0;
+  color: var(--subtle);
+  font-size: 8px;
+}
+
+.browser-actions-menu p {
+  padding: 7px 8px;
 }
 
 .omnibox {

@@ -1,0 +1,184 @@
+{
+  "packaged": true,
+  "versions": {
+    "electron": "44.0.0",
+    "chromium": "152.0.7977.54",
+    "node": "24.18.1"
+  },
+  "shell": {
+    "url": "lattice://app/index.html",
+    "title": "Lattice",
+    "domReady": true,
+    "bridgeVisible": true,
+    "contentSecurityPolicy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'self' data:; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'",
+    "rendererReportedBounds": {
+      "x": 278,
+      "y": 93,
+      "width": 708,
+      "height": 540
+    },
+    "nativeSlotBounds": {
+      "x": 278,
+      "y": 93,
+      "width": 708.4000244140625,
+      "height": 540.6000366210938
+    },
+    "vaultPanelBounds": {
+      "x": 986.4000244140625,
+      "y": 93,
+      "width": 0,
+      "height": 540.6000366210938
+    },
+    "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-six\\phase-6-shell.png",
+    "screenshotBytes": 200645,
+    "screenshotPixels": {
+      "width": 1233,
+      "height": 822
+    },
+    "screenshotSha256": "a488bbccc09bffe17d2fa1b2b53df9c01bc4af7ffdcf58662a90d7ce3727e32f",
+    "artifactPath": "C:\\coach\\artifacts\\phase-6\\phase-6-shell.png"
+  },
+  "remote": {
+    "url": "https://example.com/",
+    "title": "Example Domain",
+    "viewBounds": {
+      "x": 278,
+      "y": 93,
+      "width": 708,
+      "height": 540
+    },
+    "configuredPreferences": {
+      "nodeIntegration": false,
+      "nodeIntegrationInWorker": false,
+      "nodeIntegrationInSubFrames": false,
+      "contextIsolation": true,
+      "sandbox": true,
+      "webSecurity": true,
+      "allowRunningInsecureContent": false,
+      "experimentalFeatures": false,
+      "webviewTag": false,
+      "preloadConfigured": false
+    },
+    "webContentsType": "window",
+    "nativeViewConstructor": "WebContentsView",
+    "sessionSeparatedFromShell": true,
+    "isolation": {
+      "nodeProcessVisible": false,
+      "requireVisible": false,
+      "latticeBridgeVisible": false,
+      "webviewTagApiVisible": false,
+      "popupReturnedNull": true,
+      "geolocationPermissionState": "denied",
+      "popupHandlerTriggered": true,
+      "permissionCheckHandlerTriggered": true
+    },
+    "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-six\\remote-example-com.png",
+    "screenshotBytes": 18268,
+    "screenshotMethod": "capture-page",
+    "screenshotPixels": {
+      "width": 885,
+      "height": 675
+    },
+    "screenshotSha256": "745fe539110658607aa0a8d2557a0e9827ac02a63384c27094a7146b6489100b",
+    "artifactPath": "C:\\coach\\artifacts\\phase-6\\remote-example-com.png"
+  },
+  "webContentsDestroyedAfterClose": true,
+  "tabs": {
+    "initialCount": 1,
+    "afterCreateCount": 2,
+    "switchedBackToInitial": true,
+    "afterCloseCount": 1,
+    "closedTabAbsent": true
+  },
+  "session": {
+    "beforeReloadCount": 2,
+    "afterReloadCount": 2,
+    "restoredWithoutDuplicates": true,
+    "activeDesktop": "Build",
+    "activeDesktopSummary": "1 tabs · 0 saved",
+    "tabTitle": "Example Domain",
+    "commandPaletteVisible": true,
+    "nativeViewHiddenWhilePaletteOpen": true
+  },
+  "desktopLifecycle": {
+    "guardedDeleteBlockedForOpenTab": true,
+    "menuVisible": true,
+    "nativeViewHiddenWhileMenuOpen": true,
+    "movedToDesktop": "Inspiration",
+    "movedTabRetained": true,
+    "emptiedSourceDesktop": true,
+    "deletionConfirmationVisible": true,
+    "deletedEmptyDesktop": true,
+    "adjacentDesktopActivated": true,
+    "savedResearchDesktopPreserved": true
+  },
+  "readingQueue": {
+    "capturedAsQueued": true,
+    "markedRead": true,
+    "requeued": true,
+    "heading": "Reading queue",
+    "summary": "1 unread across all desktops",
+    "itemTitle": "Phase 6 packaged smoke",
+    "markReadVisible": true,
+    "nativeViewHidden": true
+  },
+  "privacy": {
+    "before": {
+      "cookieCount": 1,
+      "cacheBytes": 3858
+    },
+    "after": {
+      "cookieCount": 0,
+      "cacheBytes": 0
+    },
+    "cookieSeeded": true,
+    "localStorageSeeded": true,
+    "cacheStorageSeeded": true,
+    "cookieCleared": true,
+    "localStorageCleared": true,
+    "cacheStorageCleared": true,
+    "settingsHeading": "Settings",
+    "settingsPrivacyText": "0 cookies · 0 B cached. Clearing signs you out of websites but does not touch Obsidian notes.",
+    "restoreTabsEnabled": true,
+    "nativeViewHidden": true
+  },
+  "note": {
+    "vaultPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-823421ac-2e6d-4475-8cd6-e294320bf3c7",
+    "disposableVault": true,
+    "obsidianDirectoryPresent": true,
+    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-823421ac-2e6d-4475-8cd6-e294320bf3c7\\Saved Links\\Research\\2026-08-28 - Phase 6 packaged smoke - 6dbdbbff.md",
+    "relativePath": "Saved Links\\Research\\2026-08-28 - Phase 6 packaged smoke - 6dbdbbff.md",
+    "bytesWritten": 593,
+    "bytesReadBack": 593,
+    "sha256": "59ff2161d170f07c222b9050ecdb69b5702ca0e183bf432754c8a24a5148c176",
+    "temporaryFilesRemaining": 0,
+    "libraryCount": 1,
+    "libraryRoundTrip": true,
+    "disconnectedWithoutDeleting": true,
+    "artifactPath": "C:\\coach\\artifacts\\phase-6\\packaged-smoke-note.md"
+  },
+  "evidencePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-six\\packaged-smoke-evidence.json",
+  "verifiedAt": "2026-08-28T17:42:16.505Z",
+  "package": {
+    "executable": "C:\\coach\\out\\Lattice-win32-x64\\Lattice.exe",
+    "appAsar": "C:\\coach\\out\\Lattice-win32-x64\\resources\\app.asar",
+    "sourceManifestPath": "C:\\coach\\out\\Lattice-win32-x64\\resources\\source-manifest.json",
+    "sourceManifestSha256": "ae1f2b878128798dd61813e4087c382642b8f45f58e61f4c184ed8ce6946039b",
+    "sourceManifestFiles": 47,
+    "bytes": 244440576,
+    "sha256": "6a10d821eb8f2f12ef2ae51a417112c54a1bd1d533cdc3ff1b74d12932ad5801",
+    "asarBytes": 876632,
+    "asarSha256": "2b12e0bd9ee92f0037f64fb71d8bc8e5329f7718b221ab8a5609dcac6d304751",
+    "authenticodeStatus": "NotSigned",
+    "signed": false,
+    "fuses": {
+      "RunAsNode": false,
+      "EnableCookieEncryption": true,
+      "EnableNodeOptionsEnvironmentVariable": false,
+      "EnableNodeCliInspectArguments": false,
+      "EnableEmbeddedAsarIntegrityValidation": true,
+      "OnlyLoadAppFromAsar": true,
+      "GrantFileProtocolExtraPrivileges": false
+    }
+  }
+}

@@ -18,6 +18,8 @@ import { parseSettingsPreferences, type SettingsPreferences } from "./settings-m
 import {
   createDesktop,
   DEFAULT_WORKSPACE,
+  deleteDesktop,
+  moveTabToDesktop,
   parseWorkspacePreferences,
   renameDesktop,
   type WorkspacePreferences,
@@ -126,6 +128,8 @@ export function LatticeApp() {
   const [editingDesktopId, setEditingDesktopId] = useState<string | null>(null);
   const [editingDesktopName, setEditingDesktopName] = useState("");
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
+  const [browserMenuOpen, setBrowserMenuOpen] = useState(false);
+  const [confirmDeleteDesktopId, setConfirmDeleteDesktopId] = useState<string | null>(null);
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [sessionReady, setSessionReady] = useState(false);
@@ -398,7 +402,9 @@ export function LatticeApp() {
         .setBounds({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height })
         .then(() => {
           if (!disposed)
-            return window.lattice.browser.setVisible(surface === "browser" && !commandOpen);
+            return window.lattice.browser.setVisible(
+              surface === "browser" && !browserMenuOpen && !commandOpen,
+            );
         });
     };
     const observer = new ResizeObserver(updateBounds);
@@ -411,7 +417,7 @@ export function LatticeApp() {
       window.removeEventListener("resize", updateBounds);
       void window.lattice.browser.setVisible(false);
     };
-  }, [commandOpen, surface]);
+  }, [browserMenuOpen, commandOpen, surface]);
 
   useEffect(() => {
     if (!commandOpen) return;
@@ -565,6 +571,64 @@ export function LatticeApp() {
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     }
+  };
+
+  const moveActiveTab = (targetDesktopId: string) => {
+    if (!contextualTab) return;
+    const target = workspace.desktops.find((desktop) => desktop.id === targetDesktopId);
+    if (!target) return;
+    setTabDesktops((current) =>
+      moveTabToDesktop(current, workspace, contextualTab.id, targetDesktopId),
+    );
+    setWorkspace((current) => ({ ...current, activeDesktopId: targetDesktopId }));
+    setBrowserMenuOpen(false);
+    setCaptureOpen(false);
+    setStatus(`Moved tab to ${target.name}`);
+  };
+
+  const requestDeleteActiveDesktop = async () => {
+    if (!activeDesktop) return;
+    const openTabCount = snapshot.tabs.filter(
+      (tab) => tabDesktops[tab.id] === activeDesktop.id,
+    ).length;
+    const savedLinkCount = links.filter((link) =>
+      link.desktopId ? link.desktopId === activeDesktop.id : link.folder === activeDesktop.name,
+    ).length;
+    const result = deleteDesktop(workspace, activeDesktop.id, { openTabCount, savedLinkCount });
+
+    if (!result.deleted) {
+      const messages = {
+        "not-found": "Desktop no longer exists",
+        "last-desktop": "Keep at least one desktop",
+        "has-open-tabs": "Move or close this desktop's tabs first",
+        "has-saved-links": "This desktop has saved links; its Obsidian folder was left untouched",
+      };
+      setConfirmDeleteDesktopId(null);
+      setStatus(messages[result.reason]);
+      return;
+    }
+
+    if (confirmDeleteDesktopId !== activeDesktop.id) {
+      setConfirmDeleteDesktopId(activeDesktop.id);
+      setStatus("Delete this empty desktop? Press delete again to confirm");
+      return;
+    }
+
+    const nextDesktopId = result.workspace.activeDesktopId;
+    setWorkspace(result.workspace);
+    setConfirmDeleteDesktopId(null);
+    setWorkspaceMenuOpen(false);
+    setCaptureOpen(false);
+
+    const firstTab = snapshot.tabs.find((tab) => tabDesktops[tab.id] === nextDesktopId);
+    if (firstTab) {
+      setSnapshot(await window.lattice.browser.switchTab(firstTab.id));
+      setSurface(firstTab.url === "about:blank" ? "home" : "browser");
+    } else {
+      setAddress("");
+      setSurface("home");
+    }
+    setStatus("Deleted empty desktop; Obsidian folders were untouched");
   };
 
   const connectVault = async (disposable = false) => {
@@ -854,7 +918,10 @@ export function LatticeApp() {
             type="button"
             aria-label="Workspace menu"
             aria-expanded={workspaceMenuOpen}
-            onClick={() => setWorkspaceMenuOpen((open) => !open)}
+            onClick={() => {
+              setConfirmDeleteDesktopId(null);
+              setWorkspaceMenuOpen((open) => !open);
+            }}
           >
             <Icon name="more" />
           </button>
@@ -868,7 +935,18 @@ export function LatticeApp() {
                 <Icon name="close" />
                 Close all tabs
               </button>
-              <span>Sessions restore automatically</span>
+              <button
+                type="button"
+                className="danger-action"
+                data-delete-desktop={activeDesktop?.id}
+                onClick={() => void requestDeleteActiveDesktop()}
+              >
+                <Icon name="close" />
+                {confirmDeleteDesktopId === activeDesktop?.id
+                  ? "Confirm delete empty desktop"
+                  : `Delete ${activeDesktop?.name ?? "desktop"}`}
+              </button>
+              <span>Markdown folders are never deleted</span>
             </div>
           )}
         </div>
@@ -1093,9 +1171,40 @@ export function LatticeApp() {
             <Icon name="bookmark" />
             <span>Save</span>
           </button>
-          <button className="icon-button" type="button" aria-label="More browser actions">
-            <Icon name="more" />
-          </button>
+          <div className="browser-actions">
+            <button
+              className="icon-button"
+              type="button"
+              aria-label="More browser actions"
+              aria-expanded={browserMenuOpen}
+              disabled={!contextualTab}
+              onClick={() => setBrowserMenuOpen((open) => !open)}
+            >
+              <Icon name="more" />
+            </button>
+            {browserMenuOpen && contextualTab && (
+              <div className="browser-actions-menu">
+                <span>Move tab to</span>
+                {workspace.desktops
+                  .filter((desktop) => desktop.id !== workspace.activeDesktopId)
+                  .map((desktop) => (
+                    <button
+                      type="button"
+                      key={desktop.id}
+                      data-move-tab-to={desktop.id}
+                      onClick={() => moveActiveTab(desktop.id)}
+                    >
+                      <span className={`context-dot ${desktop.color}`} />
+                      <span>
+                        <strong>{desktop.name}</strong>
+                        <small>Keep page open</small>
+                      </span>
+                    </button>
+                  ))}
+                {workspace.desktops.length <= 1 && <p>Create another desktop first</p>}
+              </div>
+            )}
+          </div>
         </form>
 
         <div className="content-stage">
@@ -1387,9 +1496,9 @@ export function LatticeApp() {
                     </div>
                     <div className="settings-card-copy">
                       <span className="settings-kicker">About</span>
-                      <h2>Lattice 0.4.0</h2>
+                      <h2>Lattice 0.6.0</h2>
                       <p>
-                        Phase 4 privacy controls. Remote Node access, downloads, popups, device
+                        Current privacy controls. Remote Node access, downloads, popups, device
                         permissions, and unsafe protocols remain disabled.
                       </p>
                     </div>

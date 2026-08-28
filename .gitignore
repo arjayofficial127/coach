@@ -15,6 +15,16 @@ artifacts/*
 !artifacts/phase-5/installed-shell.png
 !artifacts/phase-5/installed-remote-example-com.png
 !artifacts/phase-5/installed-smoke-note.md
+!artifacts/phase-6/
+!artifacts/phase-6/packaged-smoke-evidence.json
+!artifacts/phase-6/phase-6-shell.png
+!artifacts/phase-6/remote-example-com.png
+!artifacts/phase-6/packaged-smoke-note.md
+!artifacts/phase-6/installer-lifecycle-evidence.json
+!artifacts/phase-6/installed-smoke-evidence.json
+!artifacts/phase-6/installed-shell.png
+!artifacts/phase-6/installed-remote-example-com.png
+!artifacts/phase-6/installed-smoke-note.md
 .package-source/
 dist/
 *.log

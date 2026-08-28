@@ -14,7 +14,7 @@ import { registerIpc } from "./ipc";
 import { installLatticeProtocol } from "./protocol";
 import { VaultService } from "./vault/vault-service";
 
-export interface PhaseFourSmokeEvidence {
+export interface PhaseSixSmokeEvidence {
   packaged: boolean;
   versions: { electron: string; chromium: string; node: string };
   shell: {
@@ -69,6 +69,18 @@ export interface PhaseFourSmokeEvidence {
     commandPaletteVisible: boolean;
     nativeViewHiddenWhilePaletteOpen: boolean;
   };
+  desktopLifecycle: {
+    guardedDeleteBlockedForOpenTab: boolean;
+    menuVisible: boolean;
+    nativeViewHiddenWhileMenuOpen: boolean;
+    movedToDesktop: string;
+    movedTabRetained: boolean;
+    emptiedSourceDesktop: boolean;
+    deletionConfirmationVisible: boolean;
+    deletedEmptyDesktop: boolean;
+    adjacentDesktopActivated: boolean;
+    savedResearchDesktopPreserved: boolean;
+  };
   readingQueue: {
     capturedAsQueued: boolean;
     markedRead: boolean;
@@ -122,7 +134,7 @@ interface ShellProbeResult {
     markedRead: SavedLinkRecord;
     requeued: SavedLinkRecord;
   };
-  tabs: PhaseFourSmokeEvidence["tabs"];
+  tabs: PhaseSixSmokeEvidence["tabs"];
 }
 
 interface SessionDomResult {
@@ -143,6 +155,14 @@ interface SettingsDomResult {
   heading: string;
   privacyText: string;
   restoreTabsEnabled: boolean;
+}
+
+interface DesktopLifecycleDomResult {
+  activeDesktop: string;
+  activeDesktopSummary: string;
+  activeTabTitle: string;
+  buildPresent: boolean;
+  researchSummary: string;
 }
 
 function delay(milliseconds: number): Promise<void> {
@@ -169,11 +189,11 @@ async function waitForRendererBounds(runtime: BrowserRuntime): Promise<BrowserBo
   throw new Error("The packaged React renderer did not report stable native-view bounds.");
 }
 
-export async function runPhaseFourSmoke(
+export async function runPhaseSixSmoke(
   rendererRoot: string,
   preloadPath: string,
-): Promise<PhaseFourSmokeEvidence> {
-  const smokeRoot = path.join(os.tmpdir(), "lattice-phase-four");
+): Promise<PhaseSixSmokeEvidence> {
+  const smokeRoot = path.join(os.tmpdir(), "lattice-phase-six");
   await mkdir(smokeRoot, { recursive: true });
 
   const window = new BrowserWindow({
@@ -234,8 +254,8 @@ export async function runPhaseFourSmoke(
       const closedSnapshot = await window.lattice.browser.closeTab(createdTabId);
       const vault = await window.lattice.vault.createDisposable();
       const note = await window.lattice.vault.saveProbeNote({
-        title: "Phase 4 packaged smoke",
-        url: "https://example.com/phase-four",
+        title: "Phase 6 packaged smoke",
+        url: "https://example.com/phase-six",
         description: "Atomic Markdown written into a desktop folder and read back through the packaged library.",
         folder: "Research",
         desktopId: "research",
@@ -299,7 +319,7 @@ export async function runPhaseFourSmoke(
       if (sessionDom?.status.includes("Restored 2 tabs") && sessionDom.tabTitle) break;
       await delay(25);
     }
-    if (!sessionDom) throw new Error("The Phase 4 session UI did not become ready.");
+    if (!sessionDom) throw new Error("The Phase 6 session UI did not become ready.");
     const afterReload = runtime.snapshot();
     const privacyProbe = await runtime.collectPrivacyClearProbe();
 
@@ -320,6 +340,151 @@ export async function runPhaseFourSmoke(
     await window.webContents.executeJavaScript(
       `document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`,
     );
+
+    // An occupied desktop cannot be deleted. Move its live native tab to the next
+    // desktop, then prove the now-empty desktop needs confirmation and can be
+    // removed without disturbing the Research desktop's saved Markdown.
+    await window.webContents.executeJavaScript(`(() => {
+      const menu = document.querySelector('button[aria-label="Workspace menu"]');
+      if (!(menu instanceof HTMLButtonElement)) throw new Error("Workspace menu missing");
+      menu.click();
+    })()`);
+    const occupiedDeleteDeadline = Date.now() + 2_000;
+    let occupiedDeleteVisible = false;
+    while (Date.now() < occupiedDeleteDeadline) {
+      occupiedDeleteVisible = (await window.webContents.executeJavaScript(
+        `Boolean(document.querySelector('[data-delete-desktop="build"]'))`,
+      )) as boolean;
+      if (occupiedDeleteVisible) break;
+      await delay(25);
+    }
+    if (!occupiedDeleteVisible) throw new Error("Desktop delete action missing");
+    await window.webContents.executeJavaScript(
+      `document.querySelector('[data-delete-desktop="build"]').click()`,
+    );
+    let guardedDeleteBlockedForOpenTab = false;
+    const guardDeadline = Date.now() + 2_000;
+    while (Date.now() < guardDeadline) {
+      guardedDeleteBlockedForOpenTab = (await window.webContents.executeJavaScript(`(() => {
+        const status = document.querySelector(".status-bar span")?.textContent ?? "";
+        const buildPresent = [...document.querySelectorAll(".desktop-item strong")]
+          .some((item) => item.textContent?.trim() === "Build");
+        return buildPresent && status.includes("Move or close this desktop's tabs first");
+      })()`)) as boolean;
+      if (guardedDeleteBlockedForOpenTab) break;
+      await delay(25);
+    }
+    await window.webContents.executeJavaScript(`(() => {
+      const menu = document.querySelector('button[aria-label="Workspace menu"]');
+      if (!(menu instanceof HTMLButtonElement)) throw new Error("Workspace menu missing");
+      menu.click();
+      const actions = document.querySelector('button[aria-label="More browser actions"]');
+      if (!(actions instanceof HTMLButtonElement)) throw new Error("Browser actions missing");
+      actions.click();
+    })()`);
+    const browserMenuDeadline = Date.now() + 2_000;
+    let browserMenuVisible = false;
+    while (Date.now() < browserMenuDeadline) {
+      browserMenuVisible = (await window.webContents.executeJavaScript(
+        `Boolean(document.querySelector(".browser-actions-menu"))`,
+      )) as boolean;
+      if (browserMenuVisible && !runtime.isVisible()) break;
+      await delay(25);
+    }
+    const nativeViewHiddenWhileMenuOpen = browserMenuVisible && !runtime.isVisible();
+    const movedTabId = runtime.snapshot().activeTabId;
+    await window.webContents.executeJavaScript(`(() => {
+      const target = document.querySelector('[data-move-tab-to="inspiration"]');
+      if (!(target instanceof HTMLButtonElement)) throw new Error("Inspiration move target missing");
+      target.click();
+    })()`);
+    const movedDeadline = Date.now() + 2_000;
+    let movedDom: DesktopLifecycleDomResult | null = null;
+    while (Date.now() < movedDeadline) {
+      movedDom = (await window.webContents.executeJavaScript(`(() => ({
+        activeDesktop: document.querySelector(".desktop-item.active strong")?.textContent?.trim() ?? "",
+        activeDesktopSummary: document.querySelector(".desktop-item.active small")?.textContent?.trim() ?? "",
+        activeTabTitle: document.querySelector(".browser-tab.active .tab-title")?.textContent?.trim() ?? "",
+        buildPresent: [...document.querySelectorAll(".desktop-item strong")]
+          .some((item) => item.textContent?.trim() === "Build"),
+        researchSummary: [...document.querySelectorAll(".desktop-item")]
+          .find((item) => item.querySelector("strong")?.textContent?.trim() === "Research")
+          ?.querySelector("small")?.textContent?.trim() ?? ""
+      }))()`)) as DesktopLifecycleDomResult;
+      if (movedDom.activeDesktop === "Inspiration" && movedDom.activeTabTitle) break;
+      await delay(25);
+    }
+    if (!movedDom) throw new Error("The Phase 6 tab move UI did not become ready.");
+    const movedTabRetained = runtime.snapshot().activeTabId === movedTabId;
+
+    await window.webContents.executeJavaScript(`(() => {
+      const build = [...document.querySelectorAll(".desktop-item")]
+        .find((item) => item.querySelector("strong")?.textContent?.trim() === "Build");
+      if (!(build instanceof HTMLButtonElement)) throw new Error("Build desktop missing");
+      build.click();
+    })()`);
+    const emptyDeadline = Date.now() + 2_000;
+    let emptiedSourceDesktop = false;
+    while (Date.now() < emptyDeadline) {
+      emptiedSourceDesktop = (await window.webContents.executeJavaScript(`(() => {
+        const active = document.querySelector(".desktop-item.active");
+        return active?.querySelector("strong")?.textContent?.trim() === "Build" &&
+          active?.querySelector("small")?.textContent?.trim().startsWith("0 tabs");
+      })()`)) as boolean;
+      if (emptiedSourceDesktop) break;
+      await delay(25);
+    }
+    await window.webContents.executeJavaScript(`(() => {
+      const menu = document.querySelector('button[aria-label="Workspace menu"]');
+      if (!(menu instanceof HTMLButtonElement)) throw new Error("Workspace menu missing");
+      menu.click();
+    })()`);
+    const emptyDeleteDeadline = Date.now() + 2_000;
+    let emptyDeleteVisible = false;
+    while (Date.now() < emptyDeleteDeadline) {
+      emptyDeleteVisible = (await window.webContents.executeJavaScript(
+        `Boolean(document.querySelector('[data-delete-desktop="build"]'))`,
+      )) as boolean;
+      if (emptyDeleteVisible) break;
+      await delay(25);
+    }
+    if (!emptyDeleteVisible) throw new Error("Desktop delete action missing");
+    await window.webContents.executeJavaScript(
+      `document.querySelector('[data-delete-desktop="build"]').click()`,
+    );
+    const confirmationDeadline = Date.now() + 2_000;
+    let deletionConfirmationVisible = false;
+    while (Date.now() < confirmationDeadline) {
+      deletionConfirmationVisible = (await window.webContents.executeJavaScript(`(() => {
+        const remove = document.querySelector('[data-delete-desktop="build"]');
+        return remove?.textContent?.includes("Confirm delete empty desktop") ?? false;
+      })()`)) as boolean;
+      if (deletionConfirmationVisible) break;
+      await delay(25);
+    }
+    await window.webContents.executeJavaScript(`(() => {
+      const remove = document.querySelector('[data-delete-desktop="build"]');
+      if (!(remove instanceof HTMLButtonElement)) throw new Error("Desktop confirmation missing");
+      remove.click();
+    })()`);
+    const deleteDeadline = Date.now() + 2_000;
+    let deletedDom: DesktopLifecycleDomResult | null = null;
+    while (Date.now() < deleteDeadline) {
+      deletedDom = (await window.webContents.executeJavaScript(`(() => ({
+        activeDesktop: document.querySelector(".desktop-item.active strong")?.textContent?.trim() ?? "",
+        activeDesktopSummary: document.querySelector(".desktop-item.active small")?.textContent?.trim() ?? "",
+        activeTabTitle: document.querySelector(".browser-tab.active .tab-title")?.textContent?.trim() ?? "",
+        buildPresent: [...document.querySelectorAll(".desktop-item strong")]
+          .some((item) => item.textContent?.trim() === "Build"),
+        researchSummary: [...document.querySelectorAll(".desktop-item")]
+          .find((item) => item.querySelector("strong")?.textContent?.trim() === "Research")
+          ?.querySelector("small")?.textContent?.trim() ?? ""
+      }))()`)) as DesktopLifecycleDomResult;
+      if (!deletedDom.buildPresent && deletedDom.activeDesktop === "Inspiration") break;
+      await delay(25);
+    }
+    if (!deletedDom) throw new Error("The Phase 6 desktop delete UI did not become ready.");
+
     await window.webContents.executeJavaScript(`(() => {
       const button = [...document.querySelectorAll("button.library-row")]
         .find((candidate) => candidate.textContent?.includes("Reading queue"));
@@ -339,7 +504,7 @@ export async function runPhaseFourSmoke(
       if (queueDom.heading === "Reading queue" && queueDom.itemTitle) break;
       await delay(25);
     }
-    if (!queueDom) throw new Error("The Phase 4 reading queue UI did not become ready.");
+    if (!queueDom) throw new Error("The Phase 6 reading queue UI did not become ready.");
     const nativeViewHiddenForQueue = !runtime.isVisible();
 
     await window.webContents.executeJavaScript(`(() => {
@@ -358,7 +523,7 @@ export async function runPhaseFourSmoke(
       if (settingsDom.heading === "Settings" && settingsDom.privacyText) break;
       await delay(25);
     }
-    if (!settingsDom) throw new Error("The Phase 4 settings UI did not become ready.");
+    if (!settingsDom) throw new Error("The Phase 6 settings UI did not become ready.");
     const nativeViewHiddenForSettings = !runtime.isVisible();
 
     // Chromium only exposes composed surfaces while the owning window is shown. Keep
@@ -370,7 +535,7 @@ export async function runPhaseFourSmoke(
     const shellImage = await window.webContents.capturePage();
     if (shellImage.isEmpty()) throw new Error("Electron returned an empty shell capture.");
     const shellScreenshot = shellImage.toPNG();
-    const shellScreenshotPath = path.join(smokeRoot, "phase-4-shell.png");
+    const shellScreenshotPath = path.join(smokeRoot, "phase-6-shell.png");
     await writeFile(shellScreenshotPath, shellScreenshot);
 
     await window.webContents.executeJavaScript(`(async () => {
@@ -397,7 +562,7 @@ export async function runPhaseFourSmoke(
       smokeRoot,
       app.isPackaged ? "packaged-smoke-evidence.json" : "dev-smoke-evidence.json",
     );
-    const evidence: PhaseFourSmokeEvidence = {
+    const evidence: PhaseSixSmokeEvidence = {
       packaged: app.isPackaged,
       versions: {
         electron: process.versions.electron ?? "unknown",
@@ -441,6 +606,18 @@ export async function runPhaseFourSmoke(
         tabTitle: sessionDom.tabTitle,
         commandPaletteVisible,
         nativeViewHiddenWhilePaletteOpen,
+      },
+      desktopLifecycle: {
+        guardedDeleteBlockedForOpenTab,
+        menuVisible: browserMenuVisible,
+        nativeViewHiddenWhileMenuOpen,
+        movedToDesktop: movedDom.activeDesktop,
+        movedTabRetained,
+        emptiedSourceDesktop,
+        deletionConfirmationVisible,
+        deletedEmptyDesktop: !deletedDom.buildPresent,
+        adjacentDesktopActivated: deletedDom.activeDesktop === "Inspiration",
+        savedResearchDesktopPreserved: deletedDom.researchSummary.includes("1 saved"),
       },
       readingQueue: {
         capturedAsQueued:

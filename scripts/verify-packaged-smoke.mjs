@@ -14,11 +14,11 @@ const sourceManifestPath = path.resolve(
   "resources",
   "source-manifest.json",
 );
-const evidenceSource = path.join(os.tmpdir(), "lattice-phase-four", "packaged-smoke-evidence.json");
-const evidenceDirectory = path.resolve("artifacts", "phase-4");
+const evidenceSource = path.join(os.tmpdir(), "lattice-phase-six", "packaged-smoke-evidence.json");
+const evidenceDirectory = path.resolve("artifacts", "phase-6");
 const evidenceTarget = path.join(evidenceDirectory, "packaged-smoke-evidence.json");
 const screenshotTarget = path.join(evidenceDirectory, "remote-example-com.png");
-const shellScreenshotTarget = path.join(evidenceDirectory, "phase-4-shell.png");
+const shellScreenshotTarget = path.join(evidenceDirectory, "phase-6-shell.png");
 const noteTarget = path.join(evidenceDirectory, "packaged-smoke-note.md");
 
 await access(executable);
@@ -33,7 +33,7 @@ await Promise.all(
 );
 
 await new Promise((resolve, reject) => {
-  const child = spawn(executable, ["--phase4-smoke"], { stdio: "inherit", windowsHide: true });
+  const child = spawn(executable, ["--phase6-smoke"], { stdio: "inherit", windowsHide: true });
   const timeout = setTimeout(() => {
     child.kill();
     reject(new Error("Packaged smoke exceeded the 30-second timeout."));
@@ -138,6 +138,32 @@ if (!evidence.session.commandPaletteVisible) {
 if (!evidence.session.nativeViewHiddenWhilePaletteOpen) {
   failures.push("native website view remained above the trusted command palette");
 }
+if (!evidence.desktopLifecycle.guardedDeleteBlockedForOpenTab) {
+  failures.push("occupied desktop deletion was not blocked");
+}
+if (!evidence.desktopLifecycle.menuVisible) {
+  failures.push("tab-move browser menu did not render");
+}
+if (!evidence.desktopLifecycle.nativeViewHiddenWhileMenuOpen) {
+  failures.push("native website view remained above the trusted browser menu");
+}
+if (
+  evidence.desktopLifecycle.movedToDesktop !== "Inspiration" ||
+  !evidence.desktopLifecycle.movedTabRetained ||
+  !evidence.desktopLifecycle.emptiedSourceDesktop
+) {
+  failures.push("live tab did not move between desktops without closing");
+}
+if (
+  !evidence.desktopLifecycle.deletionConfirmationVisible ||
+  !evidence.desktopLifecycle.deletedEmptyDesktop ||
+  !evidence.desktopLifecycle.adjacentDesktopActivated
+) {
+  failures.push("confirmed empty-desktop deletion did not select the adjacent desktop");
+}
+if (!evidence.desktopLifecycle.savedResearchDesktopPreserved) {
+  failures.push("desktop lifecycle changed the saved Research desktop");
+}
 if (!evidence.readingQueue.capturedAsQueued) {
   failures.push("capture did not persist an initial queued state");
 }
@@ -147,7 +173,7 @@ if (!evidence.readingQueue.markedRead || !evidence.readingQueue.requeued) {
 if (
   evidence.readingQueue.heading !== "Reading queue" ||
   !evidence.readingQueue.summary.startsWith("1 unread") ||
-  evidence.readingQueue.itemTitle !== "Phase 4 packaged smoke" ||
+  evidence.readingQueue.itemTitle !== "Phase 6 packaged smoke" ||
   !evidence.readingQueue.markReadVisible
 ) {
   failures.push("packaged reading queue UI did not expose the queued Markdown item");
@@ -246,17 +272,17 @@ if (screenshotPixels.width < 100 || screenshotPixels.height < 100) {
   throw new Error("WebContentsView screenshot dimensions were not usable.");
 }
 if (!shellScreenshotBytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) {
-  throw new Error("Phase 4 shell screenshot is not a PNG file.");
+  throw new Error("Phase 6 shell screenshot is not a PNG file.");
 }
 if (shellScreenshotBytes.byteLength !== evidence.shell.screenshotBytes) {
-  throw new Error("Phase 4 shell screenshot byte count changed before evidence collection.");
+  throw new Error("Phase 6 shell screenshot byte count changed before evidence collection.");
 }
 const shellScreenshotPixels = {
   width: shellScreenshotBytes.readUInt32BE(16),
   height: shellScreenshotBytes.readUInt32BE(20),
 };
 if (shellScreenshotPixels.width < 900 || shellScreenshotPixels.height < 620) {
-  throw new Error("Phase 4 shell screenshot dimensions were not usable.");
+  throw new Error("Phase 6 shell screenshot dimensions were not usable.");
 }
 evidence.shell.screenshotPixels = shellScreenshotPixels;
 evidence.shell.screenshotSha256 = createHash("sha256").update(shellScreenshotBytes).digest("hex");
@@ -301,7 +327,7 @@ if (signatureResult.status !== 0) {
 }
 const authenticodeStatus = signatureResult.stdout.trim();
 if (authenticodeStatus !== "NotSigned") {
-  throw new Error(`Expected an unsigned Phase 4 executable, got ${authenticodeStatus}.`);
+  throw new Error(`Expected an unsigned Phase 6 executable, got ${authenticodeStatus}.`);
 }
 const fuseWire = await getCurrentFuseWire(executable);
 const expectedFuses = {
@@ -378,4 +404,4 @@ evidence.remote.artifactPath = screenshotTarget;
 evidence.shell.artifactPath = shellScreenshotTarget;
 evidence.note.artifactPath = noteTarget;
 await writeFile(evidenceTarget, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
-console.log(`Packaged Phase 4 smoke passed. Evidence: ${evidenceTarget}`);
+console.log(`Packaged Phase 6 smoke passed. Evidence: ${evidenceTarget}`);

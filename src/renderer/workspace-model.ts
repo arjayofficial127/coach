@@ -10,6 +10,18 @@ export interface WorkspacePreferences {
   desktops: DesktopDefinition[];
 }
 
+export interface DesktopUsage {
+  openTabCount: number;
+  savedLinkCount: number;
+}
+
+export type DeleteDesktopResult =
+  | { deleted: true; workspace: WorkspacePreferences }
+  | {
+      deleted: false;
+      reason: "not-found" | "last-desktop" | "has-open-tabs" | "has-saved-links";
+    };
+
 export const DEFAULT_DESKTOPS: DesktopDefinition[] = [
   { id: "research", name: "Research", color: "violet" },
   { id: "build", name: "Build", color: "cyan" },
@@ -86,5 +98,43 @@ export function renameDesktop(
     desktops: workspace.desktops.map((desktop) =>
       desktop.id === desktopId ? { ...desktop, name: nextName } : desktop,
     ),
+  };
+}
+
+export function moveTabToDesktop(
+  assignments: Record<string, string>,
+  workspace: WorkspacePreferences,
+  tabId: string,
+  desktopId: string,
+): Record<string, string> {
+  if (!Object.hasOwn(assignments, tabId)) return assignments;
+  if (!workspace.desktops.some((desktop) => desktop.id === desktopId)) return assignments;
+  if (assignments[tabId] === desktopId) return assignments;
+  return { ...assignments, [tabId]: desktopId };
+}
+
+export function deleteDesktop(
+  workspace: WorkspacePreferences,
+  desktopId: string,
+  usage: DesktopUsage,
+): DeleteDesktopResult {
+  const desktopIndex = workspace.desktops.findIndex((desktop) => desktop.id === desktopId);
+  if (desktopIndex < 0) return { deleted: false, reason: "not-found" };
+  if (workspace.desktops.length <= 1) return { deleted: false, reason: "last-desktop" };
+  if (usage.openTabCount > 0) return { deleted: false, reason: "has-open-tabs" };
+  if (usage.savedLinkCount > 0) return { deleted: false, reason: "has-saved-links" };
+
+  const desktops = workspace.desktops.filter((desktop) => desktop.id !== desktopId);
+  const fallbackDesktop = desktops[Math.min(desktopIndex, desktops.length - 1)] ?? desktops[0];
+  return {
+    deleted: true,
+    workspace: {
+      ...workspace,
+      activeDesktopId:
+        workspace.activeDesktopId === desktopId
+          ? (fallbackDesktop?.id ?? workspace.activeDesktopId)
+          : workspace.activeDesktopId,
+      desktops,
+    },
   };
 }
