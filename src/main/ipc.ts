@@ -30,6 +30,12 @@ const noteSchema = z.object({
     .max(80)
     .regex(/^[a-zA-Z0-9_-]+$/)
     .optional(),
+  readingStatus: z.enum(["saved", "queued"]).optional(),
+});
+
+const readingStatusSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum(["saved", "queued", "read"]),
 });
 
 const tabIdSchema = z.string().uuid();
@@ -87,6 +93,9 @@ export function registerIpc(
     vault.saveProbeNote(noteSchema.parse(payload)),
   );
   handle(IPC.vaultListSavedLinks, () => vault.listSavedLinks());
+  handle(IPC.vaultSetReadingStatus, (_event, payload) =>
+    vault.setReadingStatus(readingStatusSchema.parse(payload)),
+  );
 
   return () => {
     for (const channel of Object.values(IPC)) {

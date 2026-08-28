@@ -7,9 +7,11 @@ import type {
   ProbeNoteInput,
   SavedLinkRecord,
   SaveNoteResult,
+  SetReadingStatusInput,
   VaultInfo,
 } from "../../shared/contracts";
 import { saveProbeNoteAtomically } from "./atomic-note";
+import { updateReadingStatusAtomically } from "./reading-status";
 import { listSavedLinksFromVault } from "./saved-link-reader";
 
 interface ActiveVault extends VaultInfo {
@@ -70,6 +72,34 @@ export class VaultService {
   async listSavedLinks(): Promise<SavedLinkRecord[]> {
     if (!this.activeVault) return [];
     return listSavedLinksFromVault(this.activeVault.canonicalPath);
+  }
+
+  async setReadingStatus(input: SetReadingStatusInput): Promise<SavedLinkRecord> {
+    if (!this.activeVault) {
+      throw new Error("Choose a vault before updating a reading item.");
+    }
+    const links = await listSavedLinksFromVault(this.activeVault.canonicalPath);
+    const matches = links.filter((link) => link.id === input.id);
+    if (matches.length !== 1) {
+      throw new Error(
+        matches.length === 0
+          ? "The saved link could not be found."
+          : "Duplicate saved-link IDs must be resolved in Obsidian first.",
+      );
+    }
+    const link = matches[0];
+    if (!link) throw new Error("The saved link could not be found.");
+    await updateReadingStatusAtomically(
+      this.activeVault.canonicalPath,
+      link.relativePath,
+      link.id,
+      input.status,
+    );
+    const updated = (await listSavedLinksFromVault(this.activeVault.canonicalPath)).find(
+      (candidate) => candidate.id === input.id,
+    );
+    if (!updated) throw new Error("The updated saved link could not be read back.");
+    return updated;
   }
 
   private async setActiveVault(

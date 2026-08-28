@@ -52,6 +52,23 @@ describe("atomic Obsidian note writer", () => {
     await expect(readFile(result.absolutePath, "utf8")).resolves.toContain('folder: "Build Ideas"');
   });
 
+  it("captures reading-queue state in portable frontmatter", async () => {
+    const vault = await mkdtemp(path.join(os.tmpdir(), "lattice-queue-capture-test-"));
+    temporaryRoots.push(vault);
+    const result = await saveProbeNoteAtomically(vault, {
+      title: "Read this later",
+      url: "https://example.com/queued",
+      description: "Queued during capture.",
+      readingStatus: "queued",
+    });
+
+    const markdown = await readFile(result.absolutePath, "utf8");
+    expect(result.readingStatus).toBe("queued");
+    expect(result.queuedAt).toBe(result.savedAt);
+    expect(markdown).toContain('reading_status: "queued"');
+    expect(markdown).toContain(`queued_at: "${result.savedAt}"`);
+  });
+
   it("uses a safe fallback for Windows device names", () => {
     expect(sanitizeFileComponent("CON")).toBe("saved-page");
     expect(sanitizeFileComponent('a<b>:c"d/e\\f|g?h*')).toBe("a b c d e f g h");

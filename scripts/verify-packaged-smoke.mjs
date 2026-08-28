@@ -14,11 +14,15 @@ const sourceManifestPath = path.resolve(
   "resources",
   "source-manifest.json",
 );
-const evidenceSource = path.join(os.tmpdir(), "lattice-phase-two", "packaged-smoke-evidence.json");
-const evidenceDirectory = path.resolve("artifacts", "phase-2");
+const evidenceSource = path.join(
+  os.tmpdir(),
+  "lattice-phase-three",
+  "packaged-smoke-evidence.json",
+);
+const evidenceDirectory = path.resolve("artifacts", "phase-3");
 const evidenceTarget = path.join(evidenceDirectory, "packaged-smoke-evidence.json");
 const screenshotTarget = path.join(evidenceDirectory, "remote-example-com.png");
-const shellScreenshotTarget = path.join(evidenceDirectory, "phase-2-shell.png");
+const shellScreenshotTarget = path.join(evidenceDirectory, "phase-3-shell.png");
 const noteTarget = path.join(evidenceDirectory, "packaged-smoke-note.md");
 
 await access(executable);
@@ -33,7 +37,7 @@ await Promise.all(
 );
 
 await new Promise((resolve, reject) => {
-  const child = spawn(executable, ["--phase2-smoke"], { stdio: "inherit", windowsHide: true });
+  const child = spawn(executable, ["--phase3-smoke"], { stdio: "inherit", windowsHide: true });
   const timeout = setTimeout(() => {
     child.kill();
     reject(new Error("Packaged smoke exceeded the 30-second timeout."));
@@ -138,6 +142,23 @@ if (!evidence.session.commandPaletteVisible) {
 if (!evidence.session.nativeViewHiddenWhilePaletteOpen) {
   failures.push("native website view remained above the trusted command palette");
 }
+if (!evidence.readingQueue.capturedAsQueued) {
+  failures.push("capture did not persist an initial queued state");
+}
+if (!evidence.readingQueue.markedRead || !evidence.readingQueue.requeued) {
+  failures.push("reading status did not round-trip through read and queued states");
+}
+if (
+  evidence.readingQueue.heading !== "Reading queue" ||
+  !evidence.readingQueue.summary.startsWith("1 unread") ||
+  evidence.readingQueue.itemTitle !== "Phase 3 packaged smoke" ||
+  !evidence.readingQueue.markReadVisible
+) {
+  failures.push("packaged reading queue UI did not expose the queued Markdown item");
+}
+if (!evidence.readingQueue.nativeViewHidden) {
+  failures.push("native website view remained visible beneath the trusted reading queue");
+}
 if (!evidence.note.disposableVault) failures.push("note was not written to a disposable vault");
 if (!evidence.note.obsidianDirectoryPresent)
   failures.push("disposable vault had no .obsidian marker directory");
@@ -201,17 +222,17 @@ if (screenshotPixels.width < 100 || screenshotPixels.height < 100) {
   throw new Error("WebContentsView screenshot dimensions were not usable.");
 }
 if (!shellScreenshotBytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) {
-  throw new Error("Phase 2 shell screenshot is not a PNG file.");
+  throw new Error("Phase 3 shell screenshot is not a PNG file.");
 }
 if (shellScreenshotBytes.byteLength !== evidence.shell.screenshotBytes) {
-  throw new Error("Phase 2 shell screenshot byte count changed before evidence collection.");
+  throw new Error("Phase 3 shell screenshot byte count changed before evidence collection.");
 }
 const shellScreenshotPixels = {
   width: shellScreenshotBytes.readUInt32BE(16),
   height: shellScreenshotBytes.readUInt32BE(20),
 };
 if (shellScreenshotPixels.width < 900 || shellScreenshotPixels.height < 620) {
-  throw new Error("Phase 2 shell screenshot dimensions were not usable.");
+  throw new Error("Phase 3 shell screenshot dimensions were not usable.");
 }
 evidence.shell.screenshotPixels = shellScreenshotPixels;
 evidence.shell.screenshotSha256 = createHash("sha256").update(shellScreenshotBytes).digest("hex");
@@ -228,6 +249,9 @@ if (!noteText.startsWith("---\n") || !noteText.includes('type: "saved-link"')) {
 }
 if (!noteText.includes('desktop_id: "research"')) {
   throw new Error("Saved Markdown did not retain its stable desktop ID.");
+}
+if (!noteText.includes('reading_status: "queued"') || !noteText.match(/^queued_at: ".+"$/m)) {
+  throw new Error("Saved Markdown did not retain its reading-queue state.");
 }
 const signatureArguments = [
   "-NoProfile",
@@ -253,7 +277,7 @@ if (signatureResult.status !== 0) {
 }
 const authenticodeStatus = signatureResult.stdout.trim();
 if (authenticodeStatus !== "NotSigned") {
-  throw new Error(`Expected an unsigned Phase 2 executable, got ${authenticodeStatus}.`);
+  throw new Error(`Expected an unsigned Phase 3 executable, got ${authenticodeStatus}.`);
 }
 const fuseWire = await getCurrentFuseWire(executable);
 const expectedFuses = {
@@ -330,4 +354,4 @@ evidence.remote.artifactPath = screenshotTarget;
 evidence.shell.artifactPath = shellScreenshotTarget;
 evidence.note.artifactPath = noteTarget;
 await writeFile(evidenceTarget, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
-console.log(`Packaged Phase 2 smoke passed. Evidence: ${evidenceTarget}`);
+console.log(`Packaged Phase 3 smoke passed. Evidence: ${evidenceTarget}`);

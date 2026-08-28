@@ -43,6 +43,8 @@ export function renderProbeMarkdown(
   latticeId: string,
   savedAt: string,
 ): string {
+  const readingStatus = input.readingStatus === "queued" ? "queued" : "saved";
+  const queuedAt = readingStatus === "queued" ? savedAt : "";
   return [
     "---",
     `lattice_id: ${yamlString(latticeId)}`,
@@ -52,6 +54,9 @@ export function renderProbeMarkdown(
     `description: ${yamlString(input.description)}`,
     `folder: ${yamlString(input.folder ?? "")}`,
     `desktop_id: ${yamlString(input.desktopId ?? "")}`,
+    `reading_status: ${yamlString(readingStatus)}`,
+    `queued_at: ${yamlString(queuedAt)}`,
+    'read_at: ""',
     `saved_at: ${yamlString(savedAt)}`,
     "tags:",
     '  - "lattice-saved-link"',
@@ -143,6 +148,9 @@ export async function saveProbeNoteAtomically(
     savedAt,
     folder,
     desktopId: input.desktopId ?? "",
+    readingStatus: input.readingStatus === "queued" ? "queued" : "saved",
+    queuedAt: input.readingStatus === "queued" ? savedAt : "",
+    readAt: "",
     relativePath: path.relative(canonicalRoot, finalPath),
     absolutePath: finalPath,
     bytesWritten: Buffer.byteLength(markdown, "utf8"),

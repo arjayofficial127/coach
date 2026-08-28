@@ -14,7 +14,7 @@ import { registerIpc } from "./ipc";
 import { installLatticeProtocol } from "./protocol";
 import { VaultService } from "./vault/vault-service";
 
-export interface PhaseTwoSmokeEvidence {
+export interface PhaseThreeSmokeEvidence {
   packaged: boolean;
   versions: { electron: string; chromium: string; node: string };
   shell: {
@@ -69,6 +69,16 @@ export interface PhaseTwoSmokeEvidence {
     commandPaletteVisible: boolean;
     nativeViewHiddenWhilePaletteOpen: boolean;
   };
+  readingQueue: {
+    capturedAsQueued: boolean;
+    markedRead: boolean;
+    requeued: boolean;
+    heading: string;
+    summary: string;
+    itemTitle: string;
+    markReadVisible: boolean;
+    nativeViewHidden: boolean;
+  };
   note: {
     vaultPath: string;
     disposableVault: boolean;
@@ -93,7 +103,11 @@ interface ShellProbeResult {
   vault: VaultInfo;
   note: SaveNoteResult;
   links: SavedLinkRecord[];
-  tabs: PhaseTwoSmokeEvidence["tabs"];
+  reading: {
+    markedRead: SavedLinkRecord;
+    requeued: SavedLinkRecord;
+  };
+  tabs: PhaseThreeSmokeEvidence["tabs"];
 }
 
 interface SessionDomResult {
@@ -101,6 +115,13 @@ interface SessionDomResult {
   activeDesktop: string;
   activeDesktopSummary: string;
   tabTitle: string;
+}
+
+interface QueueDomResult {
+  heading: string;
+  summary: string;
+  itemTitle: string;
+  markReadVisible: boolean;
 }
 
 function delay(milliseconds: number): Promise<void> {
@@ -119,11 +140,11 @@ async function waitForRendererBounds(runtime: BrowserRuntime): Promise<BrowserBo
   throw new Error("The packaged React renderer did not report usable native-view bounds.");
 }
 
-export async function runPhaseTwoSmoke(
+export async function runPhaseThreeSmoke(
   rendererRoot: string,
   preloadPath: string,
-): Promise<PhaseTwoSmokeEvidence> {
-  const smokeRoot = path.join(os.tmpdir(), "lattice-phase-two");
+): Promise<PhaseThreeSmokeEvidence> {
+  const smokeRoot = path.join(os.tmpdir(), "lattice-phase-three");
   await mkdir(smokeRoot, { recursive: true });
 
   const window = new BrowserWindow({
@@ -184,12 +205,15 @@ export async function runPhaseTwoSmoke(
       const closedSnapshot = await window.lattice.browser.closeTab(createdTabId);
       const vault = await window.lattice.vault.createDisposable();
       const note = await window.lattice.vault.saveProbeNote({
-        title: "Phase 2 packaged smoke",
-        url: "https://example.com/phase-two",
+        title: "Phase 3 packaged smoke",
+        url: "https://example.com/phase-three",
         description: "Atomic Markdown written into a desktop folder and read back through the packaged library.",
         folder: "Research",
-        desktopId: "research"
+        desktopId: "research",
+        readingStatus: "queued"
       });
+      const markedRead = await window.lattice.vault.setReadingStatus({ id: note.id, status: "read" });
+      const requeued = await window.lattice.vault.setReadingStatus({ id: note.id, status: "queued" });
       const links = await window.lattice.vault.listSavedLinks();
       return {
         domReady: Boolean(document.querySelector(".lattice-shell")),
@@ -199,6 +223,7 @@ export async function runPhaseTwoSmoke(
         vault,
         note,
         links,
+        reading: { markedRead, requeued },
         tabs: {
           initialCount: initialSnapshot.tabs.length,
           afterCreateCount: createdSnapshot.tabs.length,
@@ -245,7 +270,7 @@ export async function runPhaseTwoSmoke(
       if (sessionDom?.status.includes("Restored 2 tabs") && sessionDom.tabTitle) break;
       await delay(25);
     }
-    if (!sessionDom) throw new Error("The Phase 2 session UI did not become ready.");
+    if (!sessionDom) throw new Error("The Phase 3 session UI did not become ready.");
     const afterReload = runtime.snapshot();
 
     await window.webContents.executeJavaScript(
@@ -262,6 +287,31 @@ export async function runPhaseTwoSmoke(
     }
     const nativeViewHiddenWhilePaletteOpen = commandPaletteVisible && !runtime.isVisible();
 
+    await window.webContents.executeJavaScript(
+      `document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`,
+    );
+    await window.webContents.executeJavaScript(`(() => {
+      const button = [...document.querySelectorAll("button.library-row")]
+        .find((candidate) => candidate.textContent?.includes("Reading queue"));
+      if (!(button instanceof HTMLButtonElement)) throw new Error("Reading queue button missing");
+      button.click();
+    })()`);
+    const queueDeadline = Date.now() + 2_000;
+    let queueDom: QueueDomResult | null = null;
+    while (Date.now() < queueDeadline) {
+      queueDom = (await window.webContents.executeJavaScript(`(() => ({
+        heading: document.querySelector(".library-header h1")?.textContent?.trim() ?? "",
+        summary: document.querySelector(".library-header p")?.textContent?.trim() ?? "",
+        itemTitle: document.querySelector(".link-card h2")?.textContent?.trim() ?? "",
+        markReadVisible: [...document.querySelectorAll(".link-card-actions button")]
+          .some((button) => button.textContent?.includes("Mark read"))
+      }))()`)) as QueueDomResult;
+      if (queueDom.heading === "Reading queue" && queueDom.itemTitle) break;
+      await delay(25);
+    }
+    if (!queueDom) throw new Error("The Phase 3 reading queue UI did not become ready.");
+    const nativeViewHiddenForQueue = !runtime.isVisible();
+
     // Chromium only exposes composed surfaces while the owning window is shown. Keep
     // the smoke window out of the taskbar and avoid taking focus.
     window.setSkipTaskbar(true);
@@ -271,13 +321,9 @@ export async function runPhaseTwoSmoke(
     const shellImage = await window.webContents.capturePage();
     if (shellImage.isEmpty()) throw new Error("Electron returned an empty shell capture.");
     const shellScreenshot = shellImage.toPNG();
-    const shellScreenshotPath = path.join(smokeRoot, "phase-2-shell.png");
+    const shellScreenshotPath = path.join(smokeRoot, "phase-3-shell.png");
     await writeFile(shellScreenshotPath, shellScreenshot);
 
-    await window.webContents.executeJavaScript(
-      `document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`,
-    );
-    await delay(50);
     runtime.setVisible(true);
     const probe = await runtime.collectSecurityProbe();
     window.hide();
@@ -294,7 +340,7 @@ export async function runPhaseTwoSmoke(
       smokeRoot,
       app.isPackaged ? "packaged-smoke-evidence.json" : "dev-smoke-evidence.json",
     );
-    const evidence: PhaseTwoSmokeEvidence = {
+    const evidence: PhaseThreeSmokeEvidence = {
       packaged: app.isPackaged,
       versions: {
         electron: process.versions.electron ?? "unknown",
@@ -338,6 +384,22 @@ export async function runPhaseTwoSmoke(
         tabTitle: sessionDom.tabTitle,
         commandPaletteVisible,
         nativeViewHiddenWhilePaletteOpen,
+      },
+      readingQueue: {
+        capturedAsQueued:
+          shellProbe.note.readingStatus === "queued" && Boolean(shellProbe.note.queuedAt),
+        markedRead:
+          shellProbe.reading.markedRead.readingStatus === "read" &&
+          Boolean(shellProbe.reading.markedRead.readAt),
+        requeued:
+          shellProbe.reading.requeued.readingStatus === "queued" &&
+          Boolean(shellProbe.reading.requeued.queuedAt) &&
+          !shellProbe.reading.requeued.readAt,
+        heading: queueDom.heading,
+        summary: queueDom.summary,
+        itemTitle: queueDom.itemTitle,
+        markReadVisible: queueDom.markReadVisible,
+        nativeViewHidden: nativeViewHiddenForQueue,
       },
       note: {
         vaultPath: shellProbe.vault.displayPath,

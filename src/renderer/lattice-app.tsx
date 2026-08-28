@@ -21,7 +21,7 @@ import {
   type WorkspacePreferences,
 } from "./workspace-model";
 
-type Surface = "home" | "browser" | "library";
+type Surface = "home" | "browser" | "library" | "queue";
 
 const WORKSPACE_STORAGE_KEY = "lattice.workspace.v1";
 const SESSION_STORAGE_KEY = "lattice.session.v1";
@@ -32,7 +32,13 @@ type CommandItem =
   | { kind: "tab"; id: string; label: string; detail: string; tab: BrowserState }
   | { kind: "link"; id: string; label: string; detail: string; link: SavedLinkRecord }
   | { kind: "desktop"; id: string; label: string; detail: string; desktopId: string }
-  | { kind: "action"; id: string; label: string; detail: string; action: "new-tab" | "library" };
+  | {
+      kind: "action";
+      id: string;
+      label: string;
+      detail: string;
+      action: "new-tab" | "library" | "queue";
+    };
 
 interface RestoredBrowserState {
   snapshot: BrowserSnapshot;
@@ -96,6 +102,7 @@ export function LatticeApp() {
   const [links, setLinks] = useState<SavedLinkRecord[]>([]);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [captureDescription, setCaptureDescription] = useState("");
+  const [queueCapture, setQueueCapture] = useState(false);
   const [libraryQuery, setLibraryQuery] = useState("");
   const [status, setStatus] = useState("Ready");
   const [saving, setSaving] = useState(false);
@@ -108,6 +115,7 @@ export function LatticeApp() {
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [sessionReady, setSessionReady] = useState(false);
+  const [updatingLinkId, setUpdatingLinkId] = useState<string | null>(null);
 
   const activeTab = snapshot.tabs.find((tab) => tab.id === snapshot.activeTabId) ?? null;
   const activeDesktop =
@@ -132,6 +140,23 @@ export function LatticeApp() {
       return inDesktop && matches;
     });
   }, [activeDesktop, libraryQuery, links]);
+  const queuedLinks = useMemo(() => {
+    const query = libraryQuery.trim().toLowerCase();
+    return links
+      .filter(
+        (link) =>
+          link.readingStatus === "queued" &&
+          (!query ||
+            `${link.title} ${link.description} ${link.url} ${link.folder}`
+              .toLowerCase()
+              .includes(query)),
+      )
+      .sort((left, right) =>
+        (right.queuedAt || right.savedAt).localeCompare(left.queuedAt || left.savedAt),
+      );
+  }, [libraryQuery, links]);
+  const visibleLinks = surface === "queue" ? queuedLinks : filteredLinks;
+  const queueCount = links.filter((link) => link.readingStatus === "queued").length;
   const commandItems = useMemo(() => {
     const query = commandQuery.trim();
     const normalizedQuery = query.toLowerCase();
@@ -151,6 +176,13 @@ export function LatticeApp() {
         label: "Open saved links",
         detail: "Obsidian library",
         action: "library",
+      },
+      {
+        kind: "action",
+        id: "action-queue",
+        label: "Open reading queue",
+        detail: `${queueCount} unread`,
+        action: "queue",
       },
       ...workspace.desktops.map<CommandItem>((desktop) => ({
         kind: "desktop",
@@ -189,7 +221,7 @@ export function LatticeApp() {
       });
     }
     return filtered.slice(0, 12);
-  }, [commandQuery, links, snapshot.tabs, tabDesktops, workspace]);
+  }, [commandQuery, links, queueCount, snapshot.tabs, tabDesktops, workspace]);
 
   useEffect(() => {
     localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(workspace));
@@ -520,6 +552,7 @@ export function LatticeApp() {
   const openCapture = () => {
     if (!contextualTab || contextualTab.url === "about:blank") return;
     setCaptureDescription("");
+    setQueueCapture(false);
     setSaved(false);
     setCaptureOpen(true);
     setSurface("browser");
@@ -535,10 +568,11 @@ export function LatticeApp() {
         description: captureDescription.trim(),
         folder: activeDesktop?.name ?? "Research",
         desktopId: activeDesktop?.id ?? "research",
+        readingStatus: queueCapture ? "queued" : "saved",
       });
       setLinks(await window.lattice.vault.listSavedLinks());
       setSaved(true);
-      setStatus("Saved to Obsidian");
+      setStatus(queueCapture ? "Saved to your reading queue" : "Saved to Obsidian");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     } finally {
@@ -550,6 +584,39 @@ export function LatticeApp() {
     setSurface("library");
     setCaptureOpen(false);
     if (vault) setLinks(await window.lattice.vault.listSavedLinks());
+  };
+
+  const showReadingQueue = async () => {
+    setSurface("queue");
+    setCaptureOpen(false);
+    if (vault) setLinks(await window.lattice.vault.listSavedLinks());
+  };
+
+  const updateReadingStatus = async (
+    link: SavedLinkRecord,
+    readingStatus: SavedLinkRecord["readingStatus"],
+  ) => {
+    setUpdatingLinkId(link.id);
+    try {
+      const updated = await window.lattice.vault.setReadingStatus({
+        id: link.id,
+        status: readingStatus,
+      });
+      setLinks((current) =>
+        current.map((candidate) => (candidate.id === updated.id ? updated : candidate)),
+      );
+      setStatus(
+        readingStatus === "queued"
+          ? "Added to reading queue"
+          : readingStatus === "read"
+            ? "Marked as read"
+            : "Removed from reading queue",
+      );
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setUpdatingLinkId(null);
+    }
   };
 
   const openCommandPalette = () => {
@@ -587,11 +654,16 @@ export function LatticeApp() {
       return;
     }
     if (item.action === "new-tab") await createTab();
+    else if (item.action === "queue") await showReadingQueue();
     else await showLibrary();
   };
 
   const activeRailItem =
-    surface === "library" ? "library" : surface === "home" ? "home" : "browser";
+    surface === "library" || surface === "queue"
+      ? "library"
+      : surface === "home"
+        ? "home"
+        : "browser";
 
   commandHandlerRef.current = (command) => {
     if (command === "search") {
@@ -810,14 +882,10 @@ export function LatticeApp() {
           <span>Saved links</span>
           <b>{links.length}</b>
         </button>
-        <button
-          type="button"
-          className="library-row"
-          onClick={() => setStatus("Reading queue arrives next")}
-        >
+        <button type="button" className="library-row" onClick={() => void showReadingQueue()}>
           <Icon name="folder" />
           <span>Reading queue</span>
-          <b>0</b>
+          <b>{queueCount}</b>
         </button>
 
         <div className="workspace-spacer" />
@@ -850,7 +918,7 @@ export function LatticeApp() {
               <div
                 key={tab.id}
                 className={
-                  tab.id === snapshot.activeTabId && surface !== "library"
+                  tab.id === snapshot.activeTabId && surface !== "library" && surface !== "queue"
                     ? "browser-tab active"
                     : "browser-tab"
                 }
@@ -999,14 +1067,18 @@ export function LatticeApp() {
               </div>
             )}
 
-            {surface === "library" && (
+            {(surface === "library" || surface === "queue") && (
               <div className="trusted-surface library-surface">
                 <header className="library-header">
                   <div>
-                    <span className="eyebrow">Obsidian library</span>
-                    <h1>Saved links</h1>
+                    <span className="eyebrow">
+                      {surface === "queue" ? "Read with intention" : "Obsidian library"}
+                    </span>
+                    <h1>{surface === "queue" ? "Reading queue" : "Saved links"}</h1>
                     <p>
-                      {activeDesktop?.name} · {filteredLinks.length} items
+                      {surface === "queue"
+                        ? `${visibleLinks.length} unread across all desktops`
+                        : `${activeDesktop?.name} · ${visibleLinks.length} items`}
                     </p>
                   </div>
                   <div className="library-actions">
@@ -1015,7 +1087,9 @@ export function LatticeApp() {
                       <input
                         value={libraryQuery}
                         onChange={(event) => setLibraryQuery(event.target.value)}
-                        placeholder="Filter saved links"
+                        placeholder={
+                          surface === "queue" ? "Filter reading queue" : "Filter saved links"
+                        }
                       />
                     </label>
                     {!vault && (
@@ -1049,18 +1123,31 @@ export function LatticeApp() {
                       </button>
                     </div>
                   </div>
-                ) : filteredLinks.length === 0 ? (
+                ) : visibleLinks.length === 0 ? (
                   <div className="empty-library compact">
                     <span className="empty-icon">
-                      <Icon name="bookmark" />
+                      <Icon name={surface === "queue" ? "check" : "bookmark"} />
                     </span>
-                    <h2>No saved links in this desktop</h2>
-                    <p>Browse to a useful page and press Save.</p>
+                    <h2>
+                      {surface === "queue"
+                        ? "Your reading queue is clear"
+                        : "No saved links in this desktop"}
+                    </h2>
+                    <p>
+                      {surface === "queue"
+                        ? "Queue a saved page when you want to return to it with focus."
+                        : "Browse to a useful page and press Save."}
+                    </p>
                   </div>
                 ) : (
                   <div className="link-grid">
-                    {filteredLinks.map((link) => (
-                      <article className="link-card" key={`${link.id}-${link.relativePath}`}>
+                    {visibleLinks.map((link) => (
+                      <article
+                        className={
+                          link.readingStatus === "queued" ? "link-card queued" : "link-card"
+                        }
+                        key={`${link.id}-${link.relativePath}`}
+                      >
                         <button
                           type="button"
                           className="link-main"
@@ -1078,7 +1165,28 @@ export function LatticeApp() {
                             <Icon name="folder" />
                             {link.folder || "Saved Links"}
                           </span>
-                          <time>{relativeDate(link.savedAt)}</time>
+                          <div className="link-card-actions">
+                            {link.readingStatus === "queued" ? (
+                              <button
+                                type="button"
+                                onClick={() => void updateReadingStatus(link, "read")}
+                                disabled={updatingLinkId === link.id}
+                              >
+                                <Icon name="check" />
+                                Mark read
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => void updateReadingStatus(link, "queued")}
+                                disabled={updatingLinkId === link.id}
+                              >
+                                <Icon name="bookmark" />
+                                {link.readingStatus === "read" ? "Read again" : "Read later"}
+                              </button>
+                            )}
+                            <time>{relativeDate(link.queuedAt || link.savedAt)}</time>
+                          </div>
                         </footer>
                       </article>
                     ))}
@@ -1154,6 +1262,20 @@ export function LatticeApp() {
                       <Icon name="chevron-down" />
                     </div>
                   </div>
+                  <button
+                    type="button"
+                    className={queueCapture ? "queue-toggle active" : "queue-toggle"}
+                    aria-pressed={queueCapture}
+                    onClick={() => setQueueCapture((queued) => !queued)}
+                  >
+                    <span className="queue-toggle-check">
+                      <Icon name={queueCapture ? "check" : "plus"} />
+                    </span>
+                    <span>
+                      <strong>Add to reading queue</strong>
+                      <small>Keep this page ready for focused reading</small>
+                    </span>
+                  </button>
                   <div className="local-note">
                     <Icon name="lock" />
                     <span>
@@ -1170,7 +1292,7 @@ export function LatticeApp() {
                     {saved ? (
                       <>
                         <Icon name="check" />
-                        Saved to Obsidian
+                        {queueCapture ? "Saved to reading queue" : "Saved to Obsidian"}
                       </>
                     ) : saving ? (
                       "Saving…"
@@ -1260,11 +1382,13 @@ export function LatticeApp() {
                               ? "bookmark"
                               : item.kind === "action" && item.action === "library"
                                 ? "library"
-                                : item.kind === "action"
-                                  ? "plus"
-                                  : item.kind === "web"
-                                    ? "search"
-                                    : "globe"
+                                : item.kind === "action" && item.action === "queue"
+                                  ? "folder"
+                                  : item.kind === "action"
+                                    ? "plus"
+                                    : item.kind === "web"
+                                      ? "search"
+                                      : "globe"
                         }
                       />
                     </span>

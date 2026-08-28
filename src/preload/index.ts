@@ -33,6 +33,7 @@ const api: LatticeApi = {
     current: () => ipcRenderer.invoke(IPC.vaultCurrent),
     saveProbeNote: (input) => ipcRenderer.invoke(IPC.vaultSaveProbeNote, input),
     listSavedLinks: () => ipcRenderer.invoke(IPC.vaultListSavedLinks),
+    setReadingStatus: (input) => ipcRenderer.invoke(IPC.vaultSetReadingStatus, input),
   },
 };
 

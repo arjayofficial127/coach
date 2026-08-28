@@ -16,6 +16,7 @@ export const IPC = {
   vaultCurrent: "vault:current",
   vaultSaveProbeNote: "vault:save-probe-note",
   vaultListSavedLinks: "vault:list-saved-links",
+  vaultSetReadingStatus: "vault:set-reading-status",
 } as const;
 
 export type ShellCommand = "focus-location" | "new-tab" | "close-tab" | "search";
@@ -54,7 +55,10 @@ export interface ProbeNoteInput {
   description: string;
   folder?: string;
   desktopId?: string;
+  readingStatus?: Extract<ReadingStatus, "saved" | "queued">;
 }
+
+export type ReadingStatus = "saved" | "queued" | "read";
 
 export interface SaveNoteResult {
   id: string;
@@ -64,6 +68,9 @@ export interface SaveNoteResult {
   savedAt: string;
   folder: string;
   desktopId: string;
+  readingStatus: ReadingStatus;
+  queuedAt: string;
+  readAt: string;
   relativePath: string;
   absolutePath: string;
   bytesWritten: number;
@@ -77,7 +84,15 @@ export interface SavedLinkRecord {
   savedAt: string;
   folder: string;
   desktopId: string;
+  readingStatus: ReadingStatus;
+  queuedAt: string;
+  readAt: string;
   relativePath: string;
+}
+
+export interface SetReadingStatusInput {
+  id: string;
+  status: ReadingStatus;
 }
 
 export interface LatticeApi {
@@ -103,5 +118,6 @@ export interface LatticeApi {
     current(): Promise<VaultInfo | null>;
     saveProbeNote(input: ProbeNoteInput): Promise<SaveNoteResult>;
     listSavedLinks(): Promise<SavedLinkRecord[]>;
+    setReadingStatus(input: SetReadingStatusInput): Promise<SavedLinkRecord>;
   };
 }

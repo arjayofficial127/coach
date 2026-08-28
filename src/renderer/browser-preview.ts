@@ -3,6 +3,7 @@ import type {
   BrowserState,
   LatticeApi,
   SavedLinkRecord,
+  SaveNoteResult,
   VaultInfo,
 } from "../shared/contracts";
 
@@ -29,6 +30,9 @@ let links: SavedLinkRecord[] = [
     savedAt: new Date(now - 18 * 60_000).toISOString(),
     folder: "Research",
     desktopId: "research",
+    readingStatus: "queued",
+    queuedAt: new Date(now - 18 * 60_000).toISOString(),
+    readAt: "",
     relativePath: "Saved Links/Research/design-systems.md",
   },
   {
@@ -39,6 +43,9 @@ let links: SavedLinkRecord[] = [
     savedAt: new Date(now - 26 * 60 * 60_000).toISOString(),
     folder: "Research",
     desktopId: "research",
+    readingStatus: "saved",
+    queuedAt: "",
+    readAt: "",
     relativePath: "Saved Links/Research/spatial-browsing.md",
   },
 ];
@@ -155,7 +162,9 @@ export function installBrowserPreviewBridge(): void {
         const folder = input.folder ?? "";
         const id = crypto.randomUUID();
         const relativePath = `Saved Links/${folder}/${id}.md`;
-        const result = {
+        const readingStatus: SaveNoteResult["readingStatus"] =
+          input.readingStatus === "queued" ? "queued" : "saved";
+        const result: SaveNoteResult = {
           id,
           title: input.title,
           url: input.url,
@@ -163,6 +172,9 @@ export function installBrowserPreviewBridge(): void {
           savedAt,
           folder,
           desktopId: input.desktopId ?? "",
+          readingStatus,
+          queuedAt: input.readingStatus === "queued" ? savedAt : "",
+          readAt: "",
           relativePath,
           absolutePath: `${vault.displayPath}\\${relativePath.replaceAll("/", "\\")}`,
           bytesWritten: 512,
@@ -171,6 +183,19 @@ export function installBrowserPreviewBridge(): void {
         return result;
       },
       listSavedLinks: async () => links.map((link) => ({ ...link })),
+      setReadingStatus: async (input) => {
+        const changedAt = new Date().toISOString();
+        const existing = links.find((link) => link.id === input.id);
+        if (!existing) throw new Error("The saved link could not be found.");
+        const updated = {
+          ...existing,
+          readingStatus: input.status,
+          queuedAt: input.status === "queued" ? changedAt : existing.queuedAt,
+          readAt: input.status === "read" ? changedAt : "",
+        };
+        links = links.map((link) => (link.id === input.id ? updated : link));
+        return { ...updated };
+      },
     },
   };
 

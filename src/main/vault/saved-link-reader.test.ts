@@ -33,6 +33,9 @@ describe("saved link reader", () => {
       savedAt: "2026-08-28T00:00:00.000Z",
       folder: "Research",
       desktopId: "",
+      readingStatus: "saved",
+      queuedAt: "",
+      readAt: "",
       relativePath: "Saved Links/Research/page.md",
     });
   });

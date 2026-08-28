@@ -1,7 +1,7 @@
 import type { Dirent } from "node:fs";
 import { lstat, readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import type { SavedLinkRecord } from "../../shared/contracts";
+import type { ReadingStatus, SavedLinkRecord } from "../../shared/contracts";
 import { assertPathWithinRoot } from "./atomic-note";
 
 const MAX_LINKS = 2_000;
@@ -35,6 +35,11 @@ export function parseSavedLinkMarkdown(
   const url = readJsonScalar(frontmatter, "url");
   const description = readJsonScalar(frontmatter, "description") ?? "";
   const desktopId = readJsonScalar(frontmatter, "desktop_id") ?? "";
+  const rawReadingStatus = readJsonScalar(frontmatter, "reading_status");
+  const readingStatus: ReadingStatus =
+    rawReadingStatus === "queued" || rawReadingStatus === "read" ? rawReadingStatus : "saved";
+  const queuedAt = readJsonScalar(frontmatter, "queued_at") ?? "";
+  const readAt = readJsonScalar(frontmatter, "read_at") ?? "";
   const savedAt = readJsonScalar(frontmatter, "saved_at");
   if (!id || !title || !url || !savedAt) return null;
 
@@ -44,8 +49,22 @@ export function parseSavedLinkMarkdown(
     return null;
   }
   if (Number.isNaN(Date.parse(savedAt))) return null;
+  if (queuedAt && Number.isNaN(Date.parse(queuedAt))) return null;
+  if (readAt && Number.isNaN(Date.parse(readAt))) return null;
 
-  return { id, title, url, description, savedAt, folder, desktopId, relativePath };
+  return {
+    id,
+    title,
+    url,
+    description,
+    savedAt,
+    folder,
+    desktopId,
+    readingStatus,
+    queuedAt,
+    readAt,
+    relativePath,
+  };
 }
 
 export async function listSavedLinksFromVault(vaultRoot: string): Promise<SavedLinkRecord[]> {
