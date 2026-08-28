@@ -357,7 +357,7 @@ export function LatticeApp() {
           ? `Timer running · ${runnableApps.pomodoro.activeRun.task}`
           : dailyFlowInboxCount > 0
             ? `${dailyFlowInboxCount} Daily Flow task${dailyFlowInboxCount === 1 ? "" : "s"} to clarify`
-            : "Pomodoro · Daily Flow",
+            : "Pomodoro · Daily Flow · Wealth Lab",
         action: "apps",
       },
       ...workspace.desktops.map<CommandItem>((desktop) => ({
@@ -1664,7 +1664,7 @@ export function LatticeApp() {
                   ? `Running · ${runnableApps.pomodoro.activeRun.task}`
                   : dailyFlowInboxCount > 0
                     ? `${dailyFlowInboxCount} to clarify`
-                    : "Pomodoro · Daily Flow"}
+                    : "Pomodoro · Daily Flow · Wealth Lab"}
               </small>
             </span>
             <kbd>7</kbd>
@@ -2411,6 +2411,7 @@ export function LatticeApp() {
 
             {surface === "apps" && (
               <RunnableAppsSurface
+                key={activeProfile?.id ?? "profile-loading"}
                 state={runnableApps}
                 onChange={setRunnableApps}
                 reportStatus={setStatus}
@@ -2553,7 +2554,7 @@ export function LatticeApp() {
                     </div>
                     <div className="settings-card-copy">
                       <span className="settings-kicker">About</span>
-                      <h2>Lattice 0.14.0</h2>
+                      <h2>Lattice 0.15.0</h2>
                       <p>
                         Current privacy controls. Remote Node access, downloads, popups, device
                         permissions, and unsafe protocols remain disabled.

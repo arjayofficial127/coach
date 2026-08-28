@@ -134,6 +134,33 @@ export interface PhaseNineSmokeEvidence {
     screenshotPath: string;
     screenshotBytes: number;
   };
+  wealthLab: {
+    heading: string;
+    catalogCount: number;
+    incomeTargetMinor: number;
+    investmentTargetMinor: number;
+    incomeMinor: number;
+    expenseMinor: number;
+    investmentMinor: number;
+    netCashMinor: number;
+    originalExpenseMinor: number;
+    correctedExpenseMinor: number;
+    originalExpensePreserved: boolean;
+    ideaTitle: string;
+    ideaNextStep: string;
+    ideaStatus: string;
+    ideaFeatured: boolean;
+    netWorthMinor: number;
+    linkedPomodoro: boolean;
+    linkedTimerStopped: boolean;
+    safetyBoundaryVisible: boolean;
+    persisted: boolean;
+    profileScoped: boolean;
+    activeRunCleared: boolean;
+    nativeViewHidden: boolean;
+    screenshotPath: string;
+    screenshotBytes: number;
+  };
   desktopLifecycle: {
     guardedDeleteBlockedForOpenTab: boolean;
     menuVisible: boolean;
@@ -874,7 +901,7 @@ export async function runPhaseNineSmoke(
         explicitlyCompleted: record?.activity?.some((activity) => activity?.type === "completed") ?? false,
         linkedPomodoro: Boolean(linkedRun),
         linkedTimerStopped: linkedRun?.original?.outcome === "stopped",
-        persisted: stored?.version === 2 && latestCorrection?.text === "Prepare and ship Phase 14 council synthesis",
+        persisted: stored?.version === 3 && latestCorrection?.text === "Prepare and ship Phase 14 council synthesis",
         profileScoped: Boolean(storageKey?.startsWith("lattice.runnable-apps.v1.profile.")),
         activeRunCleared: stored?.pomodoro?.activeRun === null,
       };
@@ -884,6 +911,212 @@ export async function runPhaseNineSmoke(
       activityTypes: string[];
       originalPreserved: boolean;
       explicitlyCompleted: boolean;
+      linkedPomodoro: boolean;
+      linkedTimerStopped: boolean;
+      persisted: boolean;
+      profileScoped: boolean;
+      activeRunCleared: boolean;
+    };
+
+    const wealthLabBeforeFocus = (await window.webContents.executeJavaScript(`(async () => {
+      const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+      const setControlValue = (selector, value, root = document) => {
+        const control = root.querySelector(selector);
+        if (!(control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement || control instanceof HTMLSelectElement)) {
+          throw new Error(selector + " missing");
+        }
+        const prototype = control instanceof HTMLSelectElement
+          ? HTMLSelectElement.prototype
+          : control instanceof HTMLTextAreaElement
+            ? HTMLTextAreaElement.prototype
+            : HTMLInputElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+        setter?.call(control, value);
+        control.dispatchEvent(new Event(control instanceof HTMLSelectElement ? "change" : "input", { bubbles: true }));
+      };
+      const clickExact = (label, root = document) => {
+        const button = [...root.querySelectorAll("button")].find(
+          (candidate) => candidate.textContent?.replace(/\\s+/g, " ").trim() === label,
+        );
+        if (!(button instanceof HTMLButtonElement)) throw new Error(label + " action missing");
+        button.click();
+      };
+      const submit = (selector) => {
+        const form = document.querySelector(selector);
+        if (!(form instanceof HTMLFormElement)) throw new Error(selector + " missing");
+        form.requestSubmit();
+      };
+      const wealthButton = document.querySelector('[data-runnable-app="wealth-lab"]');
+      if (!(wealthButton instanceof HTMLButtonElement)) throw new Error("Wealth Lab app missing");
+      wealthButton.click();
+      await wait(100);
+
+      setControlValue("[data-income-target]", "120000");
+      setControlValue("[data-investment-target]", "25000");
+      submit("[data-wealth-targets]");
+      await wait(100);
+
+      const moneyTab = document.querySelector('[data-wealth-view="money"]');
+      if (!(moneyTab instanceof HTMLButtonElement)) throw new Error("Money tab missing");
+      moneyTab.click();
+      await wait(75);
+      const addEntry = async (kind, label, amount, category) => {
+        const kindButton = document.querySelector('[data-entry-kind="' + kind + '"]');
+        if (!(kindButton instanceof HTMLButtonElement)) throw new Error(kind + " kind missing");
+        kindButton.click();
+        setControlValue("[data-entry-label]", label);
+        setControlValue("[data-entry-amount]", amount);
+        setControlValue("[data-entry-category]", category);
+        await wait(25);
+        submit("[data-wealth-entry-form]");
+        await wait(100);
+      };
+      await addEntry("income", "Primary income", "100000", "Salary");
+      await addEntry("expense", "Living costs", "40000", "Essentials");
+      await addEntry("investment", "Long-term contribution", "20000", "Investment");
+      const expense = [...document.querySelectorAll("[data-wealth-entry]")].find((entry) =>
+        entry.querySelector(".wealth-entry-copy strong")?.textContent?.trim() === "Living costs",
+      );
+      if (!(expense instanceof HTMLElement)) throw new Error("Expense entry missing");
+      clickExact("Correct", expense);
+      await wait(50);
+      setControlValue("[data-entry-correction-label]", "Corrected living costs", expense);
+      setControlValue("[data-entry-correction-amount]", "35000", expense);
+      const correctionForm = expense.querySelector(".wealth-correction-form");
+      if (!(correctionForm instanceof HTMLFormElement)) throw new Error("Money correction form missing");
+      correctionForm.requestSubmit();
+      await wait(100);
+
+      const earnTab = document.querySelector('[data-wealth-view="earn"]');
+      if (!(earnTab instanceof HTMLButtonElement)) throw new Error("Earn-more tab missing");
+      earnTab.click();
+      await wait(75);
+      setControlValue("[data-idea-title]", "Productized clinic launch audit");
+      setControlValue("[data-idea-hypothesis]", "Independent clinics may pay for a fixed-scope launch review");
+      setControlValue("[data-idea-next-step]", "Offer one paid pilot to a clinic owner");
+      setControlValue("[data-idea-potential]", "50000");
+      submit("[data-earning-idea-form]");
+      await wait(100);
+      const idea = document.querySelector("[data-earning-idea]");
+      if (!(idea instanceof HTMLElement)) throw new Error("Earning idea missing");
+      setControlValue("[data-idea-status]", "testing", idea);
+      await wait(100);
+
+      const netWorthTab = document.querySelector('[data-wealth-view="net-worth"]');
+      if (!(netWorthTab instanceof HTMLButtonElement)) throw new Error("Net-worth tab missing");
+      netWorthTab.click();
+      await wait(75);
+      setControlValue("[data-assets]", "500000");
+      setControlValue("[data-liabilities]", "100000");
+      setControlValue("[data-snapshot-note]", "Phase 15 baseline");
+      submit("[data-net-worth-form]");
+      await wait(100);
+
+      const overviewTab = document.querySelector('[data-wealth-view="overview"]');
+      if (!(overviewTab instanceof HTMLButtonElement)) throw new Error("Overview tab missing");
+      overviewTab.click();
+      await wait(100);
+      return {
+        heading: document.querySelector("#wealth-lab-heading")?.textContent?.trim() ?? "",
+        catalogCount: document.querySelectorAll("[data-runnable-app]").length,
+        safetyBoundaryVisible: document.querySelector(".wealth-safety-note")?.textContent?.includes("No bank connections") ?? false,
+      };
+    })()`)) as {
+      heading: string;
+      catalogCount: number;
+      safetyBoundaryVisible: boolean;
+    };
+    const nativeViewHiddenForWealthLab = !runtime.isVisible();
+    window.setSkipTaskbar(true);
+    window.showInactive();
+    await delay(100);
+    const wealthLabImage = await window.webContents.capturePage();
+    if (wealthLabImage.isEmpty()) throw new Error("Electron returned an empty Wealth Lab capture.");
+    const wealthLabScreenshot = wealthLabImage.toPNG();
+    const wealthLabScreenshotPath = path.join(smokeRoot, "phase-15-wealth-lab.png");
+    await writeFile(wealthLabScreenshotPath, wealthLabScreenshot);
+    window.hide();
+
+    const wealthLabAfterFocus = (await window.webContents.executeJavaScript(`(async () => {
+      const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+      const clickExact = (label, root = document) => {
+        const button = [...root.querySelectorAll("button")].find(
+          (candidate) => candidate.textContent?.replace(/\\s+/g, " ").trim() === label,
+        );
+        if (!(button instanceof HTMLButtonElement)) throw new Error(label + " action missing");
+        button.click();
+      };
+      const focusButton = document.querySelector("[data-featured-idea] [data-focus-wealth-idea]");
+      if (!(focusButton instanceof HTMLButtonElement)) throw new Error("Wealth focus action missing");
+      focusButton.click();
+      await wait(100);
+      clickExact("Stop & save");
+      await wait(125);
+      const storageKey = Object.keys(localStorage).find((key) =>
+        key.startsWith("lattice.runnable-apps.v1.profile."),
+      );
+      const stored = storageKey ? JSON.parse(localStorage.getItem(storageKey) ?? "null") : null;
+      const wealth = stored?.wealthLab;
+      const effectiveEntry = (entry) => {
+        let amountMinor = entry?.original?.amountMinor ?? 0;
+        let active = true;
+        for (const activity of entry?.activity ?? []) {
+          if (activity?.type === "corrected") amountMinor = activity.amountMinor;
+          else if (activity?.type === "voided") active = false;
+          else if (activity?.type === "restored") active = true;
+        }
+        return { amountMinor, active };
+      };
+      const totals = { income: 0, expense: 0, investment: 0 };
+      for (const entry of wealth?.entries ?? []) {
+        const effective = effectiveEntry(entry);
+        if (effective.active && entry?.original?.kind in totals) {
+          totals[entry.original.kind] += effective.amountMinor;
+        }
+      }
+      const expense = wealth?.entries?.find((entry) => entry?.original?.label === "Living costs");
+      const expenseCorrection = expense?.activity?.filter((activity) => activity?.type === "corrected").at(-1);
+      const idea = wealth?.ideas?.find((candidate) => candidate?.original?.title === "Productized clinic launch audit");
+      const ideaStatus = idea?.activity?.filter((activity) => activity?.type === "status-changed").at(-1)?.status ?? "idea";
+      const snapshot = wealth?.netWorthSnapshots?.[0];
+      const snapshotValue = snapshot?.corrections?.at(-1) ?? snapshot?.original;
+      const linkedRun = stored?.pomodoro?.history?.find((run) => run?.sourceWealthIdeaId === idea?.id);
+      return {
+        incomeTargetMinor: wealth?.monthlyIncomeTargetMinor ?? 0,
+        investmentTargetMinor: wealth?.monthlyInvestmentTargetMinor ?? 0,
+        incomeMinor: totals.income,
+        expenseMinor: totals.expense,
+        investmentMinor: totals.investment,
+        netCashMinor: totals.income - totals.expense,
+        originalExpenseMinor: expense?.original?.amountMinor ?? 0,
+        correctedExpenseMinor: expenseCorrection?.amountMinor ?? 0,
+        originalExpensePreserved: expense?.original?.amountMinor === 4000000,
+        ideaTitle: idea?.original?.title ?? "",
+        ideaNextStep: idea?.original?.nextStep ?? "",
+        ideaStatus,
+        ideaFeatured: wealth?.featuredIdeaId === idea?.id,
+        netWorthMinor: (snapshotValue?.assetsMinor ?? 0) - (snapshotValue?.liabilitiesMinor ?? 0),
+        linkedPomodoro: Boolean(linkedRun),
+        linkedTimerStopped: linkedRun?.original?.outcome === "stopped",
+        persisted: stored?.version === 3 && Boolean(wealth),
+        profileScoped: Boolean(storageKey?.startsWith("lattice.runnable-apps.v1.profile.")),
+        activeRunCleared: stored?.pomodoro?.activeRun === null,
+      };
+    })()`)) as {
+      incomeTargetMinor: number;
+      investmentTargetMinor: number;
+      incomeMinor: number;
+      expenseMinor: number;
+      investmentMinor: number;
+      netCashMinor: number;
+      originalExpenseMinor: number;
+      correctedExpenseMinor: number;
+      originalExpensePreserved: boolean;
+      ideaTitle: string;
+      ideaNextStep: string;
+      ideaStatus: string;
+      ideaFeatured: boolean;
+      netWorthMinor: number;
       linkedPomodoro: boolean;
       linkedTimerStopped: boolean;
       persisted: boolean;
@@ -1580,6 +1813,13 @@ export async function runPhaseNineSmoke(
         nativeViewHidden: nativeViewHiddenForDailyFlow,
         screenshotPath: dailyFlowScreenshotPath,
         screenshotBytes: dailyFlowScreenshot.byteLength,
+      },
+      wealthLab: {
+        ...wealthLabBeforeFocus,
+        ...wealthLabAfterFocus,
+        nativeViewHidden: nativeViewHiddenForWealthLab,
+        screenshotPath: wealthLabScreenshotPath,
+        screenshotBytes: wealthLabScreenshot.byteLength,
       },
       desktopLifecycle: {
         guardedDeleteBlockedForOpenTab,

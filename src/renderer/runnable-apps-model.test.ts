@@ -101,12 +101,38 @@ describe("runnable Pomodoro app", () => {
       },
     });
     const migrated = parseRunnableAppsState(legacy);
-    expect(migrated.version).toBe(2);
+    expect(migrated.version).toBe(3);
     expect(migrated.pomodoro.activeRun).toMatchObject({
       id: "legacy-active",
       task: "Keep this timer",
     });
     expect(migrated.bulletJournal.items).toEqual([]);
+    expect(migrated.wealthLab.entries).toEqual([]);
+  });
+
+  it("migrates version 2 journal data without losing it", () => {
+    const legacy = JSON.stringify({
+      version: 2,
+      pomodoro: { activeRun: null, history: [] },
+      bulletJournal: {
+        items: [
+          {
+            id: "journal-legacy",
+            original: {
+              text: "Keep this journal task",
+              kind: "task",
+              capturedAt: start,
+              capturedDay: "2026-08-29",
+            },
+            activity: [],
+          },
+        ],
+      },
+    });
+    const migrated = parseRunnableAppsState(legacy);
+    expect(migrated.version).toBe(3);
+    expect(migrated.bulletJournal.items[0]?.id).toBe("journal-legacy");
+    expect(migrated.wealthLab).toEqual(DEFAULT_RUNNABLE_APPS_STATE.wealthLab);
   });
 
   it("retains the explicit Daily Flow source link without inferring task completion", () => {

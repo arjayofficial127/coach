@@ -1,14 +1,15 @@
-# Lattice — Phase 14
+# Lattice — Phase 15
 
 **Status: PASS (2026-08-29).** Lattice is an installable, focus-first personal research browser with
 secure native website tabs, restart-safe desktops, Obsidian-compatible saved links, and local
 spatial pages made of connected notes, websites, files, objects, and more pages. A read-only local
 index now shows backlinks and broken-reference diagnostics without exposing vault paths. Named
 website profiles keep personal, work, or client sign-ins and focus context separate. Local runnable
-apps now turn focused work into durable activity records. Pomodoro provides an honest timer, while
-Daily Flow combines bullet-journal capture with a deliberately bounded GTD funnel.
+apps now turn focused work into durable activity records. Pomodoro provides an honest timer, Daily
+Flow combines bullet-journal capture with a bounded GTD funnel, and Wealth Lab tracks private money
+decisions and earning experiments without gaining financial-account authority.
 
-![Phase 14 Daily Flow app](artifacts/phase-14/daily-flow.png)
+![Phase 15 Wealth Lab app](artifacts/phase-15/wealth-lab.png)
 
 ## What works
 
@@ -26,6 +27,13 @@ Daily Flow combines bullet-journal capture with a deliberately bounded GTD funne
   corrected wording.
 - A Now task can start a linked 25-minute Pomodoro. Timer outcomes never infer task completion;
   finishing the journal task remains a separate explicit action.
+- Wealth Lab records PHP income, spending, and investment contributions with monthly targets, net
+  cash, savings/investment rates, and append-only corrections, voids, and restores.
+- Earning ideas are explicit experiments with a hypothesis, smallest paid test, unverified upside,
+  status, and one featured money move. That move can start a linked Pomodoro without inventing
+  income or changing its status.
+- Net-worth snapshots record assets minus liabilities with original-preserving corrections. Wealth
+  Lab has no bank/broker connection, price feed, trade execution, or investment recommendations.
 - Every stopped or completed timer creates an immutable original result. Corrections are appended as
   visible overrides—such as **Originally stopped at 12m; corrected completed at 1h**—without
   rewriting what was first recorded.
@@ -103,17 +111,19 @@ pnpm run package
 pnpm run smoke:packaged
 pnpm run installer
 pnpm run smoke:installer
-pnpm run verify:phase14
+pnpm run verify:phase15
 ```
 
 The unsigned Windows x64 portable app is generated at
 `out/Lattice-win32-x64/Lattice.exe`. The assisted installer is generated at
-`release/Lattice-Setup-0.14.0.exe`. Windows reputation warnings are expected until a later release
+`release/Lattice-Setup-0.15.0.exe`. Windows reputation warnings are expected until a later release
 phase adds a protected signing identity. The installer and updater are intentionally not presented
 as production distribution yet.
 
 ## Evidence and decisions
 
+- [Phase 15 report](docs/phase-15-report.md)
+- [Wealth Lab screenshot](artifacts/phase-15/wealth-lab.png)
 - [Phase 14 report](docs/phase-14-report.md)
 - [Daily Flow screenshot](artifacts/phase-14/daily-flow.png)
 - [Phase 13 report](docs/phase-13-report.md)
@@ -153,14 +163,19 @@ stopped result remains; verifies profile-scoped persistence; and captures the in
 The Phase 14 gate then captures and clarifies a task, chooses Today and Now, runs a linked Pomodoro,
 proves the timer does not infer completion, explicitly completes the task, appends corrected wording,
 and verifies the profile-scoped version-2 record and screenshot in both portable and installed apps.
+The Phase 15 gate sets money targets, records and corrects cash-flow entries, separates investment
+contributions, advances an earning experiment, records a net-worth snapshot, explicitly stops its
+linked Pomodoro, and verifies the profile-scoped version-3 record and financial safety boundary.
 
 ## Current phase boundary
 
-Phase 14 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
+Phase 15 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
 automatic updates, code signing, full history/scroll restoration, or Chrome-equivalent Safe
 Browsing. It also does not claim full compatibility with every third-party JSON Canvas extension or
 automatic reference repair. Profile deletion, incognito, Chrome-profile import, provider-account
 inspection, popup-based identity flows, background notifications, sound, OS wake locks, cross-device
 timer sync, or editable/deletable timer history remain outside this phase. Daily Flow projects,
 contexts, recurrence, calendars, reminders, weekly-review automation, Obsidian export, and sync also
-remain outside this phase. See the risk register before selecting Phase 15.
+remain outside this phase. Wealth Lab also excludes account aggregation, transaction import,
+multi-currency conversion, market prices, trade execution, tax calculations, return forecasts, and
+investment recommendations. See the risk register before selecting Phase 16.

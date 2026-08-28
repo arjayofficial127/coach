@@ -20,6 +20,7 @@ const phaseTenEvidenceDirectory = path.resolve("artifacts", "phase-10");
 const phaseTwelveEvidenceDirectory = path.resolve("artifacts", "phase-12");
 const phaseThirteenEvidenceDirectory = path.resolve("artifacts", "phase-13");
 const phaseFourteenEvidenceDirectory = path.resolve("artifacts", "phase-14");
+const phaseFifteenEvidenceDirectory = path.resolve("artifacts", "phase-15");
 const evidenceTarget = path.join(evidenceDirectory, "packaged-smoke-evidence.json");
 const screenshotTarget = path.join(evidenceDirectory, "remote-example-com.png");
 const shellScreenshotTarget = path.join(evidenceDirectory, "phase-9-shell.png");
@@ -33,6 +34,7 @@ const focusNavigationScreenshotTarget = path.join(
 const profileScreenshotTarget = path.join(phaseTwelveEvidenceDirectory, "website-profiles.png");
 const runnableAppsScreenshotTarget = path.join(phaseThirteenEvidenceDirectory, "runnable-apps.png");
 const dailyFlowScreenshotTarget = path.join(phaseFourteenEvidenceDirectory, "daily-flow.png");
+const wealthLabScreenshotTarget = path.join(phaseFifteenEvidenceDirectory, "wealth-lab.png");
 const canvasTarget = path.join(evidenceDirectory, "packaged-smoke-canvas.canvas");
 const noteTarget = path.join(evidenceDirectory, "packaged-smoke-note.md");
 
@@ -44,6 +46,7 @@ await mkdir(phaseTenEvidenceDirectory, { recursive: true });
 await mkdir(phaseTwelveEvidenceDirectory, { recursive: true });
 await mkdir(phaseThirteenEvidenceDirectory, { recursive: true });
 await mkdir(phaseFourteenEvidenceDirectory, { recursive: true });
+await mkdir(phaseFifteenEvidenceDirectory, { recursive: true });
 await rm(evidenceSource, { force: true });
 await Promise.all(
   [
@@ -57,6 +60,7 @@ await Promise.all(
     profileScreenshotTarget,
     runnableAppsScreenshotTarget,
     dailyFlowScreenshotTarget,
+    wealthLabScreenshotTarget,
     canvasTarget,
     noteTarget,
   ].map((target) => rm(target, { force: true })),
@@ -256,7 +260,7 @@ if (
 }
 if (
   evidence.dailyFlow?.heading !== "Daily Flow" ||
-  evidence.dailyFlow?.catalogCount !== 2 ||
+  evidence.dailyFlow?.catalogCount !== 3 ||
   evidence.dailyFlow?.nowTask !== "Prepare Phase 14 council synthesis" ||
   evidence.dailyFlow?.todaySummary !== "1 of 3 chosen" ||
   evidence.dailyFlow?.originalText !== "Prepare Phase 14 council synthesis" ||
@@ -276,6 +280,33 @@ if (
   failures.push(
     "Daily Flow capture, GTD, linked focus, correction, or persistence workflow failed",
   );
+}
+if (
+  evidence.wealthLab?.heading !== "Wealth Lab" ||
+  evidence.wealthLab?.catalogCount !== 3 ||
+  evidence.wealthLab?.incomeTargetMinor !== 12_000_000 ||
+  evidence.wealthLab?.investmentTargetMinor !== 2_500_000 ||
+  evidence.wealthLab?.incomeMinor !== 10_000_000 ||
+  evidence.wealthLab?.expenseMinor !== 3_500_000 ||
+  evidence.wealthLab?.investmentMinor !== 2_000_000 ||
+  evidence.wealthLab?.netCashMinor !== 6_500_000 ||
+  evidence.wealthLab?.originalExpenseMinor !== 4_000_000 ||
+  evidence.wealthLab?.correctedExpenseMinor !== 3_500_000 ||
+  !evidence.wealthLab?.originalExpensePreserved ||
+  evidence.wealthLab?.ideaTitle !== "Productized clinic launch audit" ||
+  evidence.wealthLab?.ideaNextStep !== "Offer one paid pilot to a clinic owner" ||
+  evidence.wealthLab?.ideaStatus !== "testing" ||
+  !evidence.wealthLab?.ideaFeatured ||
+  evidence.wealthLab?.netWorthMinor !== 40_000_000 ||
+  !evidence.wealthLab?.linkedPomodoro ||
+  !evidence.wealthLab?.linkedTimerStopped ||
+  !evidence.wealthLab?.safetyBoundaryVisible ||
+  !evidence.wealthLab?.persisted ||
+  !evidence.wealthLab?.profileScoped ||
+  !evidence.wealthLab?.activeRunCleared ||
+  !evidence.wealthLab?.nativeViewHidden
+) {
+  failures.push("Wealth Lab money, earning experiment, net worth, or safety workflow failed");
 }
 if (!evidence.desktopLifecycle.guardedDeleteBlockedForOpenTab) {
   failures.push("occupied desktop deletion was not blocked");
@@ -477,6 +508,7 @@ const focusNavigationScreenshotBytes = await readFile(evidence.navigation.screen
 const profileScreenshotBytes = await readFile(evidence.profiles.screenshotPath);
 const runnableAppsScreenshotBytes = await readFile(evidence.runnableApps.screenshotPath);
 const dailyFlowScreenshotBytes = await readFile(evidence.dailyFlow.screenshotPath);
+const wealthLabScreenshotBytes = await readFile(evidence.wealthLab.screenshotPath);
 if (screenshotBytes.byteLength !== evidence.remote.screenshotBytes) {
   throw new Error("Screenshot byte count changed before evidence collection.");
 }
@@ -622,6 +654,23 @@ evidence.dailyFlow.screenshotPixels = dailyFlowScreenshotPixels;
 evidence.dailyFlow.screenshotSha256 = createHash("sha256")
   .update(dailyFlowScreenshotBytes)
   .digest("hex");
+if (!wealthLabScreenshotBytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) {
+  throw new Error("Phase 15 Wealth Lab screenshot is not a PNG file.");
+}
+if (wealthLabScreenshotBytes.byteLength !== evidence.wealthLab.screenshotBytes) {
+  throw new Error("Phase 15 Wealth Lab screenshot byte count changed before collection.");
+}
+const wealthLabScreenshotPixels = {
+  width: wealthLabScreenshotBytes.readUInt32BE(16),
+  height: wealthLabScreenshotBytes.readUInt32BE(20),
+};
+if (wealthLabScreenshotPixels.width < 900 || wealthLabScreenshotPixels.height < 620) {
+  throw new Error("Phase 15 Wealth Lab screenshot dimensions were not usable.");
+}
+evidence.wealthLab.screenshotPixels = wealthLabScreenshotPixels;
+evidence.wealthLab.screenshotSha256 = createHash("sha256")
+  .update(wealthLabScreenshotBytes)
+  .digest("hex");
 evidence.remote.screenshotPixels = screenshotPixels;
 evidence.remote.screenshotSha256 = createHash("sha256").update(screenshotBytes).digest("hex");
 const noteBytes = await readFile(evidence.note.absolutePath);
@@ -745,6 +794,7 @@ await copyFile(evidence.navigation.screenshotPath, focusNavigationScreenshotTarg
 await copyFile(evidence.profiles.screenshotPath, profileScreenshotTarget);
 await copyFile(evidence.runnableApps.screenshotPath, runnableAppsScreenshotTarget);
 await copyFile(evidence.dailyFlow.screenshotPath, dailyFlowScreenshotTarget);
+await copyFile(evidence.wealthLab.screenshotPath, wealthLabScreenshotTarget);
 await copyFile(evidence.canvas.absolutePath, canvasTarget);
 await copyFile(evidence.note.absolutePath, noteTarget);
 const copiedScreenshotBytes = await readFile(screenshotTarget);
@@ -756,6 +806,7 @@ const copiedFocusNavigationScreenshotBytes = await readFile(focusNavigationScree
 const copiedProfileScreenshotBytes = await readFile(profileScreenshotTarget);
 const copiedRunnableAppsScreenshotBytes = await readFile(runnableAppsScreenshotTarget);
 const copiedDailyFlowScreenshotBytes = await readFile(dailyFlowScreenshotTarget);
+const copiedWealthLabScreenshotBytes = await readFile(wealthLabScreenshotTarget);
 const copiedCanvasBytes = await readFile(canvasTarget);
 const copiedNoteBytes = await readFile(noteTarget);
 if (
@@ -818,6 +869,12 @@ if (
 ) {
   throw new Error("Collected Daily Flow screenshot hash changed while publishing evidence.");
 }
+if (
+  createHash("sha256").update(copiedWealthLabScreenshotBytes).digest("hex") !==
+  evidence.wealthLab.screenshotSha256
+) {
+  throw new Error("Collected Wealth Lab screenshot hash changed while publishing evidence.");
+}
 evidence.remote.artifactPath = screenshotTarget;
 evidence.shell.artifactPath = shellScreenshotTarget;
 evidence.metadataEditing.artifactPath = metadataScreenshotTarget;
@@ -828,6 +885,7 @@ evidence.navigation.artifactPath = focusNavigationScreenshotTarget;
 evidence.profiles.artifactPath = profileScreenshotTarget;
 evidence.runnableApps.artifactPath = runnableAppsScreenshotTarget;
 evidence.dailyFlow.artifactPath = dailyFlowScreenshotTarget;
+evidence.wealthLab.artifactPath = wealthLabScreenshotTarget;
 evidence.note.artifactPath = noteTarget;
 await writeFile(evidenceTarget, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
 console.log(`Packaged Phase 9 smoke passed. Evidence: ${evidenceTarget}`);

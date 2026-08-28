@@ -23,6 +23,7 @@ const phaseTenEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-10");
 const phaseTwelveEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-12");
 const phaseThirteenEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-13");
 const phaseFourteenEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-14");
+const phaseFifteenEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-15");
 const lifecycleEvidencePath = path.join(evidenceRoot, "installer-lifecycle-evidence.json");
 const installedSmokeTarget = path.join(evidenceRoot, "installed-smoke-evidence.json");
 const shellScreenshotTarget = path.join(evidenceRoot, "installed-shell.png");
@@ -42,6 +43,7 @@ const runnableAppsScreenshotTarget = path.join(
   "installed-runnable-apps.png",
 );
 const dailyFlowScreenshotTarget = path.join(phaseFourteenEvidenceRoot, "installed-daily-flow.png");
+const wealthLabScreenshotTarget = path.join(phaseFifteenEvidenceRoot, "installed-wealth-lab.png");
 const remoteScreenshotTarget = path.join(evidenceRoot, "installed-remote-example-com.png");
 const noteTarget = path.join(evidenceRoot, "installed-smoke-note.md");
 const canvasTarget = path.join(evidenceRoot, "installed-smoke-canvas.canvas");
@@ -210,6 +212,7 @@ await Promise.all(
     profileScreenshotTarget,
     runnableAppsScreenshotTarget,
     dailyFlowScreenshotTarget,
+    wealthLabScreenshotTarget,
     remoteScreenshotTarget,
     noteTarget,
     canvasTarget,
@@ -337,7 +340,7 @@ if (
 }
 if (
   smoke.dailyFlow?.heading !== "Daily Flow" ||
-  smoke.dailyFlow?.catalogCount !== 2 ||
+  smoke.dailyFlow?.catalogCount !== 3 ||
   smoke.dailyFlow?.nowTask !== "Prepare Phase 14 council synthesis" ||
   smoke.dailyFlow?.todaySummary !== "1 of 3 chosen" ||
   smoke.dailyFlow?.originalText !== "Prepare Phase 14 council synthesis" ||
@@ -352,6 +355,29 @@ if (
   !smoke.dailyFlow?.nativeViewHidden
 ) {
   smokeFailures.push("installed Daily Flow workflow failed");
+}
+if (
+  smoke.wealthLab?.heading !== "Wealth Lab" ||
+  smoke.wealthLab?.catalogCount !== 3 ||
+  smoke.wealthLab?.incomeTargetMinor !== 12_000_000 ||
+  smoke.wealthLab?.investmentTargetMinor !== 2_500_000 ||
+  smoke.wealthLab?.incomeMinor !== 10_000_000 ||
+  smoke.wealthLab?.expenseMinor !== 3_500_000 ||
+  smoke.wealthLab?.investmentMinor !== 2_000_000 ||
+  smoke.wealthLab?.netCashMinor !== 6_500_000 ||
+  !smoke.wealthLab?.originalExpensePreserved ||
+  smoke.wealthLab?.ideaStatus !== "testing" ||
+  !smoke.wealthLab?.ideaFeatured ||
+  smoke.wealthLab?.netWorthMinor !== 40_000_000 ||
+  !smoke.wealthLab?.linkedPomodoro ||
+  !smoke.wealthLab?.linkedTimerStopped ||
+  !smoke.wealthLab?.safetyBoundaryVisible ||
+  !smoke.wealthLab?.persisted ||
+  !smoke.wealthLab?.profileScoped ||
+  !smoke.wealthLab?.activeRunCleared ||
+  !smoke.wealthLab?.nativeViewHidden
+) {
+  smokeFailures.push("installed Wealth Lab workflow failed");
 }
 if (
   !smoke.desktopLifecycle?.guardedDeleteBlockedForOpenTab ||
@@ -406,6 +432,8 @@ await mkdir(phaseThirteenEvidenceRoot, { recursive: true });
 await copyFile(smoke.runnableApps.screenshotPath, runnableAppsScreenshotTarget);
 await mkdir(phaseFourteenEvidenceRoot, { recursive: true });
 await copyFile(smoke.dailyFlow.screenshotPath, dailyFlowScreenshotTarget);
+await mkdir(phaseFifteenEvidenceRoot, { recursive: true });
+await copyFile(smoke.wealthLab.screenshotPath, wealthLabScreenshotTarget);
 await copyFile(smoke.remote.screenshotPath, remoteScreenshotTarget);
 await copyFile(smoke.note.absolutePath, noteTarget);
 await copyFile(smoke.canvas.absolutePath, canvasTarget);
@@ -418,6 +446,7 @@ smoke.navigation.artifactPath = focusNavigationScreenshotTarget;
 smoke.profiles.artifactPath = profileScreenshotTarget;
 smoke.runnableApps.artifactPath = runnableAppsScreenshotTarget;
 smoke.dailyFlow.artifactPath = dailyFlowScreenshotTarget;
+smoke.wealthLab.artifactPath = wealthLabScreenshotTarget;
 smoke.remote.artifactPath = remoteScreenshotTarget;
 smoke.note.artifactPath = noteTarget;
 smoke.installedExecutable = installedExecutable;

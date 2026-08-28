@@ -15,6 +15,8 @@ import {
   resumePomodoro,
   startPomodoro,
 } from "./runnable-apps-model";
+import type { EffectiveEarningIdea } from "./wealth-lab-model";
+import { WealthLabSurface } from "./wealth-lab-surface";
 
 interface RunnableAppsSurfaceProps {
   state: RunnableAppsState;
@@ -153,6 +155,28 @@ export function RunnableAppsSurface({ state, onChange, reportStatus }: RunnableA
     }
   };
 
+  const focusWealthIdea = (idea: EffectiveEarningIdea) => {
+    if (state.pomodoro.activeRun) {
+      setSelectedApp("pomodoro");
+      reportStatus("The running Pomodoro was preserved");
+      return;
+    }
+    try {
+      onChange(
+        startPomodoro(state, {
+          task: idea.nextStep,
+          plannedMinutes: 25,
+          sourceWealthIdeaId: idea.id,
+        }),
+      );
+      setSelectedApp("pomodoro");
+      setNow(Date.now());
+      reportStatus("Focused Pomodoro started from Wealth Lab");
+    } catch (error) {
+      reportStatus(error instanceof Error ? error.message : String(error));
+    }
+  };
+
   return (
     <div className="trusted-surface runnable-apps-surface" data-runnable-apps>
       <aside className="app-library" aria-label="Runnable apps">
@@ -170,7 +194,11 @@ export function RunnableAppsSurface({ state, onChange, reportStatus }: RunnableA
               onClick={() => setSelectedApp(app.id)}
             >
               <span className="app-catalog-icon">
-                {app.id === "pomodoro" ? <Icon name="timer" /> : <b>•</b>}
+                {app.id === "pomodoro" ? (
+                  <Icon name="timer" />
+                ) : (
+                  <b>{app.id === "wealth-lab" ? "₱" : "•"}</b>
+                )}
               </span>
               <span>
                 <strong>{app.name}</strong>
@@ -194,6 +222,14 @@ export function RunnableAppsSurface({ state, onChange, reportStatus }: RunnableA
           journal={state.bulletJournal}
           onChange={(bulletJournal) => onChange({ ...state, bulletJournal })}
           onFocusTask={focusJournalTask}
+          timerActive={Boolean(activeRun)}
+          reportStatus={reportStatus}
+        />
+      ) : selectedApp === "wealth-lab" ? (
+        <WealthLabSurface
+          state={state.wealthLab}
+          onChange={(wealthLab) => onChange({ ...state, wealthLab })}
+          onFocusIdea={focusWealthIdea}
           timerActive={Boolean(activeRun)}
           reportStatus={reportStatus}
         />

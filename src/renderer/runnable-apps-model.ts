@@ -3,12 +3,17 @@ import {
   DEFAULT_BULLET_JOURNAL_STATE,
   parseBulletJournalState,
 } from "./bullet-journal-model";
+import {
+  DEFAULT_WEALTH_LAB_STATE,
+  parseWealthLabState,
+  type WealthLabState,
+} from "./wealth-lab-model";
 
 export const RUNNABLE_APPS_STORAGE_KEY = "lattice.runnable-apps.v1";
 export const MAX_POMODORO_TASK_LENGTH = 160;
 export const MAX_POMODORO_HISTORY = 500;
 
-export type RunnableAppId = "pomodoro" | "daily-flow";
+export type RunnableAppId = "pomodoro" | "daily-flow" | "wealth-lab";
 export type PomodoroOutcome = "completed" | "stopped";
 
 export interface RunnableAppDefinition {
@@ -31,6 +36,12 @@ export const RUNNABLE_APP_CATALOG: RunnableAppDefinition[] = [
     description: "Capture what has your attention and choose one clear next action.",
     status: "ready",
   },
+  {
+    id: "wealth-lab",
+    name: "Wealth Lab",
+    description: "Track money, test earning ideas, and invest with intention.",
+    status: "ready",
+  },
 ];
 
 export interface PomodoroActiveRun {
@@ -42,6 +53,7 @@ export interface PomodoroActiveRun {
   runningSince: string | null;
   pauseCount: number;
   sourceJournalItemId?: string;
+  sourceWealthIdeaId?: string;
 }
 
 export interface PomodoroOriginalResult {
@@ -66,21 +78,24 @@ export interface PomodoroRunRecord {
   original: PomodoroOriginalResult;
   corrections: PomodoroCorrection[];
   sourceJournalItemId?: string;
+  sourceWealthIdeaId?: string;
 }
 
 export interface RunnableAppsState {
-  version: 2;
+  version: 3;
   pomodoro: {
     activeRun: PomodoroActiveRun | null;
     history: PomodoroRunRecord[];
   };
   bulletJournal: BulletJournalState;
+  wealthLab: WealthLabState;
 }
 
 export const DEFAULT_RUNNABLE_APPS_STATE: RunnableAppsState = {
-  version: 2,
+  version: 3,
   pomodoro: { activeRun: null, history: [] },
   bulletJournal: DEFAULT_BULLET_JOURNAL_STATE,
+  wealthLab: DEFAULT_WEALTH_LAB_STATE,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -134,6 +149,8 @@ function parseActiveRun(value: unknown): PomodoroActiveRun | null {
     pauseCount,
     sourceJournalItemId:
       typeof value.sourceJournalItemId === "string" ? value.sourceJournalItemId : undefined,
+    sourceWealthIdeaId:
+      typeof value.sourceWealthIdeaId === "string" ? value.sourceWealthIdeaId : undefined,
   };
 }
 
@@ -187,6 +204,8 @@ function parseHistoryRecord(value: unknown): PomodoroRunRecord | null {
       : [],
     sourceJournalItemId:
       typeof value.sourceJournalItemId === "string" ? value.sourceJournalItemId : undefined,
+    sourceWealthIdeaId:
+      typeof value.sourceWealthIdeaId === "string" ? value.sourceWealthIdeaId : undefined,
   };
 }
 
@@ -196,13 +215,13 @@ export function parseRunnableAppsState(serialized: string | null): RunnableAppsS
     const value = JSON.parse(serialized) as unknown;
     if (
       !isRecord(value) ||
-      (value.version !== 1 && value.version !== 2) ||
+      (value.version !== 1 && value.version !== 2 && value.version !== 3) ||
       !isRecord(value.pomodoro)
     ) {
       return DEFAULT_RUNNABLE_APPS_STATE;
     }
     return {
-      version: 2,
+      version: 3,
       pomodoro: {
         activeRun: parseActiveRun(value.pomodoro.activeRun),
         history: Array.isArray(value.pomodoro.history)
@@ -213,9 +232,11 @@ export function parseRunnableAppsState(serialized: string | null): RunnableAppsS
           : [],
       },
       bulletJournal:
-        value.version === 2
+        value.version === 2 || value.version === 3
           ? parseBulletJournalState(value.bulletJournal)
           : DEFAULT_BULLET_JOURNAL_STATE,
+      wealthLab:
+        value.version === 3 ? parseWealthLabState(value.wealthLab) : DEFAULT_WEALTH_LAB_STATE,
     };
   } catch {
     return DEFAULT_RUNNABLE_APPS_STATE;
@@ -229,7 +250,12 @@ export function activeElapsedMilliseconds(run: PomodoroActiveRun, now = Date.now
 
 export function startPomodoro(
   state: RunnableAppsState,
-  input: { task: string; plannedMinutes: number; sourceJournalItemId?: string },
+  input: {
+    task: string;
+    plannedMinutes: number;
+    sourceJournalItemId?: string;
+    sourceWealthIdeaId?: string;
+  },
   now = new Date().toISOString(),
   id: string = crypto.randomUUID(),
 ): RunnableAppsState {
@@ -251,6 +277,7 @@ export function startPomodoro(
         runningSince: now,
         pauseCount: 0,
         sourceJournalItemId: input.sourceJournalItemId,
+        sourceWealthIdeaId: input.sourceWealthIdeaId,
       },
     },
   };
@@ -307,6 +334,7 @@ export function finishPomodoro(
     },
     corrections: [],
     sourceJournalItemId: run.sourceJournalItemId,
+    sourceWealthIdeaId: run.sourceWealthIdeaId,
   };
   return {
     ...state,
