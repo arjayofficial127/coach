@@ -22,6 +22,7 @@ interface RunnableAppsSurfaceProps {
   state: RunnableAppsState;
   onChange: (state: RunnableAppsState) => void;
   reportStatus: (status: string) => void;
+  offerRecovery: (message: string, run: () => void | Promise<void>, actionLabel?: string) => void;
 }
 
 const durationPresets = [15, 25, 45, 60];
@@ -39,7 +40,12 @@ function historyTimestamp(value: string): string {
   }).format(new Date(value));
 }
 
-export function RunnableAppsSurface({ state, onChange, reportStatus }: RunnableAppsSurfaceProps) {
+export function RunnableAppsSurface({
+  state,
+  onChange,
+  reportStatus,
+  offerRecovery,
+}: RunnableAppsSurfaceProps) {
   const [task, setTask] = useState("");
   const [selectedApp, setSelectedApp] = useState<RunnableAppId>("pomodoro");
   const [plannedMinutes, setPlannedMinutes] = useState(25);
@@ -69,13 +75,22 @@ export function RunnableAppsSurface({ state, onChange, reportStatus }: RunnableA
     [progress],
   );
 
+  const commit = (next: RunnableAppsState, message: string) => {
+    const previous = state;
+    onChange(next);
+    reportStatus(message);
+    offerRecovery(message, () => onChange(previous));
+  };
+
   const start = (event: FormEvent) => {
     event.preventDefault();
     try {
-      onChange(startPomodoro(state, { task, plannedMinutes }));
+      commit(
+        startPomodoro(state, { task, plannedMinutes }),
+        `Pomodoro started for ${plannedMinutes} minutes`,
+      );
       setTask("");
       setNow(Date.now());
-      reportStatus(`Pomodoro started for ${plannedMinutes} minutes`);
     } catch (error) {
       reportStatus(error instanceof Error ? error.message : String(error));
     }
@@ -84,19 +99,17 @@ export function RunnableAppsSurface({ state, onChange, reportStatus }: RunnableA
   const pauseOrResume = () => {
     if (!activeRun) return;
     if (activeRun.runningSince) {
-      onChange(pausePomodoro(state));
-      reportStatus("Pomodoro paused; elapsed time is preserved");
+      commit(pausePomodoro(state), "Pomodoro paused; elapsed time is preserved");
     } else {
-      onChange(resumePomodoro(state));
+      commit(resumePomodoro(state), "Pomodoro resumed");
       setNow(Date.now());
-      reportStatus("Pomodoro resumed");
     }
   };
 
   const finish = (outcome: "completed" | "stopped") => {
     try {
-      onChange(finishPomodoro(state, outcome));
-      reportStatus(
+      commit(
+        finishPomodoro(state, outcome),
         outcome === "completed"
           ? "Task completed and original timer result saved"
           : "Timer stopped and original result saved",
@@ -117,17 +130,17 @@ export function RunnableAppsSurface({ state, onChange, reportStatus }: RunnableA
     event.preventDefault();
     if (!correctingRunId) return;
     try {
-      onChange(
+      commit(
         correctPomodoroRun(state, {
           runId: correctingRunId,
           outcome: correctedOutcome,
           elapsedMinutes: correctedMinutes,
           note: correctionNote,
         }),
+        "Correction appended; the original result remains unchanged",
       );
       setCorrectingRunId(null);
       setCorrectionNote("");
-      reportStatus("Correction appended; the original result remains unchanged");
     } catch (error) {
       reportStatus(error instanceof Error ? error.message : String(error));
     }
@@ -140,16 +153,16 @@ export function RunnableAppsSurface({ state, onChange, reportStatus }: RunnableA
       return;
     }
     try {
-      onChange(
+      commit(
         startPomodoro(state, {
           task: item.text,
           plannedMinutes: 25,
           sourceJournalItemId: item.id,
         }),
+        "Focused Pomodoro started from Daily Flow",
       );
       setSelectedApp("pomodoro");
       setNow(Date.now());
-      reportStatus("Focused Pomodoro started from Daily Flow");
     } catch (error) {
       reportStatus(error instanceof Error ? error.message : String(error));
     }
@@ -162,16 +175,16 @@ export function RunnableAppsSurface({ state, onChange, reportStatus }: RunnableA
       return;
     }
     try {
-      onChange(
+      commit(
         startPomodoro(state, {
           task: idea.nextStep,
           plannedMinutes: 25,
           sourceWealthIdeaId: idea.id,
         }),
+        "Focused Pomodoro started from Wealth Lab",
       );
       setSelectedApp("pomodoro");
       setNow(Date.now());
-      reportStatus("Focused Pomodoro started from Wealth Lab");
     } catch (error) {
       reportStatus(error instanceof Error ? error.message : String(error));
     }
@@ -224,6 +237,7 @@ export function RunnableAppsSurface({ state, onChange, reportStatus }: RunnableA
           onFocusTask={focusJournalTask}
           timerActive={Boolean(activeRun)}
           reportStatus={reportStatus}
+          offerRecovery={offerRecovery}
         />
       ) : selectedApp === "wealth-lab" ? (
         <WealthLabSurface
@@ -232,6 +246,7 @@ export function RunnableAppsSurface({ state, onChange, reportStatus }: RunnableA
           onFocusIdea={focusWealthIdea}
           timerActive={Boolean(activeRun)}
           reportStatus={reportStatus}
+          offerRecovery={offerRecovery}
         />
       ) : (
         <section className="pomodoro-app" aria-labelledby="pomodoro-heading">

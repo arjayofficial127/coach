@@ -34,6 +34,7 @@ interface WealthLabSurfaceProps {
   onFocusIdea: (idea: EffectiveEarningIdea) => void;
   timerActive: boolean;
   reportStatus: (status: string) => void;
+  offerRecovery: (message: string, run: () => void | Promise<void>, actionLabel?: string) => void;
 }
 
 const views: Array<{ id: WealthView; label: string }> = [
@@ -67,6 +68,7 @@ export function WealthLabSurface({
   onFocusIdea,
   timerActive,
   reportStatus,
+  offerRecovery,
 }: WealthLabSurfaceProps) {
   const today = localWealthDay();
   const month = wealthMonthKey();
@@ -113,10 +115,16 @@ export function WealthLabSurface({
   const [correctedSnapshotDay, setCorrectedSnapshotDay] = useState(today);
   const [correctedSnapshotNote, setCorrectedSnapshotNote] = useState("");
 
+  const commit = (next: WealthLabState, message: string) => {
+    const previous = state;
+    onChange(next);
+    reportStatus(message);
+    offerRecovery(message, () => onChange(previous));
+  };
+
   const apply = (operation: () => WealthLabState, message: string) => {
     try {
-      onChange(operation());
-      reportStatus(message);
+      commit(operation(), message);
     } catch (error) {
       reportStatus(error instanceof Error ? error.message : String(error));
     }
@@ -141,7 +149,8 @@ export function WealthLabSurface({
       return;
     }
     try {
-      onChange(
+      const message = `${entryKind === "investment" ? "Contribution" : entryKind} recorded`;
+      commit(
         addWealthEntry(state, {
           kind: entryKind,
           amountMinor,
@@ -149,11 +158,11 @@ export function WealthLabSurface({
           category: entryCategory,
           occurredOn: entryDay,
         }),
+        message,
       );
       setEntryAmount("");
       setEntryLabel("");
       setEntryCategory("");
-      reportStatus(`${entryKind === "investment" ? "Contribution" : entryKind} recorded`);
     } catch (error) {
       reportStatus(error instanceof Error ? error.message : String(error));
     }
@@ -198,19 +207,19 @@ export function WealthLabSurface({
       return;
     }
     try {
-      onChange(
+      commit(
         addEarningIdea(state, {
           title: ideaTitle,
           hypothesis: ideaHypothesis,
           nextStep: ideaNextStep,
           potentialMonthlyMinor,
         }),
+        "Earning idea captured as an unproven experiment",
       );
       setIdeaTitle("");
       setIdeaHypothesis("");
       setIdeaNextStep("");
       setIdeaPotential("");
-      reportStatus("Earning idea captured as an unproven experiment");
     } catch (error) {
       reportStatus(error instanceof Error ? error.message : String(error));
     }
@@ -257,18 +266,18 @@ export function WealthLabSurface({
       return;
     }
     try {
-      onChange(
+      commit(
         addNetWorthSnapshot(state, {
           assetsMinor,
           liabilitiesMinor,
           measuredOn: snapshotDay,
           note: snapshotNote,
         }),
+        "Net-worth snapshot recorded",
       );
       setAssets("");
       setLiabilities("");
       setSnapshotNote("");
-      reportStatus("Net-worth snapshot recorded");
     } catch (error) {
       reportStatus(error instanceof Error ? error.message : String(error));
     }

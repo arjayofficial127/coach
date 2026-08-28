@@ -319,7 +319,11 @@ export function LatticeApp() {
     clearRecovery();
     try {
       await recovery.run();
-      setStatus(`${recovery.message} — recovered`);
+      setStatus(
+        recovery.actionLabel === "Undo"
+          ? `${recovery.message} — undone`
+          : `${recovery.actionLabel} completed`,
+      );
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     }
@@ -1130,21 +1134,15 @@ export function LatticeApp() {
     setBrowserMenuOpen(false);
     setProfileMenuOpen(false);
     setStatus(enabled ? "Focus view on — press Escape to show navigation" : "Navigation restored");
+    if (enabled) {
+      offerRecovery("Focus view on", () => setDistractionFree(false), "Exit focus");
+    } else if (pendingRecoveryRef.current?.actionLabel === "Exit focus") {
+      clearRecovery();
+    }
   };
 
   const toggleDistractionFree = () => {
-    setFocusMode((current) => {
-      const enabled = !current;
-      setCaptureOpen(false);
-      setCommandOpen(false);
-      setWorkspaceMenuOpen(false);
-      setBrowserMenuOpen(false);
-      setProfileMenuOpen(false);
-      setStatus(
-        enabled ? "Focus view on — press Escape to show navigation" : "Navigation restored",
-      );
-      return enabled;
-    });
+    setDistractionFree(!focusMode);
   };
 
   const toggleRestoreTabs = () => {
@@ -1548,6 +1546,15 @@ export function LatticeApp() {
         setWorkspaceMenuOpen(false);
         setBrowserMenuOpen(false);
         setFocusMode(false);
+        if (pendingRecoveryRef.current?.actionLabel === "Exit focus") {
+          if (recoveryTimerRef.current !== null) {
+            window.clearTimeout(recoveryTimerRef.current);
+          }
+          recoveryTimerRef.current = null;
+          pendingRecoveryRef.current = null;
+          setRecoveryNotice(null);
+          setStatus("Navigation restored");
+        }
         return;
       }
       const focusShortcut = navigationShortcut(event);
@@ -2661,6 +2668,7 @@ export function LatticeApp() {
                 state={runnableApps}
                 onChange={setRunnableApps}
                 reportStatus={setStatus}
+                offerRecovery={offerRecovery}
               />
             )}
 

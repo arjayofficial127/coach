@@ -27,6 +27,7 @@ interface DailyFlowSurfaceProps {
   onFocusTask: (item: EffectiveJournalItem) => void;
   timerActive: boolean;
   reportStatus: (status: string) => void;
+  offerRecovery: (message: string, run: () => void | Promise<void>, actionLabel?: string) => void;
 }
 
 const views: Array<{ id: DailyFlowView; label: string }> = [
@@ -65,6 +66,7 @@ export function DailyFlowSurface({
   onFocusTask,
   timerActive,
   reportStatus,
+  offerRecovery,
 }: DailyFlowSurfaceProps) {
   const today = localDayKey();
   const [view, setView] = useState<DailyFlowView>("today");
@@ -94,10 +96,16 @@ export function DailyFlowSurface({
         ? todayItems
         : journalItemsForLane(journal, view);
 
+  const commit = (next: BulletJournalState, message: string) => {
+    const previous = journal;
+    onChange(next);
+    reportStatus(message);
+    offerRecovery(message, () => onChange(previous));
+  };
+
   const apply = (operation: () => BulletJournalState, message: string) => {
     try {
-      onChange(operation());
-      reportStatus(message);
+      commit(operation(), message);
     } catch (error) {
       reportStatus(error instanceof Error ? error.message : String(error));
     }
@@ -106,12 +114,14 @@ export function DailyFlowSurface({
   const capture = (event: FormEvent) => {
     event.preventDefault();
     try {
-      onChange(captureJournalItem(journal, { text: captureText, kind: captureKind, day: today }));
+      const message =
+        captureKind === "task" ? "Task captured to Inbox" : `${captureKind} added to today’s log`;
+      commit(
+        captureJournalItem(journal, { text: captureText, kind: captureKind, day: today }),
+        message,
+      );
       setCaptureText("");
       setView(captureKind === "task" ? "inbox" : "log");
-      reportStatus(
-        captureKind === "task" ? "Task captured to Inbox" : `${captureKind} added to today’s log`,
-      );
     } catch (error) {
       reportStatus(error instanceof Error ? error.message : String(error));
     }
@@ -121,18 +131,19 @@ export function DailyFlowSurface({
     event.preventDefault();
     if (!clarifyingId) return;
     try {
-      onChange(
+      const message = `Task moved to ${clarifyLane === "today" ? "Today" : clarifyLane}`;
+      commit(
         organizeJournalTask(journal, {
           itemId: clarifyingId,
           lane: clarifyLane,
           day: today,
           waitingFor,
         }),
+        message,
       );
       setClarifyingId(null);
       setWaitingFor("");
       setView(clarifyLane);
-      reportStatus(`Task moved to ${clarifyLane === "today" ? "Today" : clarifyLane}`);
     } catch (error) {
       reportStatus(error instanceof Error ? error.message : String(error));
     }
