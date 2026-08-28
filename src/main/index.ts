@@ -28,6 +28,7 @@ async function createMainWindow(): Promise<void> {
     minWidth: 900,
     minHeight: 620,
     show: false,
+    autoHideMenuBar: true,
     backgroundColor: "#11151c",
     webPreferences: {
       partition: "persist:lattice-shell",
@@ -43,6 +44,7 @@ async function createMainWindow(): Promise<void> {
       webviewTag: false,
     },
   });
+  mainWindow.setMenuBarVisibility(false);
 
   if (app.isPackaged) {
     installLatticeProtocol(mainWindow.webContents.session, rendererRoot);
