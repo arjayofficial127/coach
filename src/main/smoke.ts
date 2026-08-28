@@ -11,8 +11,9 @@ import type {
   SaveNoteResult,
   VaultInfo,
 } from "../shared/contracts";
-import { BrowserRuntime } from "./browser/browser-runtime";
 import { registerIpc } from "./ipc";
+import { ProfileRuntime } from "./profiles/profile-runtime";
+import { ProfileStore } from "./profiles/profile-store";
 import { installLatticeProtocol } from "./protocol";
 import { VaultService } from "./vault/vault-service";
 
@@ -71,6 +72,20 @@ export interface PhaseNineSmokeEvidence {
     tabTitle: string;
     commandPaletteVisible: boolean;
     nativeViewHiddenWhilePaletteOpen: boolean;
+  };
+  profiles: {
+    profileCount: number;
+    activeProfileName: string;
+    profileMenuVisible: boolean;
+    privacyExplanationVisible: boolean;
+    nativeViewHiddenWhileMenuOpen: boolean;
+    firstCookieRetained: boolean;
+    secondCookieInitiallyAbsent: boolean;
+    secondCookieRetained: boolean;
+    partitionsDistinct: boolean;
+    registryContainsNoCredentials: boolean;
+    screenshotPath: string;
+    screenshotBytes: number;
   };
   navigation: {
     heading: string;
@@ -253,7 +268,7 @@ function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function waitForRendererBounds(runtime: BrowserRuntime): Promise<BrowserBounds> {
+async function waitForRendererBounds(runtime: ProfileRuntime): Promise<BrowserBounds> {
   const deadline = Date.now() + 5_000;
   let previousBounds: BrowserBounds | null = null;
   let stableSamples = 0;
@@ -300,12 +315,16 @@ export async function runPhaseNineSmoke(
   });
   installLatticeProtocol(window.webContents.session, rendererRoot);
 
-  const runtime = new BrowserRuntime(window, {
-    partition: `lattice-remote-smoke-${randomUUID()}`,
-  });
+  const profileRoot = path.join(smokeRoot, `profiles-${randomUUID()}`);
+  const profileStore = new ProfileStore(
+    path.join(profileRoot, "profiles.json"),
+    path.join(profileRoot, "avatars"),
+  );
+  await profileStore.initialize();
+  const runtime = new ProfileRuntime(window, profileStore);
   const openedExternalUris: string[] = [];
   const revealedFilePaths: string[] = [];
-  const unregisterIpc = registerIpc(window, runtime, new VaultService(), {
+  const unregisterIpc = registerIpc(window, runtime, new VaultService(), runtime, {
     openExternal: async (uri) => {
       openedExternalUris.push(uri);
     },
@@ -484,7 +503,13 @@ export async function runPhaseNineSmoke(
       active: tab.id === beforeReload.activeTabId,
     }));
     await window.webContents.executeJavaScript(
-      `localStorage.setItem("lattice.session.v1", ${JSON.stringify(JSON.stringify({ version: 1, tabs: sessionTabs }))})`,
+      `(async () => {
+        const profiles = await window.lattice.profiles.state();
+        localStorage.setItem(
+          "lattice.session.v1.profile." + profiles.activeProfileId,
+          ${JSON.stringify(JSON.stringify({ version: 1, tabs: sessionTabs }))}
+        );
+      })()`,
     );
     const reloaded = new Promise<void>((resolve) =>
       window.webContents.once("did-finish-load", () => resolve()),
@@ -894,7 +919,7 @@ export async function runPhaseNineSmoke(
     while (Date.now() < settingsDeadline) {
       settingsDom = (await window.webContents.executeJavaScript(`(() => ({
         heading: document.querySelector(".settings-header h1")?.textContent?.trim() ?? "",
-        privacyText: document.querySelectorAll(".settings-card p")[1]?.textContent?.trim() ?? "",
+        privacyText: document.querySelector("[data-settings-privacy] p")?.textContent?.trim() ?? "",
         restoreTabsEnabled: document.querySelector('[role="switch"][aria-label="Restore tabs on launch"]')?.getAttribute("aria-checked") === "true"
       }))()`)) as SettingsDomResult;
       if (settingsDom.heading === "Settings" && settingsDom.privacyText) break;
@@ -1042,6 +1067,114 @@ export async function runPhaseNineSmoke(
       await runtime.closeTab(websiteSnapshot.activeTabId);
     }
 
+    await window.webContents.executeJavaScript(`(() => {
+      const profileButton = document.querySelector(".profile-button");
+      if (!(profileButton instanceof HTMLButtonElement)) throw new Error("Profile button missing");
+      profileButton.click();
+    })()`);
+    const profileActionsDeadline = Date.now() + 2_000;
+    while (Date.now() < profileActionsDeadline) {
+      const ready = (await window.webContents.executeJavaScript(
+        `Boolean(document.querySelector(".profile-actions"))`,
+      )) as boolean;
+      if (ready) break;
+      await delay(25);
+    }
+    await window.webContents.executeJavaScript(`(() => {
+      const newProfile = [...document.querySelectorAll(".profile-actions button")]
+        .find((button) => button.textContent?.includes("New profile"));
+      if (!(newProfile instanceof HTMLButtonElement)) throw new Error("New profile action missing");
+      newProfile.click();
+    })()`);
+    const profileEditorDeadline = Date.now() + 2_000;
+    while (Date.now() < profileEditorDeadline) {
+      const ready = (await window.webContents.executeJavaScript(
+        `Boolean(document.querySelector("#profile-name"))`,
+      )) as boolean;
+      if (ready) break;
+      await delay(25);
+    }
+    await window.webContents.executeJavaScript(`(() => {
+      const input = document.querySelector("#profile-name");
+      if (!(input instanceof HTMLInputElement)) throw new Error("Profile name field missing");
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setter?.call(input, "Work");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.closest("form")?.requestSubmit();
+    })()`);
+    const workProfileDeadline = Date.now() + 4_000;
+    while (Date.now() < workProfileDeadline) {
+      const ready = (await window.webContents.executeJavaScript(
+        `document.querySelector(".workspace-title strong")?.textContent === "Work research"`,
+      )) as boolean;
+      if (ready) break;
+      await delay(25);
+    }
+    await window.webContents.executeJavaScript(`(() => {
+      const profileButton = document.querySelector(".profile-button");
+      if (!(profileButton instanceof HTMLButtonElement)) throw new Error("Profile button missing");
+      profileButton.click();
+    })()`);
+    const personalActionDeadline = Date.now() + 2_000;
+    while (Date.now() < personalActionDeadline) {
+      const ready = (await window.webContents.executeJavaScript(`(() => {
+        const button = [...document.querySelectorAll(".profile-list > button")]
+          .find((candidate) => candidate.querySelector("strong")?.textContent === "Personal");
+        return button instanceof HTMLButtonElement && !button.disabled;
+      })()`)) as boolean;
+      if (ready) break;
+      await delay(25);
+    }
+    await window.webContents.executeJavaScript(`(() => {
+      const personal = [...document.querySelectorAll(".profile-list > button")]
+        .find((button) => button.querySelector("strong")?.textContent === "Personal");
+      if (!(personal instanceof HTMLButtonElement)) throw new Error("Personal profile missing");
+      personal.click();
+    })()`);
+    const personalProfileDeadline = Date.now() + 4_000;
+    while (Date.now() < personalProfileDeadline) {
+      const ready = (await window.webContents.executeJavaScript(
+        `document.querySelector(".workspace-title strong")?.textContent === "Personal research"`,
+      )) as boolean;
+      if (ready) break;
+      await delay(25);
+    }
+    await window.webContents.executeJavaScript(
+      `document.querySelector(".profile-button")?.click()`,
+    );
+    const profileMenuDeadline = Date.now() + 2_000;
+    while (Date.now() < profileMenuDeadline && runtime.isVisible()) await delay(25);
+    const profilesDom = (await window.webContents.executeJavaScript(`(() => ({
+      profileCount: document.querySelectorAll(".profile-list > button").length,
+      activeProfileName: document.querySelector(".profile-menu-header strong")?.textContent ?? "",
+      profileMenuVisible: Boolean(document.querySelector(".profile-menu")),
+      privacyExplanationVisible: document.querySelector(".profile-privacy-note")?.textContent?.includes("never stores your Google") ?? false
+    }))()`)) as {
+      profileCount: number;
+      activeProfileName: string;
+      profileMenuVisible: boolean;
+      privacyExplanationVisible: boolean;
+    };
+    const nativeViewHiddenWhileProfileMenuOpen = !runtime.isVisible();
+    window.setSkipTaskbar(true);
+    window.showInactive();
+    await delay(100);
+    const profileImage = await window.webContents.capturePage();
+    if (profileImage.isEmpty()) throw new Error("Electron returned an empty profile-menu capture.");
+    const profileScreenshot = profileImage.toPNG();
+    const profileScreenshotPath = path.join(smokeRoot, "phase-12-profiles.png");
+    await writeFile(profileScreenshotPath, profileScreenshot);
+    window.hide();
+    await window.webContents.executeJavaScript(
+      `document.querySelector(".profile-menu-backdrop")?.click()`,
+    );
+    const profileIsolation = await runtime.collectProfileIsolationProbe();
+    const profileRegistry = await readFile(path.join(profileRoot, "profiles.json"), "utf8");
+    const registryContainsNoCredentials =
+      !/(password|access[_-]?token|refresh[_-]?token|id[_-]?token|google[_-]?id)/i.test(
+        profileRegistry,
+      );
+
     await window.webContents.executeJavaScript(`(async () => {
       await window.lattice.vault.disconnect();
     })()`);
@@ -1051,13 +1184,33 @@ export async function runPhaseNineSmoke(
     const noteAfterDisconnect = await stat(shellProbe.note.absolutePath);
     const canvasAfterDisconnect = await stat(parentCanvasPath);
 
-    const stableSecurityTab = runtime
+    const securityCandidate = runtime
       .snapshot()
-      .tabs.find((tab) => tab.url.startsWith("https://example.com/") && !tab.loading);
+      .tabs.find((tab) => tab.url.startsWith("https://example.com/"));
+    if (!securityCandidate) {
+      throw new Error(
+        `No HTTPS tab remained for the final security probe: ${JSON.stringify({
+          activeProfileId: runtime.state().activeProfileId,
+          firstProfileId: profileIsolation.firstProfileId,
+          secondProfileId: profileIsolation.secondProfileId,
+          snapshot: runtime.snapshot(),
+        })}`,
+      );
+    }
+    runtime.switchTab(securityCandidate.id);
+    const stableSecurityDeadline = Date.now() + 5_000;
+    let stableSecurityTab = runtime
+      .snapshot()
+      .tabs.find((tab) => tab.id === securityCandidate.id && !tab.loading);
+    while (!stableSecurityTab && Date.now() < stableSecurityDeadline) {
+      await delay(25);
+      stableSecurityTab = runtime
+        .snapshot()
+        .tabs.find((tab) => tab.id === securityCandidate.id && !tab.loading);
+    }
     if (!stableSecurityTab) {
       throw new Error("No fully loaded HTTPS tab remained for the final security probe.");
     }
-    runtime.switchTab(stableSecurityTab.id);
     window.setSkipTaskbar(true);
     window.showInactive();
     await delay(100);
@@ -1122,6 +1275,17 @@ export async function runPhaseNineSmoke(
         tabTitle: sessionDom.tabTitle,
         commandPaletteVisible,
         nativeViewHiddenWhilePaletteOpen,
+      },
+      profiles: {
+        ...profilesDom,
+        nativeViewHiddenWhileMenuOpen: nativeViewHiddenWhileProfileMenuOpen,
+        firstCookieRetained: profileIsolation.firstCookieRetained,
+        secondCookieInitiallyAbsent: profileIsolation.secondCookieInitiallyAbsent,
+        secondCookieRetained: profileIsolation.secondCookieRetained,
+        partitionsDistinct: profileIsolation.partitionsDistinct,
+        registryContainsNoCredentials,
+        screenshotPath: profileScreenshotPath,
+        screenshotBytes: profileScreenshot.byteLength,
       },
       navigation: {
         ...navigationDom,

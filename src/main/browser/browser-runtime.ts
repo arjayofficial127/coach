@@ -34,6 +34,7 @@ const REMOTE_SECURITY_PREFERENCES = {
 
 export interface BrowserRuntimeOptions {
   partition?: string;
+  emitState?: (state: BrowserState) => void;
 }
 
 interface TabRecord {
@@ -48,6 +49,7 @@ export class BrowserRuntime {
   private readonly allContents: WebContents[] = [];
   private readonly remoteSession: Session;
   private readonly partition: string;
+  private readonly stateEmitter: (state: BrowserState) => void;
   private activeTabId: string;
   private closed = false;
   private visible = false;
@@ -60,6 +62,11 @@ export class BrowserRuntime {
     options: BrowserRuntimeOptions = {},
   ) {
     this.partition = options.partition ?? "persist:lattice-remote";
+    this.stateEmitter =
+      options.emitState ??
+      ((state) => {
+        if (!this.window.isDestroyed()) this.window.webContents.send(IPC.browserState, state);
+      });
     const initialTab = this.createTabRecord();
     this.tabs.set(initialTab.id, initialTab);
     this.activeTabId = initialTab.id;
@@ -194,6 +201,24 @@ export class BrowserRuntime {
       this.remoteSession.clearAuthCache(),
     ]);
     return this.privacySummary();
+  }
+
+  async setCookieProbe(name: string, value: string): Promise<void> {
+    await this.remoteSession.cookies.set({
+      url: "https://example.com",
+      name,
+      value,
+      secure: true,
+      sameSite: "lax",
+    });
+  }
+
+  async readCookieProbe(name: string): Promise<string | null> {
+    const cookies = await this.remoteSession.cookies.get({
+      url: "https://example.com",
+      name,
+    });
+    return cookies[0]?.value ?? null;
   }
 
   async collectPrivacyClearProbe(): Promise<{
@@ -500,8 +525,7 @@ export class BrowserRuntime {
   }
 
   private emitState(tab: TabRecord): void {
-    if (!this.window.isDestroyed())
-      this.window.webContents.send(IPC.browserState, { ...tab.state });
+    this.stateEmitter({ ...tab.state });
   }
 
   private readonly onWillDownload = (event: Event, item: DownloadItem): void => {

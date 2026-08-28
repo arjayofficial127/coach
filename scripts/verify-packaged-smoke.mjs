@@ -17,6 +17,7 @@ const sourceManifestPath = path.resolve(
 const evidenceSource = path.join(os.tmpdir(), "lattice-phase-nine", "packaged-smoke-evidence.json");
 const evidenceDirectory = path.resolve("artifacts", "phase-9");
 const phaseTenEvidenceDirectory = path.resolve("artifacts", "phase-10");
+const phaseTwelveEvidenceDirectory = path.resolve("artifacts", "phase-12");
 const evidenceTarget = path.join(evidenceDirectory, "packaged-smoke-evidence.json");
 const screenshotTarget = path.join(evidenceDirectory, "remote-example-com.png");
 const shellScreenshotTarget = path.join(evidenceDirectory, "phase-9-shell.png");
@@ -27,6 +28,7 @@ const focusNavigationScreenshotTarget = path.join(
   phaseTenEvidenceDirectory,
   "focus-navigation.png",
 );
+const profileScreenshotTarget = path.join(phaseTwelveEvidenceDirectory, "website-profiles.png");
 const canvasTarget = path.join(evidenceDirectory, "packaged-smoke-canvas.canvas");
 const noteTarget = path.join(evidenceDirectory, "packaged-smoke-note.md");
 
@@ -35,6 +37,7 @@ await access(appAsar);
 await access(sourceManifestPath);
 await mkdir(evidenceDirectory, { recursive: true });
 await mkdir(phaseTenEvidenceDirectory, { recursive: true });
+await mkdir(phaseTwelveEvidenceDirectory, { recursive: true });
 await rm(evidenceSource, { force: true });
 await Promise.all(
   [
@@ -45,6 +48,7 @@ await Promise.all(
     handoffScreenshotTarget,
     canvasScreenshotTarget,
     focusNavigationScreenshotTarget,
+    profileScreenshotTarget,
     canvasTarget,
     noteTarget,
   ].map((target) => rm(target, { force: true })),
@@ -177,6 +181,26 @@ if (!evidence.session.commandPaletteVisible) {
 }
 if (!evidence.session.nativeViewHiddenWhilePaletteOpen) {
   failures.push("native website view remained above the trusted command palette");
+}
+if (
+  evidence.profiles?.profileCount !== 2 ||
+  evidence.profiles?.activeProfileName !== "Personal" ||
+  !evidence.profiles?.profileMenuVisible ||
+  !evidence.profiles?.privacyExplanationVisible ||
+  !evidence.profiles?.nativeViewHiddenWhileMenuOpen
+) {
+  failures.push("trusted website-profile creation, switching, or menu isolation failed");
+}
+if (
+  !evidence.profiles?.firstCookieRetained ||
+  !evidence.profiles?.secondCookieInitiallyAbsent ||
+  !evidence.profiles?.secondCookieRetained ||
+  !evidence.profiles?.partitionsDistinct ||
+  !evidence.profiles?.registryContainsNoCredentials
+) {
+  failures.push(
+    "website identity partitions were not isolated or profile metadata held credentials",
+  );
 }
 if (
   evidence.navigation?.heading !== "Welcome back. Choose one thing." ||
@@ -404,6 +428,7 @@ const metadataScreenshotBytes = await readFile(evidence.metadataEditing.screensh
 const handoffScreenshotBytes = await readFile(evidence.obsidianHandoff.screenshotPath);
 const canvasScreenshotBytes = await readFile(evidence.canvas.screenshotPath);
 const focusNavigationScreenshotBytes = await readFile(evidence.navigation.screenshotPath);
+const profileScreenshotBytes = await readFile(evidence.profiles.screenshotPath);
 if (screenshotBytes.byteLength !== evidence.remote.screenshotBytes) {
   throw new Error("Screenshot byte count changed before evidence collection.");
 }
@@ -497,6 +522,23 @@ if (focusNavigationPixels.width < 900 || focusNavigationPixels.height < 620) {
 evidence.navigation.screenshotPixels = focusNavigationPixels;
 evidence.navigation.screenshotSha256 = createHash("sha256")
   .update(focusNavigationScreenshotBytes)
+  .digest("hex");
+if (!profileScreenshotBytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) {
+  throw new Error("Phase 12 profile screenshot is not a PNG file.");
+}
+if (profileScreenshotBytes.byteLength !== evidence.profiles.screenshotBytes) {
+  throw new Error("Phase 12 profile screenshot byte count changed before collection.");
+}
+const profileScreenshotPixels = {
+  width: profileScreenshotBytes.readUInt32BE(16),
+  height: profileScreenshotBytes.readUInt32BE(20),
+};
+if (profileScreenshotPixels.width < 900 || profileScreenshotPixels.height < 620) {
+  throw new Error("Phase 12 profile screenshot dimensions were not usable.");
+}
+evidence.profiles.screenshotPixels = profileScreenshotPixels;
+evidence.profiles.screenshotSha256 = createHash("sha256")
+  .update(profileScreenshotBytes)
   .digest("hex");
 evidence.remote.screenshotPixels = screenshotPixels;
 evidence.remote.screenshotSha256 = createHash("sha256").update(screenshotBytes).digest("hex");
@@ -618,6 +660,7 @@ await copyFile(evidence.metadataEditing.screenshotPath, metadataScreenshotTarget
 await copyFile(evidence.obsidianHandoff.screenshotPath, handoffScreenshotTarget);
 await copyFile(evidence.canvas.screenshotPath, canvasScreenshotTarget);
 await copyFile(evidence.navigation.screenshotPath, focusNavigationScreenshotTarget);
+await copyFile(evidence.profiles.screenshotPath, profileScreenshotTarget);
 await copyFile(evidence.canvas.absolutePath, canvasTarget);
 await copyFile(evidence.note.absolutePath, noteTarget);
 const copiedScreenshotBytes = await readFile(screenshotTarget);
@@ -626,6 +669,7 @@ const copiedMetadataScreenshotBytes = await readFile(metadataScreenshotTarget);
 const copiedHandoffScreenshotBytes = await readFile(handoffScreenshotTarget);
 const copiedCanvasScreenshotBytes = await readFile(canvasScreenshotTarget);
 const copiedFocusNavigationScreenshotBytes = await readFile(focusNavigationScreenshotTarget);
+const copiedProfileScreenshotBytes = await readFile(profileScreenshotTarget);
 const copiedCanvasBytes = await readFile(canvasTarget);
 const copiedNoteBytes = await readFile(noteTarget);
 if (
@@ -670,6 +714,12 @@ if (
 ) {
   throw new Error("Collected focus navigation screenshot hash changed while publishing evidence.");
 }
+if (
+  createHash("sha256").update(copiedProfileScreenshotBytes).digest("hex") !==
+  evidence.profiles.screenshotSha256
+) {
+  throw new Error("Collected profile screenshot hash changed while publishing evidence.");
+}
 evidence.remote.artifactPath = screenshotTarget;
 evidence.shell.artifactPath = shellScreenshotTarget;
 evidence.metadataEditing.artifactPath = metadataScreenshotTarget;
@@ -677,6 +727,7 @@ evidence.obsidianHandoff.artifactPath = handoffScreenshotTarget;
 evidence.canvas.screenshotArtifactPath = canvasScreenshotTarget;
 evidence.canvas.artifactPath = canvasTarget;
 evidence.navigation.artifactPath = focusNavigationScreenshotTarget;
+evidence.profiles.artifactPath = profileScreenshotTarget;
 evidence.note.artifactPath = noteTarget;
 await writeFile(evidenceTarget, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
 console.log(`Packaged Phase 9 smoke passed. Evidence: ${evidenceTarget}`);

@@ -1,7 +1,13 @@
 import { app, type BrowserWindow, type IpcMainInvokeEvent, ipcMain, shell } from "electron";
 import { z } from "zod";
+import type {
+  BrowserBounds,
+  BrowserPrivacySummary,
+  BrowserSnapshot,
+  ProfileState,
+  ProfileSwitchResult,
+} from "../shared/contracts";
 import { IPC } from "../shared/contracts";
-import type { BrowserRuntime } from "./browser/browser-runtime";
 import { isTrustedShellUrl } from "./policies/shell-origin";
 import {
   parseCreateCanvasPageInput,
@@ -50,6 +56,11 @@ const savedLinkMetadataSchema = z.object({
 });
 
 const tabIdSchema = z.string().uuid();
+const profileIdSchema = z.string().uuid();
+const createProfileSchema = z.object({
+  name: z.string().trim().min(1).max(40),
+});
+const updateProfileSchema = createProfileSchema.extend({ id: profileIdSchema });
 
 function assertTrustedShell(event: IpcMainInvokeEvent, window: BrowserWindow): void {
   const frameUrl = event.senderFrame?.url ?? "";
@@ -78,10 +89,35 @@ const defaultShellActions: TrustedShellActions = {
   showItemInFolder: (absolutePath) => shell.showItemInFolder(absolutePath),
 };
 
+export interface BrowserController {
+  setBounds(bounds: BrowserBounds): void;
+  navigate(input: string): Promise<void>;
+  back(): void;
+  forward(): void;
+  reload(): void;
+  snapshot(): BrowserSnapshot;
+  createTab(input?: string): Promise<BrowserSnapshot>;
+  switchTab(tabId: string): BrowserSnapshot;
+  closeTab(tabId: string): BrowserSnapshot;
+  setVisible(visible: boolean): void;
+  privacySummary(): Promise<BrowserPrivacySummary>;
+  clearWebsiteData(): Promise<BrowserPrivacySummary>;
+}
+
+export interface ProfileController {
+  state(): ProfileState;
+  createProfile(name: string): Promise<ProfileSwitchResult>;
+  updateProfile(profileId: string, name: string): Promise<ProfileState>;
+  chooseAvatar(profileId: string): Promise<ProfileState>;
+  clearAvatar(profileId: string): Promise<ProfileState>;
+  switchProfile(profileId: string): Promise<ProfileSwitchResult>;
+}
+
 export function registerIpc(
   window: BrowserWindow,
-  browser: BrowserRuntime,
+  browser: BrowserController,
   vault: VaultService,
+  profiles: ProfileController,
   shellActions: TrustedShellActions = defaultShellActions,
 ): () => void {
   const handle = <T>(
@@ -110,6 +146,24 @@ export function registerIpc(
   );
   handle(IPC.browserPrivacySummary, () => browser.privacySummary());
   handle(IPC.browserClearWebsiteData, () => browser.clearWebsiteData());
+  handle(IPC.profilesState, () => profiles.state());
+  handle(IPC.profilesCreate, (_event, payload) => {
+    const input = createProfileSchema.parse(payload);
+    return profiles.createProfile(input.name);
+  });
+  handle(IPC.profilesUpdate, (_event, payload) => {
+    const input = updateProfileSchema.parse(payload);
+    return profiles.updateProfile(input.id, input.name);
+  });
+  handle(IPC.profilesChooseAvatar, (_event, payload) =>
+    profiles.chooseAvatar(profileIdSchema.parse(payload)),
+  );
+  handle(IPC.profilesClearAvatar, (_event, payload) =>
+    profiles.clearAvatar(profileIdSchema.parse(payload)),
+  );
+  handle(IPC.profilesSwitch, (_event, payload) =>
+    profiles.switchProfile(profileIdSchema.parse(payload)),
+  );
   handle(IPC.vaultCreateDisposable, () => vault.createDisposable());
   handle(IPC.vaultChoose, () => vault.choose());
   handle(IPC.vaultCurrent, () => vault.current());

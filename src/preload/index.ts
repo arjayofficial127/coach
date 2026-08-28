@@ -29,6 +29,14 @@ const api: LatticeApi = {
       return () => ipcRenderer.removeListener(IPC.browserState, handler);
     },
   },
+  profiles: {
+    state: () => ipcRenderer.invoke(IPC.profilesState),
+    create: (input) => ipcRenderer.invoke(IPC.profilesCreate, input),
+    update: (input) => ipcRenderer.invoke(IPC.profilesUpdate, input),
+    chooseAvatar: (profileId) => ipcRenderer.invoke(IPC.profilesChooseAvatar, profileId),
+    clearAvatar: (profileId) => ipcRenderer.invoke(IPC.profilesClearAvatar, profileId),
+    switch: (profileId) => ipcRenderer.invoke(IPC.profilesSwitch, profileId),
+  },
   vault: {
     createDisposable: () => ipcRenderer.invoke(IPC.vaultCreateDisposable),
     choose: () => ipcRenderer.invoke(IPC.vaultChoose),

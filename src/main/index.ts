@@ -1,8 +1,9 @@
 import path from "node:path";
 import { app, BrowserWindow } from "electron";
-import { BrowserRuntime } from "./browser/browser-runtime";
 import { registerIpc } from "./ipc";
 import { isTrustedShellUrl } from "./policies/shell-origin";
+import { ProfileRuntime } from "./profiles/profile-runtime";
+import { ProfileStore } from "./profiles/profile-store";
 import { installLatticeProtocol, registerLatticeScheme } from "./protocol";
 import { runPhaseNineSmoke } from "./smoke";
 import { VaultService } from "./vault/vault-service";
@@ -14,7 +15,7 @@ if (process.platform === "win32") {
 }
 
 let mainWindow: BrowserWindow | null = null;
-let browserRuntime: BrowserRuntime | null = null;
+let browserRuntime: ProfileRuntime | null = null;
 let unregisterIpc: (() => void) | null = null;
 
 async function createMainWindow(): Promise<void> {
@@ -54,11 +55,17 @@ async function createMainWindow(): Promise<void> {
     }
   });
 
-  browserRuntime = new BrowserRuntime(mainWindow);
+  const profileStore = new ProfileStore(
+    path.join(app.getPath("userData"), "profiles.json"),
+    path.join(app.getPath("userData"), "profile-avatars"),
+  );
+  await profileStore.initialize();
+  browserRuntime = new ProfileRuntime(mainWindow, profileStore);
   unregisterIpc = registerIpc(
     mainWindow,
     browserRuntime,
     new VaultService(path.join(app.getPath("userData"), "vault.json")),
+    browserRuntime,
   );
 
   mainWindow.once("ready-to-show", () => mainWindow?.show());

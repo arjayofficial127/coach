@@ -4,6 +4,9 @@ import type {
   BrowserSnapshot,
   BrowserState,
   CanvasPageSummary,
+  ProfileState,
+  ProfileSummary,
+  ProfileSwitchResult,
   SavedLinkRecord,
   ShellCommand,
   VaultInfo,
@@ -20,13 +23,18 @@ import {
   surfaceDetails,
 } from "./focus-model";
 import { Icon, type IconName } from "./icon";
+import { profileStorageKey, readProfileStorage } from "./profile-shell-model";
 import {
   buildRestorableSession,
   parseRestorableSession,
   type RestorableTab,
   reconcileRestoredSession,
 } from "./session-model";
-import { parseSettingsPreferences, type SettingsPreferences } from "./settings-model";
+import {
+  DEFAULT_SETTINGS,
+  parseSettingsPreferences,
+  type SettingsPreferences,
+} from "./settings-model";
 import {
   createDesktop,
   DEFAULT_WORKSPACE,
@@ -65,6 +73,12 @@ interface RestoredBrowserState {
   assignments: Record<string, string>;
   restoredCount: number;
   restoredActive: RestorableTab | null;
+}
+
+interface ProfileShellState {
+  workspace: WorkspacePreferences;
+  settings: SettingsPreferences;
+  focusIntention: string;
 }
 
 const railItems: Array<{ id: Surface; label: string; icon: IconName }> = [
@@ -110,24 +124,99 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1_048_576).toFixed(1)} MB`;
 }
 
+function profileInitials(name: string): string {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "P"
+  );
+}
+
+function loadProfileShellState(state: ProfileState, profileId: string): ProfileShellState {
+  return {
+    workspace: parseWorkspacePreferences(
+      readProfileStorage(localStorage, WORKSPACE_STORAGE_KEY, state, profileId),
+    ),
+    settings: parseSettingsPreferences(
+      readProfileStorage(localStorage, SETTINGS_STORAGE_KEY, state, profileId),
+    ),
+    focusIntention: parseFocusPreferences(
+      readProfileStorage(localStorage, FOCUS_STORAGE_KEY, state, profileId),
+    ).intention,
+  };
+}
+
+async function restoreProfileBrowser(
+  initial: BrowserSnapshot,
+  workspace: WorkspacePreferences,
+  settings: SettingsPreferences,
+  profiles: ProfileState,
+  profileId: string,
+): Promise<RestoredBrowserState> {
+  const saved = settings.restoreTabs
+    ? parseRestorableSession(
+        readProfileStorage(localStorage, SESSION_STORAGE_KEY, profiles, profileId),
+        new Set(workspace.desktops.map((desktop) => desktop.id)),
+      )
+    : { version: 1 as const, tabs: [] };
+  if (saved.tabs.length === 0) {
+    return {
+      snapshot: initial,
+      assignments: { [initial.activeTabId]: workspace.activeDesktopId },
+      restoredCount: 0,
+      restoredActive: null,
+    };
+  }
+
+  const pristineRuntime = initial.tabs.length === 1 && initial.tabs[0]?.url === "about:blank";
+  if (!pristineRuntime) {
+    const reconciled = reconcileRestoredSession(initial, saved, workspace.activeDesktopId);
+    return {
+      snapshot: initial,
+      assignments: reconciled.assignments,
+      restoredCount: reconciled.matchedCount,
+      restoredActive: reconciled.active,
+    };
+  }
+
+  const assignments: Record<string, string> = {};
+  const restored: Array<{ nativeId: string; saved: RestorableTab }> = [];
+  let next = initial;
+  for (const savedTab of saved.tabs) {
+    next = await window.lattice.browser.createTab(
+      savedTab.url === "about:blank" ? undefined : savedTab.url,
+    );
+    assignments[next.activeTabId] = savedTab.desktopId;
+    restored.push({ nativeId: next.activeTabId, saved: savedTab });
+  }
+  next = await window.lattice.browser.closeTab(initial.activeTabId);
+  const target = restored.find((entry) => entry.saved.active) ?? restored[0];
+  if (target) next = await window.lattice.browser.switchTab(target.nativeId);
+  return {
+    snapshot: next,
+    assignments,
+    restoredCount: restored.length,
+    restoredActive: target?.saved ?? null,
+  };
+}
+
 export function LatticeApp() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const webStageRef = useRef<HTMLElement>(null);
   const omniboxRef = useRef<HTMLInputElement>(null);
   const commandInputRef = useRef<HTMLInputElement>(null);
-  const restorePromiseRef = useRef<Promise<RestoredBrowserState> | null>(null);
   const commandHandlerRef = useRef<(command: ShellCommand) => void>(() => undefined);
-  const [workspace, setWorkspace] = useState<WorkspacePreferences>(() =>
-    parseWorkspacePreferences(localStorage.getItem(WORKSPACE_STORAGE_KEY)),
-  );
-  const [settings, setSettings] = useState<SettingsPreferences>(() =>
-    parseSettingsPreferences(localStorage.getItem(SETTINGS_STORAGE_KEY)),
-  );
-  const initialWorkspaceRef = useRef(workspace);
-  const initialSettingsRef = useRef(settings);
-  const [focusIntention, setFocusIntention] = useState(
-    () => parseFocusPreferences(localStorage.getItem(FOCUS_STORAGE_KEY)).intention,
-  );
+  const [workspace, setWorkspace] = useState<WorkspacePreferences>(DEFAULT_WORKSPACE);
+  const [settings, setSettings] = useState<SettingsPreferences>(DEFAULT_SETTINGS);
+  const [focusIntention, setFocusIntention] = useState("");
+  const [profileState, setProfileState] = useState<ProfileState | null>(null);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [profileEditor, setProfileEditor] = useState<"create" | "edit" | null>(null);
+  const [profileName, setProfileName] = useState("");
+  const [profileBusy, setProfileBusy] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [requestedCanvasPageId, setRequestedCanvasPageId] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<BrowserSnapshot>(emptySnapshot);
@@ -168,6 +257,8 @@ export function LatticeApp() {
   const [confirmClearData, setConfirmClearData] = useState(false);
   const [clearingData, setClearingData] = useState(false);
 
+  const activeProfile =
+    profileState?.profiles.find((profile) => profile.id === profileState.activeProfileId) ?? null;
   const activeTab = snapshot.tabs.find((tab) => tab.id === snapshot.activeTabId) ?? null;
   const activeDesktop =
     workspace.desktops.find((desktop) => desktop.id === workspace.activeDesktopId) ??
@@ -283,20 +374,32 @@ export function LatticeApp() {
   }, [commandQuery, links, queueCount, snapshot.tabs, tabDesktops, workspace]);
 
   useEffect(() => {
-    localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(workspace));
-  }, [workspace]);
-
-  useEffect(() => {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-    if (!settings.restoreTabs) localStorage.removeItem(SESSION_STORAGE_KEY);
-  }, [settings]);
-
-  useEffect(() => {
+    if (!profileState || !sessionReady) return;
     localStorage.setItem(
-      FOCUS_STORAGE_KEY,
+      profileStorageKey(WORKSPACE_STORAGE_KEY, profileState.activeProfileId),
+      JSON.stringify(workspace),
+    );
+  }, [profileState, sessionReady, workspace]);
+
+  useEffect(() => {
+    if (!profileState || !sessionReady) return;
+    const profileId = profileState.activeProfileId;
+    localStorage.setItem(
+      profileStorageKey(SETTINGS_STORAGE_KEY, profileId),
+      JSON.stringify(settings),
+    );
+    if (!settings.restoreTabs) {
+      localStorage.removeItem(profileStorageKey(SESSION_STORAGE_KEY, profileId));
+    }
+  }, [profileState, sessionReady, settings]);
+
+  useEffect(() => {
+    if (!profileState || !sessionReady) return;
+    localStorage.setItem(
+      profileStorageKey(FOCUS_STORAGE_KEY, profileState.activeProfileId),
       JSON.stringify({ version: 1, intention: normalizeFocusIntention(focusIntention) }),
     );
-  }, [focusIntention]);
+  }, [focusIntention, profileState, sessionReady]);
 
   useEffect(() => {
     let cancelled = false;
@@ -321,8 +424,6 @@ export function LatticeApp() {
 
   useEffect(() => {
     let cancelled = false;
-    const initialWorkspace = initialWorkspaceRef.current;
-    const initialSettings = initialSettingsRef.current;
     const unsubscribe = window.lattice.browser.onState((state) => {
       setSnapshot((current) => {
         const exists = current.tabs.some((tab) => tab.id === state.id);
@@ -334,71 +435,34 @@ export function LatticeApp() {
         };
       });
     });
-    if (!restorePromiseRef.current) {
-      restorePromiseRef.current = (async () => {
-        const initial = await window.lattice.browser.snapshot();
-        const saved = initialSettings.restoreTabs
-          ? parseRestorableSession(
-              localStorage.getItem(SESSION_STORAGE_KEY),
-              new Set(initialWorkspace.desktops.map((desktop) => desktop.id)),
-            )
-          : { version: 1 as const, tabs: [] };
-        if (saved.tabs.length === 0) {
-          return {
-            snapshot: initial,
-            assignments: { [initial.activeTabId]: initialWorkspace.activeDesktopId },
-            restoredCount: 0,
-            restoredActive: null,
-          };
-        }
-
-        const pristineRuntime = initial.tabs.length === 1 && initial.tabs[0]?.url === "about:blank";
-        if (!pristineRuntime) {
-          const reconciled = reconcileRestoredSession(
-            initial,
-            saved,
-            initialWorkspace.activeDesktopId,
-          );
-          return {
-            snapshot: initial,
-            assignments: reconciled.assignments,
-            restoredCount: reconciled.matchedCount,
-            restoredActive: reconciled.active,
-          };
-        }
-
-        const assignments: Record<string, string> = {};
-        const restored: Array<{ nativeId: string; saved: RestorableTab }> = [];
-        let next = initial;
-        for (const savedTab of saved.tabs) {
-          next = await window.lattice.browser.createTab(
-            savedTab.url === "about:blank" ? undefined : savedTab.url,
-          );
-          assignments[next.activeTabId] = savedTab.desktopId;
-          restored.push({ nativeId: next.activeTabId, saved: savedTab });
-        }
-        next = await window.lattice.browser.closeTab(initial.activeTabId);
-        const target = restored.find((entry) => entry.saved.active) ?? restored[0];
-        if (target) next = await window.lattice.browser.switchTab(target.nativeId);
-        return {
-          snapshot: next,
-          assignments,
-          restoredCount: restored.length,
-          restoredActive: target?.saved ?? null,
-        };
-      })();
-    }
-    void restorePromiseRef.current
-      .then((restored) => {
+    void (async () => {
+      const profiles = await window.lattice.profiles.state();
+      const shell = loadProfileShellState(profiles, profiles.activeProfileId);
+      const initial = await window.lattice.browser.snapshot();
+      const restored = await restoreProfileBrowser(
+        initial,
+        shell.workspace,
+        shell.settings,
+        profiles,
+        profiles.activeProfileId,
+      );
+      return { profiles, shell, restored };
+    })()
+      .then(({ profiles, shell, restored }) => {
         if (cancelled) return;
+        setProfileState(profiles);
+        setWorkspace(shell.workspace);
+        setSettings(shell.settings);
+        setFocusIntention(shell.focusIntention);
         setSnapshot(restored.snapshot);
         setTabDesktops(restored.assignments);
-        if (restored.restoredActive) {
+        const restoredActive = restored.restoredActive;
+        if (restoredActive) {
           setWorkspace((current) => ({
             ...current,
-            activeDesktopId: restored.restoredActive?.desktopId ?? current.activeDesktopId,
+            activeDesktopId: restoredActive.desktopId,
           }));
-          setSurface(restored.restoredActive.url === "about:blank" ? "home" : "browser");
+          setSurface(restoredActive.url === "about:blank" ? "home" : "browser");
         }
         setSessionReady(true);
         if (restored.restoredCount > 0) {
@@ -409,7 +473,7 @@ export function LatticeApp() {
         if (cancelled) return;
         const fallback = await window.lattice.browser.snapshot();
         setSnapshot(fallback);
-        setTabDesktops({ [fallback.activeTabId]: initialWorkspace.activeDesktopId });
+        setTabDesktops({ [fallback.activeTabId]: DEFAULT_WORKSPACE.activeDesktopId });
         setSessionReady(true);
         setStatus(
           error instanceof Error
@@ -424,13 +488,23 @@ export function LatticeApp() {
   }, []);
 
   useEffect(() => {
-    if (!sessionReady || !settings.restoreTabs) return;
+    if (!sessionReady || !settings.restoreTabs || !profileState) return;
     const timeout = window.setTimeout(() => {
       const session = buildRestorableSession(snapshot, tabDesktops, workspace.activeDesktopId);
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+      localStorage.setItem(
+        profileStorageKey(SESSION_STORAGE_KEY, profileState.activeProfileId),
+        JSON.stringify(session),
+      );
     }, 150);
     return () => window.clearTimeout(timeout);
-  }, [sessionReady, settings.restoreTabs, snapshot, tabDesktops, workspace.activeDesktopId]);
+  }, [
+    profileState,
+    sessionReady,
+    settings.restoreTabs,
+    snapshot,
+    tabDesktops,
+    workspace.activeDesktopId,
+  ]);
 
   useEffect(() => {
     if (!contextualTab || contextualTab.url === "about:blank") {
@@ -451,7 +525,7 @@ export function LatticeApp() {
         .then(() => {
           if (!disposed)
             return window.lattice.browser.setVisible(
-              surface === "browser" && !browserMenuOpen && !commandOpen,
+              surface === "browser" && !browserMenuOpen && !commandOpen && !profileMenuOpen,
             );
         });
     };
@@ -465,7 +539,7 @@ export function LatticeApp() {
       window.removeEventListener("resize", updateBounds);
       void window.lattice.browser.setVisible(false);
     };
-  }, [browserMenuOpen, commandOpen, surface]);
+  }, [browserMenuOpen, commandOpen, profileMenuOpen, surface]);
 
   useEffect(() => {
     if (!commandOpen) return;
@@ -789,6 +863,7 @@ export function LatticeApp() {
     setCaptureOpen(false);
     setBrowserMenuOpen(false);
     setCommandOpen(false);
+    setProfileMenuOpen(false);
   };
 
   const showBrowser = () => {
@@ -812,6 +887,7 @@ export function LatticeApp() {
     setCommandOpen(false);
     setWorkspaceMenuOpen(false);
     setBrowserMenuOpen(false);
+    setProfileMenuOpen(false);
     setStatus(enabled ? "Focus view on — press Escape to show navigation" : "Navigation restored");
   };
 
@@ -822,6 +898,7 @@ export function LatticeApp() {
       setCommandOpen(false);
       setWorkspaceMenuOpen(false);
       setBrowserMenuOpen(false);
+      setProfileMenuOpen(false);
       setStatus(
         enabled ? "Focus view on — press Escape to show navigation" : "Navigation restored",
       );
@@ -849,6 +926,148 @@ export function LatticeApp() {
       setStatus(error instanceof Error ? error.message : String(error));
     } finally {
       setClearingData(false);
+    }
+  };
+
+  const persistActiveProfileShell = () => {
+    if (!profileState) return;
+    const profileId = profileState.activeProfileId;
+    localStorage.setItem(
+      profileStorageKey(WORKSPACE_STORAGE_KEY, profileId),
+      JSON.stringify(workspace),
+    );
+    localStorage.setItem(
+      profileStorageKey(SETTINGS_STORAGE_KEY, profileId),
+      JSON.stringify(settings),
+    );
+    localStorage.setItem(
+      profileStorageKey(FOCUS_STORAGE_KEY, profileId),
+      JSON.stringify({ version: 1, intention: normalizeFocusIntention(focusIntention) }),
+    );
+    const sessionKey = profileStorageKey(SESSION_STORAGE_KEY, profileId);
+    if (settings.restoreTabs) {
+      localStorage.setItem(
+        sessionKey,
+        JSON.stringify(buildRestorableSession(snapshot, tabDesktops, workspace.activeDesktopId)),
+      );
+    } else {
+      localStorage.removeItem(sessionKey);
+    }
+  };
+
+  const applyProfileSwitch = async (result: ProfileSwitchResult) => {
+    const profileId = result.state.activeProfileId;
+    const shell = loadProfileShellState(result.state, profileId);
+    const restored = await restoreProfileBrowser(
+      result.browser,
+      shell.workspace,
+      shell.settings,
+      result.state,
+      profileId,
+    );
+    const selected = result.state.profiles.find((profile) => profile.id === profileId);
+    setProfileState(result.state);
+    setWorkspace(
+      restored.restoredActive
+        ? { ...shell.workspace, activeDesktopId: restored.restoredActive.desktopId }
+        : shell.workspace,
+    );
+    setSettings(shell.settings);
+    setFocusIntention(shell.focusIntention);
+    setSnapshot(restored.snapshot);
+    setTabDesktops(restored.assignments);
+    setSurface("home");
+    setAddress("");
+    setFocusMode(false);
+    setCaptureOpen(false);
+    setCommandOpen(false);
+    setWorkspaceMenuOpen(false);
+    setBrowserMenuOpen(false);
+    setProfileEditor(null);
+    setProfileMenuOpen(false);
+    setSessionReady(true);
+    setPrivacy(await window.lattice.browser.privacySummary());
+    setStatus(`${selected?.name ?? "Profile"} is ready`);
+  };
+
+  const switchProfile = async (profile: ProfileSummary) => {
+    if (!profileState || profile.id === profileState.activeProfileId || profileBusy) {
+      setProfileMenuOpen(false);
+      return;
+    }
+    setProfileBusy(true);
+    setSessionReady(false);
+    persistActiveProfileShell();
+    try {
+      await window.lattice.browser.setVisible(false);
+      await applyProfileSwitch(await window.lattice.profiles.switch(profile.id));
+    } catch (error) {
+      setSessionReady(true);
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setProfileBusy(false);
+    }
+  };
+
+  const createProfile = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!profileName.trim() || profileBusy) return;
+    setProfileBusy(true);
+    setSessionReady(false);
+    persistActiveProfileShell();
+    try {
+      await window.lattice.browser.setVisible(false);
+      await applyProfileSwitch(await window.lattice.profiles.create({ name: profileName }));
+      setProfileName("");
+    } catch (error) {
+      setSessionReady(true);
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setProfileBusy(false);
+    }
+  };
+
+  const updateProfile = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!activeProfile || !profileName.trim() || profileBusy) return;
+    setProfileBusy(true);
+    try {
+      setProfileState(
+        await window.lattice.profiles.update({ id: activeProfile.id, name: profileName }),
+      );
+      setProfileEditor(null);
+      setProfileName("");
+      setStatus("Profile name updated");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setProfileBusy(false);
+    }
+  };
+
+  const chooseProfileAvatar = async () => {
+    if (!activeProfile || profileBusy) return;
+    setProfileBusy(true);
+    try {
+      setProfileState(await window.lattice.profiles.chooseAvatar(activeProfile.id));
+      setStatus("Profile picture updated locally");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setProfileBusy(false);
+    }
+  };
+
+  const clearProfileAvatar = async () => {
+    if (!activeProfile || profileBusy) return;
+    setProfileBusy(true);
+    try {
+      setProfileState(await window.lattice.profiles.clearAvatar(activeProfile.id));
+      setStatus("Profile picture removed");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setProfileBusy(false);
     }
   };
 
@@ -954,6 +1173,7 @@ export function LatticeApp() {
     setCommandOpen(true);
     setCaptureOpen(false);
     setWorkspaceMenuOpen(false);
+    setProfileMenuOpen(false);
   };
 
   const runCommand = async (item: CommandItem) => {
@@ -1107,18 +1327,170 @@ export function LatticeApp() {
         <button
           className="profile-button"
           type="button"
-          title="Personal profile"
-          aria-label="Personal profile"
+          title={activeProfile ? `${activeProfile.name} profile` : "Website profiles"}
+          aria-label={activeProfile ? `Open ${activeProfile.name} profile menu` : "Open profiles"}
+          aria-expanded={profileMenuOpen}
+          onClick={() => {
+            setWorkspaceMenuOpen(false);
+            setBrowserMenuOpen(false);
+            setCommandOpen(false);
+            setProfileEditor(null);
+            setProfileMenuOpen((open) => !open);
+          }}
         >
-          A
+          {activeProfile?.avatarDataUrl ? (
+            <img src={activeProfile.avatarDataUrl} alt="" />
+          ) : (
+            profileInitials(activeProfile?.name ?? "Personal")
+          )}
         </button>
+        {profileMenuOpen && (
+          <>
+            <button
+              type="button"
+              className="profile-menu-backdrop"
+              aria-label="Close profile menu"
+              onClick={() => setProfileMenuOpen(false)}
+            />
+            <section className="profile-menu" role="dialog" aria-label="Website profiles">
+              <header className="profile-menu-header">
+                <span className="profile-avatar large">
+                  {activeProfile?.avatarDataUrl ? (
+                    <img src={activeProfile.avatarDataUrl} alt="" />
+                  ) : (
+                    profileInitials(activeProfile?.name ?? "Personal")
+                  )}
+                </span>
+                <span className="profile-copy">
+                  <small>Current website identity</small>
+                  <strong>{activeProfile?.name ?? "Loading profiles…"}</strong>
+                </span>
+              </header>
+
+              {profileEditor ? (
+                <form
+                  className="profile-editor"
+                  onSubmit={profileEditor === "create" ? createProfile : updateProfile}
+                >
+                  <label htmlFor="profile-name">
+                    {profileEditor === "create" ? "New profile name" : "Profile name"}
+                  </label>
+                  <input
+                    id="profile-name"
+                    value={profileName}
+                    maxLength={40}
+                    onChange={(event) => setProfileName(event.target.value)}
+                    placeholder={profileEditor === "create" ? "Work, Writing, Client…" : "Name"}
+                  />
+                  <div>
+                    <button type="submit" disabled={!profileName.trim() || profileBusy}>
+                      {profileBusy
+                        ? "Saving…"
+                        : profileEditor === "create"
+                          ? "Create and switch"
+                          : "Save name"}
+                    </button>
+                    <button
+                      type="button"
+                      className="quiet"
+                      onClick={() => {
+                        setProfileEditor(null);
+                        setProfileName("");
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <div className="profile-list">
+                    {profileState?.profiles.map((profile) => (
+                      <button
+                        type="button"
+                        key={profile.id}
+                        className={profile.id === profileState.activeProfileId ? "active" : ""}
+                        onClick={() => void switchProfile(profile)}
+                        disabled={profileBusy}
+                      >
+                        <span className="profile-avatar">
+                          {profile.avatarDataUrl ? (
+                            <img src={profile.avatarDataUrl} alt="" />
+                          ) : (
+                            profileInitials(profile.name)
+                          )}
+                        </span>
+                        <span className="profile-copy">
+                          <strong>{profile.name}</strong>
+                          <small>
+                            {profile.id === profileState.activeProfileId
+                              ? "Active now"
+                              : "Separate sites, tabs, and focus"}
+                          </small>
+                        </span>
+                        {profile.id === profileState.activeProfileId && <Icon name="check" />}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="profile-actions">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileEditor("create");
+                        setProfileName("");
+                      }}
+                      disabled={(profileState?.profiles.length ?? 0) >= 8 || profileBusy}
+                    >
+                      <Icon name="plus" /> New profile
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileEditor("edit");
+                        setProfileName(activeProfile?.name ?? "");
+                      }}
+                      disabled={!activeProfile || profileBusy}
+                    >
+                      Edit name
+                    </button>
+                  </div>
+                  <div className="profile-picture-actions">
+                    <button
+                      type="button"
+                      onClick={() => void chooseProfileAvatar()}
+                      disabled={!activeProfile || profileBusy}
+                    >
+                      Choose picture
+                    </button>
+                    {activeProfile?.avatarDataUrl && (
+                      <button
+                        type="button"
+                        className="quiet"
+                        onClick={() => void clearProfileAvatar()}
+                        disabled={profileBusy}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+              <p className="profile-privacy-note">
+                Website sign-ins stay inside this profile’s Chromium storage. Lattice never stores
+                your Google or identity-provider password.
+              </p>
+            </section>
+          </>
+        )}
       </nav>
 
       <aside className="workspace-panel">
         <div className="workspace-heading">
           <div className="workspace-title">
             <span className="eyebrow">Workspace</span>
-            <strong>Personal research</strong>
+            <strong>
+              {activeProfile ? `${activeProfile.name} research` : "Personal research"}
+            </strong>
           </div>
           <button
             className="icon-button subtle"
@@ -1960,6 +2332,32 @@ export function LatticeApp() {
                 </header>
                 <div className="settings-grid">
                   <section className="settings-card">
+                    <span className="settings-profile-avatar">
+                      {activeProfile?.avatarDataUrl ? (
+                        <img src={activeProfile.avatarDataUrl} alt="" />
+                      ) : (
+                        profileInitials(activeProfile?.name ?? "Personal")
+                      )}
+                    </span>
+                    <div className="settings-card-copy">
+                      <span className="settings-kicker">Website profiles</span>
+                      <h2>{activeProfile?.name ?? "Personal"}</h2>
+                      <p>
+                        {(profileState?.profiles.length ?? 1).toString()} local profile
+                        {(profileState?.profiles.length ?? 1) === 1 ? "" : "s"}. Each keeps its own
+                        site sign-ins, tabs, desktops, and focus intention.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="settings-action primary"
+                      onClick={() => setProfileMenuOpen(true)}
+                    >
+                      Manage profiles
+                    </button>
+                  </section>
+
+                  <section className="settings-card">
                     <div className="settings-card-icon violet">
                       <Icon name="reload" />
                     </div>
@@ -1985,16 +2383,17 @@ export function LatticeApp() {
                     </button>
                   </section>
 
-                  <section className="settings-card">
+                  <section className="settings-card" data-settings-privacy>
                     <div className="settings-card-icon cyan">
                       <Icon name="globe" />
                     </div>
                     <div className="settings-card-copy">
-                      <span className="settings-kicker">Isolated website profile</span>
+                      <span className="settings-kicker">Active website profile</span>
                       <h2>Cookies and cache</h2>
                       <p>
-                        {privacy.cookieCount} cookies · {formatBytes(privacy.cacheBytes)} cached.
-                        Clearing signs you out of websites but does not touch Obsidian notes.
+                        {privacy.cookieCount} cookies · {formatBytes(privacy.cacheBytes)} cached for
+                        {` ${activeProfile?.name ?? "this profile"}`}. Clearing signs this profile
+                        out of websites but does not touch other profiles or Obsidian notes.
                       </p>
                     </div>
                     <div className="settings-card-actions">
@@ -2060,7 +2459,7 @@ export function LatticeApp() {
                     </div>
                     <div className="settings-card-copy">
                       <span className="settings-kicker">About</span>
-                      <h2>Lattice 0.10.0</h2>
+                      <h2>Lattice 0.12.0</h2>
                       <p>
                         Current privacy controls. Remote Node access, downloads, popups, device
                         permissions, and unsafe protocols remain disabled.

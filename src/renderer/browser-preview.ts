@@ -3,6 +3,7 @@ import type {
   BrowserState,
   CanvasPageRecord,
   LatticeApi,
+  ProfileState,
   SavedLinkRecord,
   SaveNoteResult,
   VaultInfo,
@@ -21,6 +22,20 @@ let tabs: BrowserState[] = [
     error: null,
   },
 ];
+let profileState: ProfileState = {
+  activeProfileId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  profiles: [
+    {
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      name: "Personal",
+      avatarDataUrl: null,
+      primary: true,
+      createdAt: new Date(now).toISOString(),
+      updatedAt: new Date(now).toISOString(),
+    },
+  ],
+};
+const profileTabs = new Map<string, { activeTabId: string; tabs: BrowserState[] }>();
 let vault: VaultInfo | null = null;
 let privacySummary = { cookieCount: 3, cacheBytes: 4_820_000 };
 let canvasPages: CanvasPageRecord[] = [];
@@ -56,6 +71,30 @@ const listeners = new Set<(state: BrowserState) => void>();
 
 function snapshot(): BrowserSnapshot {
   return { activeTabId, tabs: tabs.map((tab) => ({ ...tab })) };
+}
+
+function activatePreviewProfile(profileId: string): BrowserSnapshot {
+  profileTabs.set(profileState.activeProfileId, { activeTabId, tabs: structuredClone(tabs) });
+  const saved = profileTabs.get(profileId);
+  if (saved) {
+    activeTabId = saved.activeTabId;
+    tabs = structuredClone(saved.tabs);
+  } else {
+    activeTabId = crypto.randomUUID();
+    tabs = [
+      {
+        id: activeTabId,
+        url: "about:blank",
+        title: "New tab",
+        loading: false,
+        canGoBack: false,
+        canGoForward: false,
+        error: null,
+      },
+    ];
+  }
+  profileState = { ...profileState, activeProfileId: profileId };
+  return snapshot();
 }
 
 function normalizeAddress(input: string): string {
@@ -145,6 +184,54 @@ export function installBrowserPreviewBridge(): void {
         listeners.add(listener);
         return () => listeners.delete(listener);
       },
+    },
+    profiles: {
+      state: async () => structuredClone(profileState),
+      create: async (input) => {
+        const id = crypto.randomUUID();
+        const timestamp = new Date().toISOString();
+        profileState = {
+          ...profileState,
+          profiles: [
+            ...profileState.profiles,
+            {
+              id,
+              name: input.name.trim(),
+              avatarDataUrl: null,
+              primary: false,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            },
+          ],
+        };
+        const browser = activatePreviewProfile(id);
+        return { state: structuredClone(profileState), browser };
+      },
+      update: async (input) => {
+        profileState = {
+          ...profileState,
+          profiles: profileState.profiles.map((profile) =>
+            profile.id === input.id
+              ? { ...profile, name: input.name.trim(), updatedAt: new Date().toISOString() }
+              : profile,
+          ),
+        };
+        return structuredClone(profileState);
+      },
+      chooseAvatar: async () => structuredClone(profileState),
+      clearAvatar: async (profileId) => {
+        profileState = {
+          ...profileState,
+          profiles: profileState.profiles.map((profile) =>
+            profile.id === profileId ? { ...profile, avatarDataUrl: null } : profile,
+          ),
+        };
+        return structuredClone(profileState);
+      },
+      switch: async (profileId) => ({
+        state: structuredClone({ ...profileState, activeProfileId: profileId }),
+        browser: activatePreviewProfile(profileId),
+      }),
     },
     vault: {
       createDisposable: async () => {

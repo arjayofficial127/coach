@@ -12,6 +12,12 @@ export const IPC = {
   browserPrivacySummary: "browser:privacy-summary",
   browserClearWebsiteData: "browser:clear-website-data",
   browserState: "browser:state",
+  profilesState: "profiles:state",
+  profilesCreate: "profiles:create",
+  profilesUpdate: "profiles:update",
+  profilesChooseAvatar: "profiles:choose-avatar",
+  profilesClearAvatar: "profiles:clear-avatar",
+  profilesSwitch: "profiles:switch",
   shellCommand: "shell:command",
   vaultCreateDisposable: "vault:create-disposable",
   vaultChoose: "vault:choose",
@@ -69,6 +75,34 @@ export interface BrowserSnapshot {
 export interface BrowserPrivacySummary {
   cookieCount: number;
   cacheBytes: number;
+}
+
+export interface ProfileSummary {
+  id: string;
+  name: string;
+  avatarDataUrl: string | null;
+  primary: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProfileState {
+  activeProfileId: string;
+  profiles: ProfileSummary[];
+}
+
+export interface CreateProfileInput {
+  name: string;
+}
+
+export interface UpdateProfileInput {
+  id: string;
+  name: string;
+}
+
+export interface ProfileSwitchResult {
+  state: ProfileState;
+  browser: BrowserSnapshot;
 }
 
 export interface VaultInfo {
@@ -268,6 +302,14 @@ export interface LatticeApi {
     privacySummary(): Promise<BrowserPrivacySummary>;
     clearWebsiteData(): Promise<BrowserPrivacySummary>;
     onState(listener: (state: BrowserState) => void): () => void;
+  };
+  profiles: {
+    state(): Promise<ProfileState>;
+    create(input: CreateProfileInput): Promise<ProfileSwitchResult>;
+    update(input: UpdateProfileInput): Promise<ProfileState>;
+    chooseAvatar(profileId: string): Promise<ProfileState>;
+    clearAvatar(profileId: string): Promise<ProfileState>;
+    switch(profileId: string): Promise<ProfileSwitchResult>;
   };
   vault: {
     createDisposable(): Promise<VaultInfo>;

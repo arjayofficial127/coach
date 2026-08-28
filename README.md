@@ -1,15 +1,20 @@
-# Lattice — Phase 11
+# Lattice — Phase 12
 
 **Status: PASS (2026-08-29).** Lattice is an installable, focus-first personal research browser with
 secure native website tabs, restart-safe desktops, Obsidian-compatible saved links, and local
 spatial pages made of connected notes, websites, files, objects, and more pages. A read-only local
-index now shows backlinks and broken-reference diagnostics without exposing vault paths.
+index now shows backlinks and broken-reference diagnostics without exposing vault paths. Named
+website profiles keep personal, work, or client sign-ins and focus context separate.
 
-![Phase 10 focus-first navigation](artifacts/phase-10/focus-navigation.png)
+![Phase 12 website profiles](artifacts/phase-12/website-profiles.png)
 
 ## What works
 
 - Real HTTPS websites render in isolated native `WebContentsView` tabs.
+- Up to eight named website profiles can be created and switched from the rail. Each owns distinct
+  Chromium cookies, origin storage, cache, tabs, desktops, settings, and focus intention.
+- Profiles can use a local picture chosen through a native dialog. Lattice converts it to a bounded
+  private PNG and never exposes the source path or stores website passwords/tokens.
 - Focus is a calm return point with one optional local intention and one-action resume choices for
   the active website, next reading item, and latest canvas page.
 - Six labeled destinations remain stable across the rail, workspace panel, internal toolbars, and
@@ -45,9 +50,9 @@ index now shows backlinks and broken-reference diagnostics without exposing vaul
   trusted main process.
 - Reading state lives in the Markdown note and works across every desktop without a private
   database.
-- Settings report cookies and cache from Lattice's isolated website profile.
+- Settings report cookies and cache for the active website profile.
 - Website cookies, cache, local storage, IndexedDB, service workers, and related data can be cleared
-  through an explicit two-step action.
+  through an explicit two-step action without clearing other profiles.
 - Tab restoration can be disabled, and a vault can be disconnected without deleting Markdown.
 - An assisted current-user Windows installer supports a selectable destination and clean uninstall.
 - Installation preserves the byte-exact hardened executable, ASAR, source manifest, and Electron
@@ -84,17 +89,19 @@ pnpm run package
 pnpm run smoke:packaged
 pnpm run installer
 pnpm run smoke:installer
-pnpm run verify:phase11
+pnpm run verify:phase12
 ```
 
 The unsigned Windows x64 portable app is generated at
 `out/Lattice-win32-x64/Lattice.exe`. The assisted installer is generated at
-`release/Lattice-Setup-0.11.0.exe`. Windows reputation warnings are expected until a later release
+`release/Lattice-Setup-0.12.0.exe`. Windows reputation warnings are expected until a later release
 phase adds a protected signing identity. The installer and updater are intentionally not presented
 as production distribution yet.
 
 ## Evidence and decisions
 
+- [Phase 12 report](docs/phase-12-report.md)
+- [Website profiles screenshot](artifacts/phase-12/website-profiles.png)
 - [Phase 11 report](docs/phase-11-report.md)
 - [Phase 10 report](docs/phase-10-report.md)
 - [Focus navigation screenshot](artifacts/phase-10/focus-navigation.png)
@@ -120,10 +127,15 @@ safe stable-ID Obsidian/Explorer handoff, JSON Canvas shape, nested page indexin
 kinds, page/object/file actions, website-object isolation, focus entry/exit, stable destination
 shortcuts, screenshot hashes, reading-state transitions, privacy clearing, non-destructive vault
 disconnect, and library read-back.
+It additionally creates and switches profiles, proves cookie values remain isolated across distinct
+persistent partitions, verifies inactive native views stay hidden, checks profile-scoped shell state,
+and scans the profile registry for credential-shaped data.
 
 ## Current phase boundary
 
-Phase 11 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
+Phase 12 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
 automatic updates, code signing, full history/scroll restoration, or Chrome-equivalent Safe
 Browsing. It also does not claim full compatibility with every third-party JSON Canvas extension or
-automatic reference repair, or multi-profile website identities. See the risk register before Phase 12.
+automatic reference repair. Profile deletion, incognito, Chrome-profile import, provider-account
+inspection, and popup-based identity flows remain outside this phase. See the risk register before
+Phase 13.

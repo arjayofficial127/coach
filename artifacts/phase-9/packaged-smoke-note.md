@@ -1,5 +1,5 @@
 ---
-lattice_id: "3fe5eb70-6f2a-40e9-9f92-006ee76b4b83"
+lattice_id: "fe91ca2f-1816-46c3-bf86-c7ea4840a991"
 type: "saved-link"
 url: "https://example.com/phase-eight"
 title: "Phase 8 edited research note"
@@ -7,9 +7,9 @@ description: "Refined after capture without replacing the Obsidian note body."
 folder: "Research"
 desktop_id: "research"
 reading_status: "queued"
-queued_at: "2026-08-28T19:00:09.981Z"
+queued_at: "2026-08-28T19:29:15.072Z"
 read_at: ""
-saved_at: "2026-08-28T19:00:09.918Z"
+saved_at: "2026-08-28T19:29:15.011Z"
 tags:
   - "lattice-saved-link"
 ---

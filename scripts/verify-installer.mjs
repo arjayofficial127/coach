@@ -20,6 +20,7 @@ const smokeEvidenceSource = path.join(
 );
 const evidenceRoot = path.join(repositoryRoot, "artifacts", "phase-9");
 const phaseTenEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-10");
+const phaseTwelveEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-12");
 const lifecycleEvidencePath = path.join(evidenceRoot, "installer-lifecycle-evidence.json");
 const installedSmokeTarget = path.join(evidenceRoot, "installed-smoke-evidence.json");
 const shellScreenshotTarget = path.join(evidenceRoot, "installed-shell.png");
@@ -29,6 +30,10 @@ const canvasScreenshotTarget = path.join(evidenceRoot, "installed-canvas.png");
 const focusNavigationScreenshotTarget = path.join(
   phaseTenEvidenceRoot,
   "installed-focus-navigation.png",
+);
+const profileScreenshotTarget = path.join(
+  phaseTwelveEvidenceRoot,
+  "installed-website-profiles.png",
 );
 const remoteScreenshotTarget = path.join(evidenceRoot, "installed-remote-example-com.png");
 const noteTarget = path.join(evidenceRoot, "installed-smoke-note.md");
@@ -297,6 +302,18 @@ if (!smoke.privacy?.cookieCleared || !smoke.privacy?.localStorageCleared) {
   smokeFailures.push("installed privacy clearing failed");
 }
 if (
+  smoke.profiles?.profileCount !== 2 ||
+  smoke.profiles?.activeProfileName !== "Personal" ||
+  !smoke.profiles?.nativeViewHiddenWhileMenuOpen ||
+  !smoke.profiles?.firstCookieRetained ||
+  !smoke.profiles?.secondCookieInitiallyAbsent ||
+  !smoke.profiles?.secondCookieRetained ||
+  !smoke.profiles?.partitionsDistinct ||
+  !smoke.profiles?.registryContainsNoCredentials
+) {
+  smokeFailures.push("installed website-profile isolation workflow failed");
+}
+if (
   !smoke.desktopLifecycle?.guardedDeleteBlockedForOpenTab ||
   !smoke.desktopLifecycle?.movedTabRetained ||
   !smoke.desktopLifecycle?.deletedEmptyDesktop ||
@@ -343,6 +360,8 @@ await copyFile(smoke.metadataEditing.screenshotPath, metadataScreenshotTarget);
 await copyFile(smoke.obsidianHandoff.screenshotPath, handoffScreenshotTarget);
 await copyFile(smoke.canvas.screenshotPath, canvasScreenshotTarget);
 await copyFile(smoke.navigation.screenshotPath, focusNavigationScreenshotTarget);
+await mkdir(phaseTwelveEvidenceRoot, { recursive: true });
+await copyFile(smoke.profiles.screenshotPath, profileScreenshotTarget);
 await copyFile(smoke.remote.screenshotPath, remoteScreenshotTarget);
 await copyFile(smoke.note.absolutePath, noteTarget);
 await copyFile(smoke.canvas.absolutePath, canvasTarget);
@@ -352,6 +371,7 @@ smoke.obsidianHandoff.artifactPath = handoffScreenshotTarget;
 smoke.canvas.screenshotArtifactPath = canvasScreenshotTarget;
 smoke.canvas.artifactPath = canvasTarget;
 smoke.navigation.artifactPath = focusNavigationScreenshotTarget;
+smoke.profiles.artifactPath = profileScreenshotTarget;
 smoke.remote.artifactPath = remoteScreenshotTarget;
 smoke.note.artifactPath = noteTarget;
 smoke.installedExecutable = installedExecutable;
