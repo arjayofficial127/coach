@@ -1,0 +1,220 @@
+{
+  "packaged": true,
+  "versions": {
+    "electron": "44.0.0",
+    "chromium": "152.0.7977.54",
+    "node": "24.18.1"
+  },
+  "shell": {
+    "url": "lattice://app/index.html",
+    "title": "Lattice",
+    "domReady": true,
+    "bridgeVisible": true,
+    "contentSecurityPolicy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'self' data:; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'",
+    "rendererReportedBounds": {
+      "x": 278,
+      "y": 93,
+      "width": 708,
+      "height": 540
+    },
+    "nativeSlotBounds": {
+      "x": 278,
+      "y": 93,
+      "width": 708.4000244140625,
+      "height": 540.6000366210938
+    },
+    "vaultPanelBounds": {
+      "x": 986.4000244140625,
+      "y": 93,
+      "width": 0,
+      "height": 540.6000366210938
+    },
+    "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-eight\\phase-8-shell.png",
+    "screenshotBytes": 199426,
+    "screenshotPixels": {
+      "width": 1233,
+      "height": 822
+    },
+    "screenshotSha256": "7697ada25703e33fa23a60af34e761594d7017bb40668de34ab97ceb76a9ff84",
+    "artifactPath": "C:\\coach\\artifacts\\phase-8\\phase-8-shell.png"
+  },
+  "remote": {
+    "url": "https://example.com/",
+    "title": "Example Domain",
+    "viewBounds": {
+      "x": 278,
+      "y": 93,
+      "width": 708,
+      "height": 540
+    },
+    "configuredPreferences": {
+      "nodeIntegration": false,
+      "nodeIntegrationInWorker": false,
+      "nodeIntegrationInSubFrames": false,
+      "contextIsolation": true,
+      "sandbox": true,
+      "webSecurity": true,
+      "allowRunningInsecureContent": false,
+      "experimentalFeatures": false,
+      "webviewTag": false,
+      "preloadConfigured": false
+    },
+    "webContentsType": "window",
+    "nativeViewConstructor": "WebContentsView",
+    "sessionSeparatedFromShell": true,
+    "isolation": {
+      "nodeProcessVisible": false,
+      "requireVisible": false,
+      "latticeBridgeVisible": false,
+      "webviewTagApiVisible": false,
+      "popupReturnedNull": true,
+      "geolocationPermissionState": "denied",
+      "popupHandlerTriggered": true,
+      "permissionCheckHandlerTriggered": true
+    },
+    "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-eight\\remote-example-com.png",
+    "screenshotBytes": 18268,
+    "screenshotMethod": "capture-page",
+    "screenshotPixels": {
+      "width": 885,
+      "height": 675
+    },
+    "screenshotSha256": "745fe539110658607aa0a8d2557a0e9827ac02a63384c27094a7146b6489100b",
+    "artifactPath": "C:\\coach\\artifacts\\phase-8\\remote-example-com.png"
+  },
+  "webContentsDestroyedAfterClose": true,
+  "tabs": {
+    "initialCount": 1,
+    "afterCreateCount": 2,
+    "switchedBackToInitial": true,
+    "afterCloseCount": 1,
+    "closedTabAbsent": true
+  },
+  "session": {
+    "beforeReloadCount": 2,
+    "afterReloadCount": 2,
+    "restoredWithoutDuplicates": true,
+    "activeDesktop": "Build",
+    "activeDesktopSummary": "1 tabs · 0 saved",
+    "tabTitle": "Example Domain",
+    "commandPaletteVisible": true,
+    "nativeViewHiddenWhilePaletteOpen": true
+  },
+  "desktopLifecycle": {
+    "guardedDeleteBlockedForOpenTab": true,
+    "menuVisible": true,
+    "nativeViewHiddenWhileMenuOpen": true,
+    "movedToDesktop": "Inspiration",
+    "movedTabRetained": true,
+    "emptiedSourceDesktop": true,
+    "deletionConfirmationVisible": true,
+    "deletedEmptyDesktop": true,
+    "adjacentDesktopActivated": true,
+    "savedResearchDesktopPreserved": true
+  },
+  "metadataEditing": {
+    "formVisible": true,
+    "title": "Phase 8 edited research note",
+    "description": "Refined after capture without replacing the Obsidian note body.",
+    "pathPreserved": true,
+    "bodyPreserved": true,
+    "urlPreserved": true,
+    "readingStatePreserved": true,
+    "temporaryFilesRemaining": 0,
+    "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-eight\\phase-8-metadata-editor.png",
+    "screenshotBytes": 178447,
+    "screenshotPixels": {
+      "width": 1233,
+      "height": 822
+    },
+    "screenshotSha256": "03ff070b4925fc6d7987da02a74855c44964698d1e2902930586800f4dce2574",
+    "artifactPath": "C:\\coach\\artifacts\\phase-8\\phase-8-metadata-editor.png"
+  },
+  "obsidianHandoff": {
+    "openActionVisible": true,
+    "revealActionVisible": true,
+    "notePathNotRendered": true,
+    "openInvocations": 1,
+    "revealInvocations": 1,
+    "obsidianUri": "obsidian://open?path=C%3A%2FUsers%2Farvin%2FAppData%2FLocal%2FTemp%2Flattice-disposable-vaults%2Fvault-c93871a3-b290-447f-8acc-db1ab79c5e09%2FSaved%20Links%2FResearch%2F2026-08-28%20-%20Phase%208%20packaged%20smoke%20-%209207f346.md",
+    "decodedPathMatches": true,
+    "revealedPathMatches": true,
+    "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-eight\\phase-8-obsidian-handoff.png",
+    "screenshotBytes": 187119,
+    "screenshotPixels": {
+      "width": 1233,
+      "height": 822
+    },
+    "screenshotSha256": "10bb221ba40d4658f9ed0bbfd08f098ba2d853953a12627ab1c513f361eeae83",
+    "artifactPath": "C:\\coach\\artifacts\\phase-8\\phase-8-obsidian-handoff.png"
+  },
+  "readingQueue": {
+    "capturedAsQueued": true,
+    "markedRead": true,
+    "requeued": true,
+    "heading": "Reading queue",
+    "summary": "1 unread across all desktops",
+    "itemTitle": "Phase 8 packaged smoke",
+    "markReadVisible": true,
+    "nativeViewHidden": true
+  },
+  "privacy": {
+    "before": {
+      "cookieCount": 1,
+      "cacheBytes": 3858
+    },
+    "after": {
+      "cookieCount": 0,
+      "cacheBytes": 0
+    },
+    "cookieSeeded": true,
+    "localStorageSeeded": true,
+    "cacheStorageSeeded": true,
+    "cookieCleared": true,
+    "localStorageCleared": true,
+    "cacheStorageCleared": true,
+    "settingsHeading": "Settings",
+    "settingsPrivacyText": "0 cookies · 0 B cached. Clearing signs you out of websites but does not touch Obsidian notes.",
+    "restoreTabsEnabled": true,
+    "nativeViewHidden": true
+  },
+  "note": {
+    "vaultPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-c93871a3-b290-447f-8acc-db1ab79c5e09",
+    "disposableVault": true,
+    "obsidianDirectoryPresent": true,
+    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-c93871a3-b290-447f-8acc-db1ab79c5e09\\Saved Links\\Research\\2026-08-28 - Phase 8 packaged smoke - 9207f346.md",
+    "relativePath": "Saved Links\\Research\\2026-08-28 - Phase 8 packaged smoke - 9207f346.md",
+    "bytesWritten": 597,
+    "bytesReadBack": 597,
+    "sha256": "954633a2b7c42c78a502b1aa1d2bdf9c2c4da172dfbc31887d24c5116e5b9d42",
+    "temporaryFilesRemaining": 0,
+    "libraryCount": 1,
+    "libraryRoundTrip": true,
+    "disconnectedWithoutDeleting": true,
+    "artifactPath": "C:\\coach\\artifacts\\phase-8\\packaged-smoke-note.md"
+  },
+  "evidencePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-eight\\packaged-smoke-evidence.json",
+  "verifiedAt": "2026-08-28T17:58:20.651Z",
+  "package": {
+    "executable": "C:\\coach\\out\\Lattice-win32-x64\\Lattice.exe",
+    "appAsar": "C:\\coach\\out\\Lattice-win32-x64\\resources\\app.asar",
+    "sourceManifestPath": "C:\\coach\\out\\Lattice-win32-x64\\resources\\source-manifest.json",
+    "sourceManifestSha256": "91a5a93939b33853e5437aa527055e13543cac0a552fe86c0c4f37cf85599a91",
+    "sourceManifestFiles": 51,
+    "bytes": 244440576,
+    "sha256": "211d690268cf49db9a57d0d5876c9b472f2aa357d1de20c030b1309de532af21",
+    "asarBytes": 896856,
+    "asarSha256": "394f75c14a9e9ad450cad5186d347ef5479c1e28d362bb889d332644bf14d427",
+    "authenticodeStatus": "NotSigned",
+    "signed": false,
+    "fuses": {
+      "RunAsNode": false,
+      "EnableCookieEncryption": true,
+      "EnableNodeOptionsEnvironmentVariable": false,
+      "EnableNodeCliInspectArguments": false,
+      "EnableEmbeddedAsarIntegrityValidation": true,
+      "OnlyLoadAppFromAsar": true,
+      "GrantFileProtocolExtraPrivileges": false
+    }
+  }
+}

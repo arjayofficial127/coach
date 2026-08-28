@@ -1,7 +1,7 @@
 {
   "name": "lattice",
   "productName": "Lattice",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "A secure Electron research browser with desktops and Obsidian-compatible Markdown capture.",
   "author": "Lattice Project",
   "type": "module",
@@ -28,7 +28,7 @@
     "smoke:packaged": "node scripts/verify-packaged-smoke.mjs",
     "installer": "node scripts/build-installer.mjs",
     "smoke:installer": "node scripts/verify-installer.mjs",
-    "verify:phase7": "pnpm run package && pnpm run smoke:packaged && pnpm run installer && pnpm run smoke:installer"
+    "verify:phase8": "pnpm run package && pnpm run smoke:packaged && pnpm run installer && pnpm run smoke:installer"
   },
   "dependencies": {
     "react": "19.2.8",

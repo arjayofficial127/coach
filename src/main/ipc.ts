@@ -1,4 +1,4 @@
-import { app, type BrowserWindow, type IpcMainInvokeEvent, ipcMain } from "electron";
+import { app, type BrowserWindow, type IpcMainInvokeEvent, ipcMain, shell } from "electron";
 import { z } from "zod";
 import { IPC } from "../shared/contracts";
 import type { BrowserRuntime } from "./browser/browser-runtime";
@@ -63,10 +63,21 @@ function assertTrustedShell(event: IpcMainInvokeEvent, window: BrowserWindow): v
   }
 }
 
+export interface TrustedShellActions {
+  openExternal(uri: string): Promise<void>;
+  showItemInFolder(absolutePath: string): void;
+}
+
+const defaultShellActions: TrustedShellActions = {
+  openExternal: (uri) => shell.openExternal(uri),
+  showItemInFolder: (absolutePath) => shell.showItemInFolder(absolutePath),
+};
+
 export function registerIpc(
   window: BrowserWindow,
   browser: BrowserRuntime,
   vault: VaultService,
+  shellActions: TrustedShellActions = defaultShellActions,
 ): () => void {
   const handle = <T>(
     channel: string,
@@ -107,6 +118,14 @@ export function registerIpc(
   handle(IPC.vaultUpdateSavedLinkMetadata, (_event, payload) =>
     vault.updateSavedLinkMetadata(savedLinkMetadataSchema.parse(payload)),
   );
+  handle(IPC.vaultOpenSavedLinkInObsidian, async (_event, payload) => {
+    const handoff = await vault.resolveSavedLinkHandoff(z.string().uuid().parse(payload));
+    await shellActions.openExternal(handoff.obsidianUri);
+  });
+  handle(IPC.vaultRevealSavedLink, async (_event, payload) => {
+    const handoff = await vault.resolveSavedLinkHandoff(z.string().uuid().parse(payload));
+    shellActions.showItemInFolder(handoff.absolutePath);
+  });
   handle(IPC.vaultDisconnect, () => vault.disconnect());
 
   return () => {

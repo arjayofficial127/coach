@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { app, BrowserWindow } from "electron";
@@ -14,7 +14,7 @@ import { registerIpc } from "./ipc";
 import { installLatticeProtocol } from "./protocol";
 import { VaultService } from "./vault/vault-service";
 
-export interface PhaseSevenSmokeEvidence {
+export interface PhaseEightSmokeEvidence {
   packaged: boolean;
   versions: { electron: string; chromium: string; node: string };
   shell: {
@@ -93,6 +93,18 @@ export interface PhaseSevenSmokeEvidence {
     screenshotPath: string;
     screenshotBytes: number;
   };
+  obsidianHandoff: {
+    openActionVisible: boolean;
+    revealActionVisible: boolean;
+    openInvocations: number;
+    revealInvocations: number;
+    obsidianUri: string;
+    decodedPathMatches: boolean;
+    revealedPathMatches: boolean;
+    notePathNotRendered: boolean;
+    screenshotPath: string;
+    screenshotBytes: number;
+  };
   readingQueue: {
     capturedAsQueued: boolean;
     markedRead: boolean;
@@ -146,7 +158,7 @@ interface ShellProbeResult {
     markedRead: SavedLinkRecord;
     requeued: SavedLinkRecord;
   };
-  tabs: PhaseSevenSmokeEvidence["tabs"];
+  tabs: PhaseEightSmokeEvidence["tabs"];
 }
 
 interface SessionDomResult {
@@ -206,11 +218,11 @@ async function waitForRendererBounds(runtime: BrowserRuntime): Promise<BrowserBo
   throw new Error("The packaged React renderer did not report stable native-view bounds.");
 }
 
-export async function runPhaseSevenSmoke(
+export async function runPhaseEightSmoke(
   rendererRoot: string,
   preloadPath: string,
-): Promise<PhaseSevenSmokeEvidence> {
-  const smokeRoot = path.join(os.tmpdir(), "lattice-phase-seven");
+): Promise<PhaseEightSmokeEvidence> {
+  const smokeRoot = path.join(os.tmpdir(), "lattice-phase-eight");
   await mkdir(smokeRoot, { recursive: true });
 
   const window = new BrowserWindow({
@@ -236,7 +248,16 @@ export async function runPhaseSevenSmoke(
   const runtime = new BrowserRuntime(window, {
     partition: `lattice-remote-smoke-${randomUUID()}`,
   });
-  const unregisterIpc = registerIpc(window, runtime, new VaultService());
+  const openedExternalUris: string[] = [];
+  const revealedFilePaths: string[] = [];
+  const unregisterIpc = registerIpc(window, runtime, new VaultService(), {
+    openExternal: async (uri) => {
+      openedExternalUris.push(uri);
+    },
+    showItemInFolder: (absolutePath) => {
+      revealedFilePaths.push(absolutePath);
+    },
+  });
   let ipcRegistered = true;
   const cleanup = () => {
     runtime.close();
@@ -271,8 +292,8 @@ export async function runPhaseSevenSmoke(
       const closedSnapshot = await window.lattice.browser.closeTab(createdTabId);
       const vault = await window.lattice.vault.createDisposable();
       const note = await window.lattice.vault.saveProbeNote({
-        title: "Phase 7 packaged smoke",
-        url: "https://example.com/phase-seven",
+        title: "Phase 8 packaged smoke",
+        url: "https://example.com/phase-eight",
         description: "Atomic Markdown written into a desktop folder and read back through the packaged library.",
         folder: "Research",
         desktopId: "research",
@@ -335,7 +356,7 @@ export async function runPhaseSevenSmoke(
       if (sessionDom?.status.includes("Restored 2 tabs") && sessionDom.tabTitle) break;
       await delay(25);
     }
-    if (!sessionDom) throw new Error("The Phase 7 session UI did not become ready.");
+    if (!sessionDom) throw new Error("The Phase 8 session UI did not become ready.");
     const afterReload = runtime.snapshot();
     const privacyProbe = await runtime.collectPrivacyClearProbe();
 
@@ -430,7 +451,7 @@ export async function runPhaseSevenSmoke(
       if (movedDom.activeDesktop === "Inspiration" && movedDom.activeTabTitle) break;
       await delay(25);
     }
-    if (!movedDom) throw new Error("The Phase 7 tab move UI did not become ready.");
+    if (!movedDom) throw new Error("The Phase 8 tab move UI did not become ready.");
     const movedTabRetained = runtime.snapshot().activeTabId === movedTabId;
 
     await window.webContents.executeJavaScript(`(() => {
@@ -499,7 +520,7 @@ export async function runPhaseSevenSmoke(
       if (!deletedDom.buildPresent && deletedDom.activeDesktop === "Inspiration") break;
       await delay(25);
     }
-    if (!deletedDom) throw new Error("The Phase 7 desktop delete UI did not become ready.");
+    if (!deletedDom) throw new Error("The Phase 8 desktop delete UI did not become ready.");
 
     await window.webContents.executeJavaScript(`(() => {
       const button = [...document.querySelectorAll("button.library-row")]
@@ -520,7 +541,7 @@ export async function runPhaseSevenSmoke(
       if (queueDom.heading === "Reading queue" && queueDom.itemTitle) break;
       await delay(25);
     }
-    if (!queueDom) throw new Error("The Phase 7 reading queue UI did not become ready.");
+    if (!queueDom) throw new Error("The Phase 8 reading queue UI did not become ready.");
     const nativeViewHiddenForQueue = !runtime.isVisible();
 
     await window.webContents.executeJavaScript(`(() => {
@@ -549,7 +570,7 @@ export async function runPhaseSevenSmoke(
       }
       const inputSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
       const textareaSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
-      inputSetter?.call(title, "Phase 7 edited research note");
+      inputSetter?.call(title, "Phase 8 edited research note");
       title.dispatchEvent(new Event("input", { bubbles: true }));
       textareaSetter?.call(description, "Refined after capture without replacing the Obsidian note body.");
       description.dispatchEvent(new Event("input", { bubbles: true }));
@@ -562,7 +583,7 @@ export async function runPhaseSevenSmoke(
       throw new Error("Electron returned an empty metadata-editor capture.");
     }
     const metadataEditorScreenshot = metadataEditorImage.toPNG();
-    const metadataEditorScreenshotPath = path.join(smokeRoot, "phase-7-metadata-editor.png");
+    const metadataEditorScreenshotPath = path.join(smokeRoot, "phase-8-metadata-editor.png");
     await writeFile(metadataEditorScreenshotPath, metadataEditorScreenshot);
     window.hide();
     await window.webContents.executeJavaScript(`(() => {
@@ -578,7 +599,7 @@ export async function runPhaseSevenSmoke(
         description: document.querySelector(".link-card p")?.textContent?.trim() ?? ""
       }))()`)) as MetadataDomResult;
       if (
-        metadataDom.title === "Phase 7 edited research note" &&
+        metadataDom.title === "Phase 8 edited research note" &&
         metadataDom.description.startsWith("Refined after capture")
       ) {
         break;
@@ -586,10 +607,10 @@ export async function runPhaseSevenSmoke(
       await delay(25);
     }
     if (
-      metadataDom?.title !== "Phase 7 edited research note" ||
+      metadataDom?.title !== "Phase 8 edited research note" ||
       !metadataDom.description.startsWith("Refined after capture")
     ) {
-      throw new Error("The Phase 7 metadata edit UI did not become ready.");
+      throw new Error("The Phase 8 metadata edit UI did not become ready.");
     }
     const editedLinks = (await window.webContents.executeJavaScript(
       `window.lattice.vault.listSavedLinks()`,
@@ -601,6 +622,45 @@ export async function runPhaseSevenSmoke(
     const finalMarkdown = finalNoteBytes.toString("utf8");
     const initialBody = initialMarkdown.slice(initialMarkdown.indexOf("\n---\n", 4) + 5);
     const finalBody = finalMarkdown.slice(finalMarkdown.indexOf("\n---\n", 4) + 5);
+
+    const handoffUi = (await window.webContents.executeJavaScript(`(() => ({
+      openActionVisible: Boolean(document.querySelector('button[aria-label="Open saved link in Obsidian"]')),
+      revealActionVisible: Boolean(document.querySelector('button[aria-label="Show saved note in folder"]')),
+      notePathNotRendered: !document.body.innerText.includes(${JSON.stringify(shellProbe.note.relativePath)}) &&
+        !document.body.innerText.includes(${JSON.stringify(shellProbe.note.absolutePath)})
+    }))()`)) as {
+      openActionVisible: boolean;
+      revealActionVisible: boolean;
+      notePathNotRendered: boolean;
+    };
+    window.setSkipTaskbar(true);
+    window.showInactive();
+    await delay(100);
+    const handoffImage = await window.webContents.capturePage();
+    if (handoffImage.isEmpty()) throw new Error("Electron returned an empty handoff capture.");
+    const handoffScreenshot = handoffImage.toPNG();
+    const handoffScreenshotPath = path.join(smokeRoot, "phase-8-obsidian-handoff.png");
+    await writeFile(handoffScreenshotPath, handoffScreenshot);
+    window.hide();
+
+    await window.webContents.executeJavaScript(`(() => {
+      const open = document.querySelector('button[aria-label="Open saved link in Obsidian"]');
+      if (!(open instanceof HTMLButtonElement)) throw new Error("Obsidian handoff action missing");
+      open.click();
+    })()`);
+    const openHandoffDeadline = Date.now() + 2_000;
+    while (Date.now() < openHandoffDeadline && openedExternalUris.length === 0) await delay(25);
+    await window.webContents.executeJavaScript(`(() => {
+      const reveal = document.querySelector('button[aria-label="Show saved note in folder"]');
+      if (!(reveal instanceof HTMLButtonElement)) throw new Error("Reveal handoff action missing");
+      reveal.click();
+    })()`);
+    const revealHandoffDeadline = Date.now() + 2_000;
+    while (Date.now() < revealHandoffDeadline && revealedFilePaths.length === 0) await delay(25);
+    const canonicalNotePath = await realpath(shellProbe.note.absolutePath);
+    const decodedObsidianPath = openedExternalUris[0]
+      ? new URL(openedExternalUris[0]).searchParams.get("path")
+      : null;
 
     await window.webContents.executeJavaScript(`(() => {
       const button = document.querySelector('button[aria-label="Settings"]');
@@ -618,7 +678,7 @@ export async function runPhaseSevenSmoke(
       if (settingsDom.heading === "Settings" && settingsDom.privacyText) break;
       await delay(25);
     }
-    if (!settingsDom) throw new Error("The Phase 7 settings UI did not become ready.");
+    if (!settingsDom) throw new Error("The Phase 8 settings UI did not become ready.");
     const nativeViewHiddenForSettings = !runtime.isVisible();
 
     // Chromium only exposes composed surfaces while the owning window is shown. Keep
@@ -630,7 +690,7 @@ export async function runPhaseSevenSmoke(
     const shellImage = await window.webContents.capturePage();
     if (shellImage.isEmpty()) throw new Error("Electron returned an empty shell capture.");
     const shellScreenshot = shellImage.toPNG();
-    const shellScreenshotPath = path.join(smokeRoot, "phase-7-shell.png");
+    const shellScreenshotPath = path.join(smokeRoot, "phase-8-shell.png");
     await writeFile(shellScreenshotPath, shellScreenshot);
 
     await window.webContents.executeJavaScript(`(async () => {
@@ -657,7 +717,7 @@ export async function runPhaseSevenSmoke(
       smokeRoot,
       app.isPackaged ? "packaged-smoke-evidence.json" : "dev-smoke-evidence.json",
     );
-    const evidence: PhaseSevenSmokeEvidence = {
+    const evidence: PhaseEightSmokeEvidence = {
       packaged: app.isPackaged,
       versions: {
         electron: process.versions.electron ?? "unknown",
@@ -728,6 +788,16 @@ export async function runPhaseSevenSmoke(
           .length,
         screenshotPath: metadataEditorScreenshotPath,
         screenshotBytes: metadataEditorScreenshot.byteLength,
+      },
+      obsidianHandoff: {
+        ...handoffUi,
+        openInvocations: openedExternalUris.length,
+        revealInvocations: revealedFilePaths.length,
+        obsidianUri: openedExternalUris[0] ?? "",
+        decodedPathMatches: decodedObsidianPath === canonicalNotePath.split(path.sep).join("/"),
+        revealedPathMatches: revealedFilePaths[0] === canonicalNotePath,
+        screenshotPath: handoffScreenshotPath,
+        screenshotBytes: handoffScreenshot.byteLength,
       },
       readingQueue: {
         capturedAsQueued:

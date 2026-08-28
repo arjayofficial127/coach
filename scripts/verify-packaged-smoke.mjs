@@ -16,14 +16,15 @@ const sourceManifestPath = path.resolve(
 );
 const evidenceSource = path.join(
   os.tmpdir(),
-  "lattice-phase-seven",
+  "lattice-phase-eight",
   "packaged-smoke-evidence.json",
 );
-const evidenceDirectory = path.resolve("artifacts", "phase-7");
+const evidenceDirectory = path.resolve("artifacts", "phase-8");
 const evidenceTarget = path.join(evidenceDirectory, "packaged-smoke-evidence.json");
 const screenshotTarget = path.join(evidenceDirectory, "remote-example-com.png");
-const shellScreenshotTarget = path.join(evidenceDirectory, "phase-7-shell.png");
-const metadataScreenshotTarget = path.join(evidenceDirectory, "phase-7-metadata-editor.png");
+const shellScreenshotTarget = path.join(evidenceDirectory, "phase-8-shell.png");
+const metadataScreenshotTarget = path.join(evidenceDirectory, "phase-8-metadata-editor.png");
+const handoffScreenshotTarget = path.join(evidenceDirectory, "phase-8-obsidian-handoff.png");
 const noteTarget = path.join(evidenceDirectory, "packaged-smoke-note.md");
 
 await access(executable);
@@ -37,12 +38,13 @@ await Promise.all(
     screenshotTarget,
     shellScreenshotTarget,
     metadataScreenshotTarget,
+    handoffScreenshotTarget,
     noteTarget,
   ].map((target) => rm(target, { force: true })),
 );
 
 await new Promise((resolve, reject) => {
-  const child = spawn(executable, ["--phase7-smoke"], { stdio: "inherit", windowsHide: true });
+  const child = spawn(executable, ["--phase8-smoke"], { stdio: "inherit", windowsHide: true });
   const timeout = setTimeout(() => {
     child.kill();
     reject(new Error("Packaged smoke exceeded the 30-second timeout."));
@@ -175,7 +177,7 @@ if (!evidence.desktopLifecycle.savedResearchDesktopPreserved) {
 }
 if (
   !evidence.metadataEditing.formVisible ||
-  evidence.metadataEditing.title !== "Phase 7 edited research note" ||
+  evidence.metadataEditing.title !== "Phase 8 edited research note" ||
   !evidence.metadataEditing.description.startsWith("Refined after capture")
 ) {
   failures.push("saved-link metadata edit form did not publish the requested values");
@@ -189,6 +191,22 @@ if (
 ) {
   failures.push("saved-link metadata editing changed protected note state or left temp files");
 }
+if (
+  !evidence.obsidianHandoff.openActionVisible ||
+  !evidence.obsidianHandoff.revealActionVisible ||
+  evidence.obsidianHandoff.openInvocations !== 1 ||
+  evidence.obsidianHandoff.revealInvocations !== 1
+) {
+  failures.push("trusted Obsidian handoff controls did not dispatch exactly once");
+}
+if (
+  !evidence.obsidianHandoff.obsidianUri.startsWith("obsidian://open?path=") ||
+  !evidence.obsidianHandoff.decodedPathMatches ||
+  !evidence.obsidianHandoff.revealedPathMatches ||
+  !evidence.obsidianHandoff.notePathNotRendered
+) {
+  failures.push("Obsidian handoff did not resolve the exact private note target safely");
+}
 if (!evidence.readingQueue.capturedAsQueued) {
   failures.push("capture did not persist an initial queued state");
 }
@@ -198,7 +216,7 @@ if (!evidence.readingQueue.markedRead || !evidence.readingQueue.requeued) {
 if (
   evidence.readingQueue.heading !== "Reading queue" ||
   !evidence.readingQueue.summary.startsWith("1 unread") ||
-  evidence.readingQueue.itemTitle !== "Phase 7 packaged smoke" ||
+  evidence.readingQueue.itemTitle !== "Phase 8 packaged smoke" ||
   !evidence.readingQueue.markReadVisible
 ) {
   failures.push("packaged reading queue UI did not expose the queued Markdown item");
@@ -284,6 +302,7 @@ const asarStats = await stat(appAsar);
 const screenshotBytes = await readFile(evidence.remote.screenshotPath);
 const shellScreenshotBytes = await readFile(evidence.shell.screenshotPath);
 const metadataScreenshotBytes = await readFile(evidence.metadataEditing.screenshotPath);
+const handoffScreenshotBytes = await readFile(evidence.obsidianHandoff.screenshotPath);
 if (screenshotBytes.byteLength !== evidence.remote.screenshotBytes) {
   throw new Error("Screenshot byte count changed before evidence collection.");
 }
@@ -298,36 +317,53 @@ if (screenshotPixels.width < 100 || screenshotPixels.height < 100) {
   throw new Error("WebContentsView screenshot dimensions were not usable.");
 }
 if (!shellScreenshotBytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) {
-  throw new Error("Phase 7 shell screenshot is not a PNG file.");
+  throw new Error("Phase 8 shell screenshot is not a PNG file.");
 }
 if (shellScreenshotBytes.byteLength !== evidence.shell.screenshotBytes) {
-  throw new Error("Phase 7 shell screenshot byte count changed before evidence collection.");
+  throw new Error("Phase 8 shell screenshot byte count changed before evidence collection.");
 }
 const shellScreenshotPixels = {
   width: shellScreenshotBytes.readUInt32BE(16),
   height: shellScreenshotBytes.readUInt32BE(20),
 };
 if (shellScreenshotPixels.width < 900 || shellScreenshotPixels.height < 620) {
-  throw new Error("Phase 7 shell screenshot dimensions were not usable.");
+  throw new Error("Phase 8 shell screenshot dimensions were not usable.");
 }
 evidence.shell.screenshotPixels = shellScreenshotPixels;
 evidence.shell.screenshotSha256 = createHash("sha256").update(shellScreenshotBytes).digest("hex");
 if (!metadataScreenshotBytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) {
-  throw new Error("Phase 7 metadata editor screenshot is not a PNG file.");
+  throw new Error("Phase 8 metadata editor screenshot is not a PNG file.");
 }
 if (metadataScreenshotBytes.byteLength !== evidence.metadataEditing.screenshotBytes) {
-  throw new Error("Phase 7 metadata editor screenshot byte count changed before collection.");
+  throw new Error("Phase 8 metadata editor screenshot byte count changed before collection.");
 }
 const metadataScreenshotPixels = {
   width: metadataScreenshotBytes.readUInt32BE(16),
   height: metadataScreenshotBytes.readUInt32BE(20),
 };
 if (metadataScreenshotPixels.width < 900 || metadataScreenshotPixels.height < 620) {
-  throw new Error("Phase 7 metadata editor screenshot dimensions were not usable.");
+  throw new Error("Phase 8 metadata editor screenshot dimensions were not usable.");
 }
 evidence.metadataEditing.screenshotPixels = metadataScreenshotPixels;
 evidence.metadataEditing.screenshotSha256 = createHash("sha256")
   .update(metadataScreenshotBytes)
+  .digest("hex");
+if (!handoffScreenshotBytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) {
+  throw new Error("Phase 8 Obsidian handoff screenshot is not a PNG file.");
+}
+if (handoffScreenshotBytes.byteLength !== evidence.obsidianHandoff.screenshotBytes) {
+  throw new Error("Phase 8 Obsidian handoff screenshot byte count changed before collection.");
+}
+const handoffScreenshotPixels = {
+  width: handoffScreenshotBytes.readUInt32BE(16),
+  height: handoffScreenshotBytes.readUInt32BE(20),
+};
+if (handoffScreenshotPixels.width < 900 || handoffScreenshotPixels.height < 620) {
+  throw new Error("Phase 8 Obsidian handoff screenshot dimensions were not usable.");
+}
+evidence.obsidianHandoff.screenshotPixels = handoffScreenshotPixels;
+evidence.obsidianHandoff.screenshotSha256 = createHash("sha256")
+  .update(handoffScreenshotBytes)
   .digest("hex");
 evidence.remote.screenshotPixels = screenshotPixels;
 evidence.remote.screenshotSha256 = createHash("sha256").update(screenshotBytes).digest("hex");
@@ -344,7 +380,7 @@ if (!noteText.includes('desktop_id: "research"')) {
   throw new Error("Saved Markdown did not retain its stable desktop ID.");
 }
 if (
-  !noteText.includes('title: "Phase 7 edited research note"') ||
+  !noteText.includes('title: "Phase 8 edited research note"') ||
   !noteText.includes(
     'description: "Refined after capture without replacing the Obsidian note body."',
   )
@@ -378,7 +414,7 @@ if (signatureResult.status !== 0) {
 }
 const authenticodeStatus = signatureResult.stdout.trim();
 if (authenticodeStatus !== "NotSigned") {
-  throw new Error(`Expected an unsigned Phase 7 executable, got ${authenticodeStatus}.`);
+  throw new Error(`Expected an unsigned Phase 8 executable, got ${authenticodeStatus}.`);
 }
 const fuseWire = await getCurrentFuseWire(executable);
 const expectedFuses = {
@@ -433,10 +469,12 @@ evidence.package = {
 await copyFile(evidence.remote.screenshotPath, screenshotTarget);
 await copyFile(evidence.shell.screenshotPath, shellScreenshotTarget);
 await copyFile(evidence.metadataEditing.screenshotPath, metadataScreenshotTarget);
+await copyFile(evidence.obsidianHandoff.screenshotPath, handoffScreenshotTarget);
 await copyFile(evidence.note.absolutePath, noteTarget);
 const copiedScreenshotBytes = await readFile(screenshotTarget);
 const copiedShellScreenshotBytes = await readFile(shellScreenshotTarget);
 const copiedMetadataScreenshotBytes = await readFile(metadataScreenshotTarget);
+const copiedHandoffScreenshotBytes = await readFile(handoffScreenshotTarget);
 const copiedNoteBytes = await readFile(noteTarget);
 if (
   createHash("sha256").update(copiedScreenshotBytes).digest("hex") !==
@@ -456,12 +494,19 @@ if (
 ) {
   throw new Error("Collected metadata editor screenshot hash changed while publishing evidence.");
 }
+if (
+  createHash("sha256").update(copiedHandoffScreenshotBytes).digest("hex") !==
+  evidence.obsidianHandoff.screenshotSha256
+) {
+  throw new Error("Collected Obsidian handoff screenshot hash changed while publishing evidence.");
+}
 if (createHash("sha256").update(copiedNoteBytes).digest("hex") !== evidence.note.sha256) {
   throw new Error("Collected Markdown hash changed while publishing evidence.");
 }
 evidence.remote.artifactPath = screenshotTarget;
 evidence.shell.artifactPath = shellScreenshotTarget;
 evidence.metadataEditing.artifactPath = metadataScreenshotTarget;
+evidence.obsidianHandoff.artifactPath = handoffScreenshotTarget;
 evidence.note.artifactPath = noteTarget;
 await writeFile(evidenceTarget, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
-console.log(`Packaged Phase 7 smoke passed. Evidence: ${evidenceTarget}`);
+console.log(`Packaged Phase 8 smoke passed. Evidence: ${evidenceTarget}`);

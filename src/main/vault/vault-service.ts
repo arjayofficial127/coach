@@ -13,6 +13,7 @@ import type {
 } from "../../shared/contracts";
 import { saveProbeNoteAtomically } from "./atomic-note";
 import { updateReadingStatusAtomically } from "./reading-status";
+import { resolveSavedLinkHandoff, type SavedLinkHandoff } from "./saved-link-handoff";
 import { updateSavedLinkMetadataAtomically } from "./saved-link-metadata";
 import { listSavedLinksFromVault } from "./saved-link-reader";
 
@@ -131,6 +132,13 @@ export class VaultService {
     );
     if (!updated) throw new Error("The edited saved link could not be read back.");
     return updated;
+  }
+
+  async resolveSavedLinkHandoff(id: string): Promise<SavedLinkHandoff> {
+    if (!this.activeVault) {
+      throw new Error("Choose a vault before opening a saved link.");
+    }
+    return resolveSavedLinkHandoff(this.activeVault.canonicalPath, id);
   }
 
   async disconnect(): Promise<void> {

@@ -1597,10 +1597,12 @@ kbd {
 .link-card > footer {
   display: flex;
   min-height: 42px;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 7px;
   border-top: 1px solid var(--line);
-  padding: 0 14px;
+  padding: 8px 14px;
   color: #64636f;
   font-size: 8px;
 }
@@ -1618,8 +1620,10 @@ kbd {
 
 .link-card-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 9px;
+  justify-content: flex-end;
+  gap: 5px;
 }
 
 .link-card-actions button {
@@ -1644,6 +1648,12 @@ kbd {
 .link-card-actions button:disabled {
   cursor: wait;
   opacity: 0.5;
+}
+
+.link-card-actions button.icon-only {
+  width: 25px;
+  justify-content: center;
+  padding: 0;
 }
 
 .capture-panel {

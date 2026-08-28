@@ -134,6 +134,7 @@ export function LatticeApp() {
   const [commandQuery, setCommandQuery] = useState("");
   const [sessionReady, setSessionReady] = useState(false);
   const [updatingLinkId, setUpdatingLinkId] = useState<string | null>(null);
+  const [handoffLinkId, setHandoffLinkId] = useState<string | null>(null);
   const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
   const [editingLinkTitle, setEditingLinkTitle] = useState("");
   const [editingLinkDescription, setEditingLinkDescription] = useState("");
@@ -798,6 +799,30 @@ export function LatticeApp() {
     }
   };
 
+  const openLinkInObsidian = async (link: SavedLinkRecord) => {
+    setHandoffLinkId(link.id);
+    try {
+      await window.lattice.vault.openSavedLinkInObsidian(link.id);
+      setStatus("Opened the saved note in Obsidian");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setHandoffLinkId(null);
+    }
+  };
+
+  const revealSavedLink = async (link: SavedLinkRecord) => {
+    setHandoffLinkId(link.id);
+    try {
+      await window.lattice.vault.revealSavedLink(link.id);
+      setStatus("Revealed the saved Markdown file");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setHandoffLinkId(null);
+    }
+  };
+
   const openCommandPalette = () => {
     setCommandQuery("");
     setCommandOpen(true);
@@ -1432,10 +1457,31 @@ export function LatticeApp() {
                           </span>
                           <div className="link-card-actions">
                             {editingLinkId !== link.id && (
-                              <button type="button" onClick={() => beginEditingLink(link)}>
-                                <Icon name="edit" />
-                                Edit
-                              </button>
+                              <>
+                                <button type="button" onClick={() => beginEditingLink(link)}>
+                                  <Icon name="edit" />
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label="Open saved link in Obsidian"
+                                  onClick={() => void openLinkInObsidian(link)}
+                                  disabled={handoffLinkId === link.id}
+                                >
+                                  <Icon name="sparkle" />
+                                  Obsidian
+                                </button>
+                                <button
+                                  type="button"
+                                  className="icon-only"
+                                  aria-label="Show saved note in folder"
+                                  title="Show saved note in folder"
+                                  onClick={() => void revealSavedLink(link)}
+                                  disabled={handoffLinkId === link.id}
+                                >
+                                  <Icon name="folder" />
+                                </button>
+                              </>
                             )}
                             {link.readingStatus === "queued" ? (
                               <button
@@ -1575,7 +1621,7 @@ export function LatticeApp() {
                     </div>
                     <div className="settings-card-copy">
                       <span className="settings-kicker">About</span>
-                      <h2>Lattice 0.7.0</h2>
+                      <h2>Lattice 0.8.0</h2>
                       <p>
                         Current privacy controls. Remote Node access, downloads, popups, device
                         permissions, and unsafe protocols remain disabled.

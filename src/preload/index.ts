@@ -37,6 +37,8 @@ const api: LatticeApi = {
     listSavedLinks: () => ipcRenderer.invoke(IPC.vaultListSavedLinks),
     setReadingStatus: (input) => ipcRenderer.invoke(IPC.vaultSetReadingStatus, input),
     updateSavedLinkMetadata: (input) => ipcRenderer.invoke(IPC.vaultUpdateSavedLinkMetadata, input),
+    openSavedLinkInObsidian: (id) => ipcRenderer.invoke(IPC.vaultOpenSavedLinkInObsidian, id),
+    revealSavedLink: (id) => ipcRenderer.invoke(IPC.vaultRevealSavedLink, id),
     disconnect: () => ipcRenderer.invoke(IPC.vaultDisconnect),
   },
 };

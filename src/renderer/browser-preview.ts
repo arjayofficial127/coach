@@ -213,6 +213,8 @@ export function installBrowserPreviewBridge(): void {
         links = links.map((link) => (link.id === input.id ? updated : link));
         return { ...updated };
       },
+      openSavedLinkInObsidian: async () => undefined,
+      revealSavedLink: async () => undefined,
       disconnect: async () => {
         vault = null;
       },

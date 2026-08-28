@@ -1,10 +1,10 @@
-# Lattice — Phase 7
+# Lattice — Phase 8
 
 **Status: PASS (2026-08-29).** Lattice is an installable personal research browser with secure native
 website tabs, restart-safe desktops, fast local search, Obsidian-compatible saved links, and a
 durable reading queue plus explicit privacy controls.
 
-![Phase 7 saved-link editor](artifacts/phase-7/phase-7-metadata-editor.png)
+![Phase 8 Obsidian handoff](artifacts/phase-8/phase-8-obsidian-handoff.png)
 
 ## What works
 
@@ -20,6 +20,9 @@ durable reading queue plus explicit privacy controls.
 - Pages can be queued during capture, marked read, or queued again from the local library.
 - Saved-link titles and descriptions can be edited after capture through an atomic frontmatter-only
   update; the note path, URL, reading state, filename, folder, and Markdown body are preserved.
+- A saved card can open its exact existing note in Obsidian or reveal the Markdown file in Explorer.
+  The renderer submits only a stable ID; canonical path resolution and external dispatch stay in the
+  trusted main process.
 - Reading state lives in the Markdown note and works across every desktop without a private
   database.
 - Settings report cookies and cache from Lattice's isolated website profile.
@@ -61,40 +64,41 @@ pnpm run package
 pnpm run smoke:packaged
 pnpm run installer
 pnpm run smoke:installer
-pnpm run verify:phase7
+pnpm run verify:phase8
 ```
 
 The unsigned Windows x64 portable app is generated at
 `out/Lattice-win32-x64/Lattice.exe`. The assisted installer is generated at
-`release/Lattice-Setup-0.7.0.exe`. Windows reputation warnings are expected until a later release
+`release/Lattice-Setup-0.8.0.exe`. Windows reputation warnings are expected until a later release
 phase adds a protected signing identity. The installer and updater are intentionally not presented
 as production distribution yet.
 
 ## Evidence and decisions
 
-- [Phase 7 report](docs/phase-7-report.md)
-- [Packaged smoke evidence](artifacts/phase-7/packaged-smoke-evidence.json)
-- [Installed-app smoke evidence](artifacts/phase-7/installed-smoke-evidence.json)
-- [Installer lifecycle evidence](artifacts/phase-7/installer-lifecycle-evidence.json)
-- [Metadata editor screenshot](artifacts/phase-7/phase-7-metadata-editor.png)
-- [Installed Settings screenshot](artifacts/phase-7/installed-shell.png)
-- [Real WebContentsView screenshot](artifacts/phase-7/installed-remote-example-com.png)
-- [Generated edited Markdown](artifacts/phase-7/installed-smoke-note.md)
+- [Phase 8 report](docs/phase-8-report.md)
+- [Packaged smoke evidence](artifacts/phase-8/packaged-smoke-evidence.json)
+- [Installed-app smoke evidence](artifacts/phase-8/installed-smoke-evidence.json)
+- [Installer lifecycle evidence](artifacts/phase-8/installer-lifecycle-evidence.json)
+- [Obsidian handoff screenshot](artifacts/phase-8/phase-8-obsidian-handoff.png)
+- [Metadata editor screenshot](artifacts/phase-8/phase-8-metadata-editor.png)
+- [Installed Settings screenshot](artifacts/phase-8/installed-shell.png)
+- [Real WebContentsView screenshot](artifacts/phase-8/installed-remote-example-com.png)
+- [Generated edited Markdown](artifacts/phase-8/installed-smoke-note.md)
 - [Remaining risks](docs/unresolved-risks.md)
 - [Architecture decisions](docs/decisions/)
-- [Historical Phase 6 report](docs/phase-6-report.md)
+- [Historical Phase 7 report](docs/phase-7-report.md)
 - [Historical Phase 3 report](docs/phase-3-report.md)
 
 The packaged evidence is bound to the exact source manifest used to build it. The smoke gate also
 checks Authenticode state, Electron fuses, CSP, session separation, effective remote isolation,
 native tab lifecycle, reload reconciliation, command/native-view composition, guarded desktop
 deletion, live tab movement, atomic metadata editing with body/path preservation, layout bounds,
-screenshot hashes, reading-state transitions, privacy clearing, non-destructive vault disconnect,
-and library read-back.
+safe stable-ID Obsidian/Explorer handoff, screenshot hashes, reading-state transitions, privacy
+clearing, non-destructive vault disconnect, and library read-back.
 
 ## Current phase boundary
 
-Phase 7 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
+Phase 8 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
 automatic updates, code signing, full history/scroll restoration, or Chrome-equivalent Safe
 Browsing. Those capabilities require explicit policy and security work; see the risk register
-before Phase 8.
+before Phase 9.

@@ -20,6 +20,8 @@ export const IPC = {
   vaultListSavedLinks: "vault:list-saved-links",
   vaultSetReadingStatus: "vault:set-reading-status",
   vaultUpdateSavedLinkMetadata: "vault:update-saved-link-metadata",
+  vaultOpenSavedLinkInObsidian: "vault:open-saved-link-in-obsidian",
+  vaultRevealSavedLink: "vault:reveal-saved-link",
   vaultDisconnect: "vault:disconnect",
 } as const;
 
@@ -137,6 +139,8 @@ export interface LatticeApi {
     listSavedLinks(): Promise<SavedLinkRecord[]>;
     setReadingStatus(input: SetReadingStatusInput): Promise<SavedLinkRecord>;
     updateSavedLinkMetadata(input: UpdateSavedLinkMetadataInput): Promise<SavedLinkRecord>;
+    openSavedLinkInObsidian(id: string): Promise<void>;
+    revealSavedLink(id: string): Promise<void>;
     disconnect(): Promise<void>;
   };
 }

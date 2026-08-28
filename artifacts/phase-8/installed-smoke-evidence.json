@@ -1,0 +1,179 @@
+{
+  "packaged": true,
+  "versions": {
+    "electron": "44.0.0",
+    "chromium": "152.0.7977.54",
+    "node": "24.18.1"
+  },
+  "shell": {
+    "url": "lattice://app/index.html",
+    "title": "Lattice",
+    "domReady": true,
+    "bridgeVisible": true,
+    "contentSecurityPolicy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'self' data:; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'",
+    "rendererReportedBounds": {
+      "x": 278,
+      "y": 93,
+      "width": 708,
+      "height": 540
+    },
+    "nativeSlotBounds": {
+      "x": 278,
+      "y": 93,
+      "width": 708.4000244140625,
+      "height": 540.6000366210938
+    },
+    "vaultPanelBounds": {
+      "x": 986.4000244140625,
+      "y": 93,
+      "width": 0,
+      "height": 540.6000366210938
+    },
+    "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-eight\\phase-8-shell.png",
+    "screenshotBytes": 198652,
+    "artifactPath": "C:\\coach\\artifacts\\phase-8\\installed-shell.png"
+  },
+  "remote": {
+    "url": "https://example.com/",
+    "title": "Example Domain",
+    "viewBounds": {
+      "x": 278,
+      "y": 93,
+      "width": 708,
+      "height": 540
+    },
+    "configuredPreferences": {
+      "nodeIntegration": false,
+      "nodeIntegrationInWorker": false,
+      "nodeIntegrationInSubFrames": false,
+      "contextIsolation": true,
+      "sandbox": true,
+      "webSecurity": true,
+      "allowRunningInsecureContent": false,
+      "experimentalFeatures": false,
+      "webviewTag": false,
+      "preloadConfigured": false
+    },
+    "webContentsType": "window",
+    "nativeViewConstructor": "WebContentsView",
+    "sessionSeparatedFromShell": true,
+    "isolation": {
+      "nodeProcessVisible": false,
+      "requireVisible": false,
+      "latticeBridgeVisible": false,
+      "webviewTagApiVisible": false,
+      "popupReturnedNull": true,
+      "geolocationPermissionState": "denied",
+      "popupHandlerTriggered": true,
+      "permissionCheckHandlerTriggered": true
+    },
+    "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-eight\\remote-example-com.png",
+    "screenshotBytes": 18268,
+    "screenshotMethod": "capture-page",
+    "artifactPath": "C:\\coach\\artifacts\\phase-8\\installed-remote-example-com.png"
+  },
+  "webContentsDestroyedAfterClose": true,
+  "tabs": {
+    "initialCount": 1,
+    "afterCreateCount": 2,
+    "switchedBackToInitial": true,
+    "afterCloseCount": 1,
+    "closedTabAbsent": true
+  },
+  "session": {
+    "beforeReloadCount": 2,
+    "afterReloadCount": 2,
+    "restoredWithoutDuplicates": true,
+    "activeDesktop": "Build",
+    "activeDesktopSummary": "1 tabs · 0 saved",
+    "tabTitle": "Example Domain",
+    "commandPaletteVisible": true,
+    "nativeViewHiddenWhilePaletteOpen": true
+  },
+  "desktopLifecycle": {
+    "guardedDeleteBlockedForOpenTab": true,
+    "menuVisible": true,
+    "nativeViewHiddenWhileMenuOpen": true,
+    "movedToDesktop": "Inspiration",
+    "movedTabRetained": true,
+    "emptiedSourceDesktop": true,
+    "deletionConfirmationVisible": true,
+    "deletedEmptyDesktop": true,
+    "adjacentDesktopActivated": true,
+    "savedResearchDesktopPreserved": true
+  },
+  "metadataEditing": {
+    "formVisible": true,
+    "title": "Phase 8 edited research note",
+    "description": "Refined after capture without replacing the Obsidian note body.",
+    "pathPreserved": true,
+    "bodyPreserved": true,
+    "urlPreserved": true,
+    "readingStatePreserved": true,
+    "temporaryFilesRemaining": 0,
+    "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-eight\\phase-8-metadata-editor.png",
+    "screenshotBytes": 177915,
+    "artifactPath": "C:\\coach\\artifacts\\phase-8\\installed-metadata-editor.png"
+  },
+  "obsidianHandoff": {
+    "openActionVisible": true,
+    "revealActionVisible": true,
+    "notePathNotRendered": true,
+    "openInvocations": 1,
+    "revealInvocations": 1,
+    "obsidianUri": "obsidian://open?path=C%3A%2FUsers%2Farvin%2FAppData%2FLocal%2FTemp%2Flattice-disposable-vaults%2Fvault-2db2011b-fbb0-477e-8b77-0e8f8ccebafc%2FSaved%20Links%2FResearch%2F2026-08-28%20-%20Phase%208%20packaged%20smoke%20-%200c3a9a6c.md",
+    "decodedPathMatches": true,
+    "revealedPathMatches": true,
+    "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-eight\\phase-8-obsidian-handoff.png",
+    "screenshotBytes": 186906,
+    "artifactPath": "C:\\coach\\artifacts\\phase-8\\installed-obsidian-handoff.png"
+  },
+  "readingQueue": {
+    "capturedAsQueued": true,
+    "markedRead": true,
+    "requeued": true,
+    "heading": "Reading queue",
+    "summary": "1 unread across all desktops",
+    "itemTitle": "Phase 8 packaged smoke",
+    "markReadVisible": true,
+    "nativeViewHidden": true
+  },
+  "privacy": {
+    "before": {
+      "cookieCount": 1,
+      "cacheBytes": 3854
+    },
+    "after": {
+      "cookieCount": 0,
+      "cacheBytes": 0
+    },
+    "cookieSeeded": true,
+    "localStorageSeeded": true,
+    "cacheStorageSeeded": true,
+    "cookieCleared": true,
+    "localStorageCleared": true,
+    "cacheStorageCleared": true,
+    "settingsHeading": "Settings",
+    "settingsPrivacyText": "0 cookies · 0 B cached. Clearing signs you out of websites but does not touch Obsidian notes.",
+    "restoreTabsEnabled": true,
+    "nativeViewHidden": true
+  },
+  "note": {
+    "vaultPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-2db2011b-fbb0-477e-8b77-0e8f8ccebafc",
+    "disposableVault": true,
+    "obsidianDirectoryPresent": true,
+    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-2db2011b-fbb0-477e-8b77-0e8f8ccebafc\\Saved Links\\Research\\2026-08-28 - Phase 8 packaged smoke - 0c3a9a6c.md",
+    "relativePath": "Saved Links\\Research\\2026-08-28 - Phase 8 packaged smoke - 0c3a9a6c.md",
+    "bytesWritten": 597,
+    "bytesReadBack": 597,
+    "sha256": "3b5270f535947d6806bc4a37a7683ace2009f776da1c1d2d672c8c4cf4a8bcdd",
+    "temporaryFilesRemaining": 0,
+    "libraryCount": 1,
+    "libraryRoundTrip": true,
+    "disconnectedWithoutDeleting": true,
+    "artifactPath": "C:\\coach\\artifacts\\phase-8\\installed-smoke-note.md"
+  },
+  "evidencePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-eight\\packaged-smoke-evidence.json",
+  "installedExecutable": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-eight-install-61256\\Lattice.exe",
+  "installedExecutableSha256": "211d690268cf49db9a57d0d5876c9b472f2aa357d1de20c030b1309de532af21"
+}
