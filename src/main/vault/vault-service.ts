@@ -4,7 +4,12 @@ import os from "node:os";
 import path from "node:path";
 import { dialog } from "electron";
 import type {
+  CanvasPageRecord,
+  CanvasPageSummary,
+  CreateCanvasPageInput,
   ProbeNoteInput,
+  RevealCanvasReferenceInput,
+  SaveCanvasPageInput,
   SavedLinkRecord,
   SaveNoteResult,
   SetReadingStatusInput,
@@ -12,6 +17,13 @@ import type {
   VaultInfo,
 } from "../../shared/contracts";
 import { saveProbeNoteAtomically } from "./atomic-note";
+import {
+  createCanvasPageAtomically,
+  getCanvasPageFromVault,
+  listCanvasPagesFromVault,
+  resolveCanvasFileReference,
+  saveCanvasPageAtomically,
+} from "./canvas-page";
 import { updateReadingStatusAtomically } from "./reading-status";
 import { resolveSavedLinkHandoff, type SavedLinkHandoff } from "./saved-link-handoff";
 import { updateSavedLinkMetadataAtomically } from "./saved-link-metadata";
@@ -139,6 +151,31 @@ export class VaultService {
       throw new Error("Choose a vault before opening a saved link.");
     }
     return resolveSavedLinkHandoff(this.activeVault.canonicalPath, id);
+  }
+
+  async listCanvasPages(): Promise<CanvasPageSummary[]> {
+    if (!this.activeVault) return [];
+    return listCanvasPagesFromVault(this.activeVault.canonicalPath);
+  }
+
+  async createCanvasPage(input: CreateCanvasPageInput): Promise<CanvasPageRecord> {
+    if (!this.activeVault) throw new Error("Choose a vault before creating a canvas page.");
+    return createCanvasPageAtomically(this.activeVault.canonicalPath, input);
+  }
+
+  async getCanvasPage(id: string): Promise<CanvasPageRecord> {
+    if (!this.activeVault) throw new Error("Choose a vault before opening a canvas page.");
+    return getCanvasPageFromVault(this.activeVault.canonicalPath, id);
+  }
+
+  async saveCanvasPage(input: SaveCanvasPageInput): Promise<CanvasPageRecord> {
+    if (!this.activeVault) throw new Error("Choose a vault before saving a canvas page.");
+    return saveCanvasPageAtomically(this.activeVault.canonicalPath, input);
+  }
+
+  async resolveCanvasReference(input: RevealCanvasReferenceInput): Promise<string> {
+    if (!this.activeVault) throw new Error("Choose a vault before revealing a canvas file.");
+    return resolveCanvasFileReference(this.activeVault.canonicalPath, input);
   }
 
   async disconnect(): Promise<void> {

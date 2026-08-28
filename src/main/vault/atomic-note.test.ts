@@ -6,6 +6,7 @@ import {
   assertPathWithinRoot,
   publishNewFileAtomically,
   renderProbeMarkdown,
+  replaceFileAtomically,
   sanitizeFileComponent,
   saveProbeNoteAtomically,
 } from "./atomic-note";
@@ -19,6 +20,20 @@ afterEach(async () => {
 });
 
 describe("atomic Obsidian note writer", () => {
+  it("atomically replaces an existing file through the shared retry primitive", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "lattice-replace-test-"));
+    temporaryRoots.push(directory);
+    const target = path.join(directory, "page.canvas");
+    const temporary = path.join(directory, ".page.canvas.tmp");
+    await writeFile(target, "before", "utf8");
+    await writeFile(temporary, "after", "utf8");
+
+    await replaceFileAtomically(temporary, target);
+
+    await expect(readFile(target, "utf8")).resolves.toBe("after");
+    await expect(readFile(temporary, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("creates a complete Markdown note and leaves no temporary files", async () => {
     const vault = await mkdtemp(path.join(os.tmpdir(), "lattice-vault-test-"));
     temporaryRoots.push(vault);

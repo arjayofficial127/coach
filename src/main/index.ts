@@ -4,7 +4,7 @@ import { BrowserRuntime } from "./browser/browser-runtime";
 import { registerIpc } from "./ipc";
 import { isTrustedShellUrl } from "./policies/shell-origin";
 import { installLatticeProtocol, registerLatticeScheme } from "./protocol";
-import { runPhaseEightSmoke } from "./smoke";
+import { runPhaseNineSmoke } from "./smoke";
 import { VaultService } from "./vault/vault-service";
 
 registerLatticeScheme();
@@ -85,11 +85,12 @@ app.whenReady().then(async () => {
     process.argv.includes("--phase5-smoke") ||
     process.argv.includes("--phase6-smoke") ||
     process.argv.includes("--phase7-smoke") ||
-    process.argv.includes("--phase8-smoke")
+    process.argv.includes("--phase8-smoke") ||
+    process.argv.includes("--phase9-smoke")
   ) {
     try {
       const rendererRoot = path.join(__dirname, "../renderer");
-      const evidence = await runPhaseEightSmoke(rendererRoot, path.join(__dirname, "preload.cjs"));
+      const evidence = await runPhaseNineSmoke(rendererRoot, path.join(__dirname, "preload.cjs"));
       console.log(JSON.stringify(evidence));
       app.exit(0);
     } catch (error) {

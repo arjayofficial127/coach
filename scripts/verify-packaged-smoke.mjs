@@ -14,17 +14,15 @@ const sourceManifestPath = path.resolve(
   "resources",
   "source-manifest.json",
 );
-const evidenceSource = path.join(
-  os.tmpdir(),
-  "lattice-phase-eight",
-  "packaged-smoke-evidence.json",
-);
-const evidenceDirectory = path.resolve("artifacts", "phase-8");
+const evidenceSource = path.join(os.tmpdir(), "lattice-phase-nine", "packaged-smoke-evidence.json");
+const evidenceDirectory = path.resolve("artifacts", "phase-9");
 const evidenceTarget = path.join(evidenceDirectory, "packaged-smoke-evidence.json");
 const screenshotTarget = path.join(evidenceDirectory, "remote-example-com.png");
-const shellScreenshotTarget = path.join(evidenceDirectory, "phase-8-shell.png");
-const metadataScreenshotTarget = path.join(evidenceDirectory, "phase-8-metadata-editor.png");
-const handoffScreenshotTarget = path.join(evidenceDirectory, "phase-8-obsidian-handoff.png");
+const shellScreenshotTarget = path.join(evidenceDirectory, "phase-9-shell.png");
+const metadataScreenshotTarget = path.join(evidenceDirectory, "phase-9-metadata-editor.png");
+const handoffScreenshotTarget = path.join(evidenceDirectory, "phase-9-obsidian-handoff.png");
+const canvasScreenshotTarget = path.join(evidenceDirectory, "phase-9-canvas.png");
+const canvasTarget = path.join(evidenceDirectory, "packaged-smoke-canvas.canvas");
 const noteTarget = path.join(evidenceDirectory, "packaged-smoke-note.md");
 
 await access(executable);
@@ -39,16 +37,18 @@ await Promise.all(
     shellScreenshotTarget,
     metadataScreenshotTarget,
     handoffScreenshotTarget,
+    canvasScreenshotTarget,
+    canvasTarget,
     noteTarget,
   ].map((target) => rm(target, { force: true })),
 );
 
 await new Promise((resolve, reject) => {
-  const child = spawn(executable, ["--phase8-smoke"], { stdio: "inherit", windowsHide: true });
+  const child = spawn(executable, ["--phase9-smoke"], { stdio: "inherit", windowsHide: true });
   const timeout = setTimeout(() => {
     child.kill();
-    reject(new Error("Packaged smoke exceeded the 30-second timeout."));
-  }, 30_000);
+    reject(new Error("Packaged smoke exceeded the 60-second timeout."));
+  }, 60_000);
   child.once("error", (error) => {
     clearTimeout(timeout);
     reject(error);
@@ -225,6 +225,39 @@ if (!evidence.readingQueue.nativeViewHidden) {
   failures.push("native website view remained visible beneath the trusted reading queue");
 }
 if (
+  evidence.canvas.pageCount !== 2 ||
+  evidence.canvas.title !== "Phase 9 research canvas" ||
+  evidence.canvas.folder !== "Projects/Browser" ||
+  evidence.canvas.nodeCount !== 3
+) {
+  failures.push("nested canvas pages did not round-trip through the packaged UI");
+}
+if (
+  JSON.stringify(evidence.canvas.nodeKinds) !==
+    JSON.stringify(["text:note", "link:iframe", "text:links"]) ||
+  JSON.stringify(evidence.canvas.typedLinkKinds) !==
+    JSON.stringify(["page", "object", "url", "document", "image", "file"])
+) {
+  failures.push("canvas object or typed-link kinds did not retain their portable representation");
+}
+if (
+  !evidence.canvas.jsonCanvasShape ||
+  !evidence.canvas.pageLinkNavigated ||
+  !evidence.canvas.objectLinkFocused ||
+  !evidence.canvas.websiteOpenedInIsolatedView
+) {
+  failures.push("canvas page, object, or isolated website actions failed");
+}
+if (
+  evidence.canvas.localRevealInvocations !== 1 ||
+  !evidence.canvas.revealedPathMatches ||
+  !evidence.canvas.nativeViewHidden ||
+  !evidence.canvas.pathNotRendered ||
+  evidence.canvas.temporaryFilesRemaining !== 0
+) {
+  failures.push("canvas file reveal or trusted-shell boundary failed");
+}
+if (
   !evidence.privacy.cookieSeeded ||
   !evidence.privacy.localStorageSeeded ||
   !evidence.privacy.cacheStorageSeeded
@@ -303,6 +336,7 @@ const screenshotBytes = await readFile(evidence.remote.screenshotPath);
 const shellScreenshotBytes = await readFile(evidence.shell.screenshotPath);
 const metadataScreenshotBytes = await readFile(evidence.metadataEditing.screenshotPath);
 const handoffScreenshotBytes = await readFile(evidence.obsidianHandoff.screenshotPath);
+const canvasScreenshotBytes = await readFile(evidence.canvas.screenshotPath);
 if (screenshotBytes.byteLength !== evidence.remote.screenshotBytes) {
   throw new Error("Screenshot byte count changed before evidence collection.");
 }
@@ -365,6 +399,21 @@ evidence.obsidianHandoff.screenshotPixels = handoffScreenshotPixels;
 evidence.obsidianHandoff.screenshotSha256 = createHash("sha256")
   .update(handoffScreenshotBytes)
   .digest("hex");
+if (!canvasScreenshotBytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) {
+  throw new Error("Phase 9 canvas screenshot is not a PNG file.");
+}
+if (canvasScreenshotBytes.byteLength !== evidence.canvas.screenshotBytes) {
+  throw new Error("Phase 9 canvas screenshot byte count changed before collection.");
+}
+const canvasScreenshotPixels = {
+  width: canvasScreenshotBytes.readUInt32BE(16),
+  height: canvasScreenshotBytes.readUInt32BE(20),
+};
+if (canvasScreenshotPixels.width < 900 || canvasScreenshotPixels.height < 620) {
+  throw new Error("Phase 9 canvas screenshot dimensions were not usable.");
+}
+evidence.canvas.screenshotPixels = canvasScreenshotPixels;
+evidence.canvas.screenshotSha256 = createHash("sha256").update(canvasScreenshotBytes).digest("hex");
 evidence.remote.screenshotPixels = screenshotPixels;
 evidence.remote.screenshotSha256 = createHash("sha256").update(screenshotBytes).digest("hex");
 const noteBytes = await readFile(evidence.note.absolutePath);
@@ -390,6 +439,19 @@ if (
 if (!noteText.includes('reading_status: "queued"') || !noteText.match(/^queued_at: ".+"$/m)) {
   throw new Error("Saved Markdown did not retain its reading-queue state.");
 }
+const canvasBytes = await readFile(evidence.canvas.absolutePath);
+if (createHash("sha256").update(canvasBytes).digest("hex") !== evidence.canvas.sha256) {
+  throw new Error("Saved JSON Canvas hash does not match the packaged-app evidence.");
+}
+const canvasDocument = JSON.parse(canvasBytes.toString("utf8"));
+if (
+  !Array.isArray(canvasDocument.nodes) ||
+  !Array.isArray(canvasDocument.edges) ||
+  canvasDocument.lattice?.version !== 1 ||
+  canvasDocument.nodes.length !== 3
+) {
+  throw new Error("Saved .canvas file does not use the expected JSON Canvas shape.");
+}
 const signatureArguments = [
   "-NoProfile",
   "-NonInteractive",
@@ -414,7 +476,7 @@ if (signatureResult.status !== 0) {
 }
 const authenticodeStatus = signatureResult.stdout.trim();
 if (authenticodeStatus !== "NotSigned") {
-  throw new Error(`Expected an unsigned Phase 8 executable, got ${authenticodeStatus}.`);
+  throw new Error(`Expected an unsigned Phase 9 executable, got ${authenticodeStatus}.`);
 }
 const fuseWire = await getCurrentFuseWire(executable);
 const expectedFuses = {
@@ -470,11 +532,15 @@ await copyFile(evidence.remote.screenshotPath, screenshotTarget);
 await copyFile(evidence.shell.screenshotPath, shellScreenshotTarget);
 await copyFile(evidence.metadataEditing.screenshotPath, metadataScreenshotTarget);
 await copyFile(evidence.obsidianHandoff.screenshotPath, handoffScreenshotTarget);
+await copyFile(evidence.canvas.screenshotPath, canvasScreenshotTarget);
+await copyFile(evidence.canvas.absolutePath, canvasTarget);
 await copyFile(evidence.note.absolutePath, noteTarget);
 const copiedScreenshotBytes = await readFile(screenshotTarget);
 const copiedShellScreenshotBytes = await readFile(shellScreenshotTarget);
 const copiedMetadataScreenshotBytes = await readFile(metadataScreenshotTarget);
 const copiedHandoffScreenshotBytes = await readFile(handoffScreenshotTarget);
+const copiedCanvasScreenshotBytes = await readFile(canvasScreenshotTarget);
+const copiedCanvasBytes = await readFile(canvasTarget);
 const copiedNoteBytes = await readFile(noteTarget);
 if (
   createHash("sha256").update(copiedScreenshotBytes).digest("hex") !==
@@ -503,10 +569,21 @@ if (
 if (createHash("sha256").update(copiedNoteBytes).digest("hex") !== evidence.note.sha256) {
   throw new Error("Collected Markdown hash changed while publishing evidence.");
 }
+if (
+  createHash("sha256").update(copiedCanvasScreenshotBytes).digest("hex") !==
+  evidence.canvas.screenshotSha256
+) {
+  throw new Error("Collected canvas screenshot hash changed while publishing evidence.");
+}
+if (createHash("sha256").update(copiedCanvasBytes).digest("hex") !== evidence.canvas.sha256) {
+  throw new Error("Collected JSON Canvas hash changed while publishing evidence.");
+}
 evidence.remote.artifactPath = screenshotTarget;
 evidence.shell.artifactPath = shellScreenshotTarget;
 evidence.metadataEditing.artifactPath = metadataScreenshotTarget;
 evidence.obsidianHandoff.artifactPath = handoffScreenshotTarget;
+evidence.canvas.screenshotArtifactPath = canvasScreenshotTarget;
+evidence.canvas.artifactPath = canvasTarget;
 evidence.note.artifactPath = noteTarget;
 await writeFile(evidenceTarget, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
-console.log(`Packaged Phase 8 smoke passed. Evidence: ${evidenceTarget}`);
+console.log(`Packaged Phase 9 smoke passed. Evidence: ${evidenceTarget}`);

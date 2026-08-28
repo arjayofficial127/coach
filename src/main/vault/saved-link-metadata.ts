@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
-import { lstat, open, readFile, realpath, rename, rm, stat } from "node:fs/promises";
+import { lstat, open, readFile, realpath, rm, stat } from "node:fs/promises";
 import path from "node:path";
-import { assertPathWithinRoot } from "./atomic-note";
+import { assertPathWithinRoot, replaceFileAtomically } from "./atomic-note";
 import { parseSavedLinkMarkdown } from "./saved-link-reader";
 
 const MAX_NOTE_BYTES = 1_000_000;
@@ -96,7 +96,7 @@ export async function updateSavedLinkMetadataAtomically(
       throw new Error("The saved-link note was edited while its metadata was changing.");
     }
     await assertNoLinks(canonicalRoot, target);
-    await rename(temporaryPath, target);
+    await replaceFileAtomically(temporaryPath, target);
   } catch (error) {
     await handle?.close().catch(() => undefined);
     await rm(temporaryPath, { force: true }).catch(() => undefined);

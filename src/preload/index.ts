@@ -39,6 +39,11 @@ const api: LatticeApi = {
     updateSavedLinkMetadata: (input) => ipcRenderer.invoke(IPC.vaultUpdateSavedLinkMetadata, input),
     openSavedLinkInObsidian: (id) => ipcRenderer.invoke(IPC.vaultOpenSavedLinkInObsidian, id),
     revealSavedLink: (id) => ipcRenderer.invoke(IPC.vaultRevealSavedLink, id),
+    listCanvasPages: () => ipcRenderer.invoke(IPC.vaultListCanvasPages),
+    createCanvasPage: (input) => ipcRenderer.invoke(IPC.vaultCreateCanvasPage, input),
+    getCanvasPage: (id) => ipcRenderer.invoke(IPC.vaultGetCanvasPage, id),
+    saveCanvasPage: (input) => ipcRenderer.invoke(IPC.vaultSaveCanvasPage, input),
+    revealCanvasReference: (input) => ipcRenderer.invoke(IPC.vaultRevealCanvasReference, input),
     disconnect: () => ipcRenderer.invoke(IPC.vaultDisconnect),
   },
 };

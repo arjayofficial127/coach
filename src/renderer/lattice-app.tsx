@@ -3,10 +3,12 @@ import type {
   BrowserPrivacySummary,
   BrowserSnapshot,
   BrowserState,
+  CanvasPageSummary,
   SavedLinkRecord,
   ShellCommand,
   VaultInfo,
 } from "../shared/contracts";
+import { CanvasWorkspace } from "./canvas-workspace";
 import { Icon, type IconName } from "./icon";
 import {
   buildRestorableSession,
@@ -25,7 +27,7 @@ import {
   type WorkspacePreferences,
 } from "./workspace-model";
 
-type Surface = "home" | "browser" | "library" | "queue" | "settings";
+type Surface = "home" | "browser" | "library" | "queue" | "pages" | "settings";
 
 const WORKSPACE_STORAGE_KEY = "lattice.workspace.v1";
 const SESSION_STORAGE_KEY = "lattice.session.v1";
@@ -116,6 +118,7 @@ export function LatticeApp() {
   const [address, setAddress] = useState("");
   const [vault, setVault] = useState<VaultInfo | null>(null);
   const [links, setLinks] = useState<SavedLinkRecord[]>([]);
+  const [canvasPages, setCanvasPages] = useState<CanvasPageSummary[]>([]);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [captureDescription, setCaptureDescription] = useState("");
   const [queueCapture, setQueueCapture] = useState(false);
@@ -264,10 +267,14 @@ export function LatticeApp() {
     let cancelled = false;
     void window.lattice.vault.current().then(async (selected) => {
       if (cancelled || !selected) return;
-      const savedLinks = await window.lattice.vault.listSavedLinks();
+      const [savedLinks, savedCanvasPages] = await Promise.all([
+        window.lattice.vault.listSavedLinks(),
+        window.lattice.vault.listCanvasPages(),
+      ]);
       if (cancelled) return;
       setVault(selected);
       setLinks(savedLinks);
+      setCanvasPages(savedCanvasPages);
       setStatus("Obsidian vault restored");
     });
     return () => {
@@ -642,7 +649,12 @@ export function LatticeApp() {
         : await window.lattice.vault.choose();
       if (!selected) return;
       setVault(selected);
-      setLinks(await window.lattice.vault.listSavedLinks());
+      const [savedLinks, savedCanvasPages] = await Promise.all([
+        window.lattice.vault.listSavedLinks(),
+        window.lattice.vault.listCanvasPages(),
+      ]);
+      setLinks(savedLinks);
+      setCanvasPages(savedCanvasPages);
       setStatus(disposable ? "Disposable vault connected" : "Obsidian vault connected");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
@@ -692,6 +704,12 @@ export function LatticeApp() {
     if (vault) setLinks(await window.lattice.vault.listSavedLinks());
   };
 
+  const showCanvasPages = async () => {
+    setSurface("pages");
+    setCaptureOpen(false);
+    if (vault) setCanvasPages(await window.lattice.vault.listCanvasPages());
+  };
+
   const showSettings = async () => {
     setSurface("settings");
     setCaptureOpen(false);
@@ -732,6 +750,7 @@ export function LatticeApp() {
       await window.lattice.vault.disconnect();
       setVault(null);
       setLinks([]);
+      setCanvasPages([]);
       setStatus("Vault disconnected; no Markdown files were deleted");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
@@ -863,7 +882,7 @@ export function LatticeApp() {
   };
 
   const activeRailItem =
-    surface === "library" || surface === "queue"
+    surface === "library" || surface === "queue" || surface === "pages"
       ? "library"
       : surface === "home"
         ? "home"
@@ -1107,6 +1126,11 @@ export function LatticeApp() {
           <span>Reading queue</span>
           <b>{queueCount}</b>
         </button>
+        <button type="button" className="library-row" onClick={() => void showCanvasPages()}>
+          <Icon name="library" />
+          <span>Canvas pages</span>
+          <b>{canvasPages.length}</b>
+        </button>
 
         <div className="workspace-spacer" />
         <div className={vault ? "vault-card connected" : "vault-card"}>
@@ -1141,6 +1165,7 @@ export function LatticeApp() {
                   tab.id === snapshot.activeTabId &&
                   surface !== "library" &&
                   surface !== "queue" &&
+                  surface !== "pages" &&
                   surface !== "settings"
                     ? "browser-tab active"
                     : "browser-tab"
@@ -1512,6 +1537,17 @@ export function LatticeApp() {
               </div>
             )}
 
+            {surface === "pages" && (
+              <CanvasWorkspace
+                vault={vault}
+                pages={canvasPages}
+                onPagesChange={setCanvasPages}
+                connectVault={() => connectVault(false)}
+                openUrl={(url) => openUrl(url, true)}
+                reportStatus={setStatus}
+              />
+            )}
+
             {surface === "settings" && (
               <div className="trusted-surface settings-surface">
                 <header className="settings-header">
@@ -1621,7 +1657,7 @@ export function LatticeApp() {
                     </div>
                     <div className="settings-card-copy">
                       <span className="settings-kicker">About</span>
-                      <h2>Lattice 0.8.0</h2>
+                      <h2>Lattice 0.9.0</h2>
                       <p>
                         Current privacy controls. Remote Node access, downloads, popups, device
                         permissions, and unsafe protocols remain disabled.

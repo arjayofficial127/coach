@@ -1,10 +1,10 @@
-# Phase 8 unresolved risks
+# Phase 9 unresolved risks
 
-Phase 8 is an installable personal prototype, not a production general-purpose browser. The original
+Phase 9 is an installable personal prototype, not a production general-purpose browser. The original
 deny-by-default security posture remains; new capabilities must be accepted and designed
 deliberately rather than enabled as compatibility shortcuts.
 
-| Priority | Risk | Current Phase 8 position | Exit criterion |
+| Priority | Risk | Current Phase 9 position | Exit criterion |
 | --- | --- | --- | --- |
 | Critical | Arbitrary-site browser security | Electron is hardened, but Lattice does not claim Chrome-equivalent site isolation, anti-exploitation, Safe Browsing, extension review, or patch response. | Threat model, Electron upgrade SLA, security regression suite, incident/update process, and explicit product-claim boundary. |
 | Critical | Unsigned distribution | The assisted current-user installer and installed executable are intentionally `NotSigned`; there is no updater or public release channel. | Protected signing identity, signed installer and update metadata, rollback/recovery, and release-channel design. |
@@ -20,6 +20,8 @@ deliberately rather than enabled as compatibility shortcuts.
 | Medium | Multi-window routing | One window owns multiple views, but IPC handlers remain process-global and multi-window ownership is not designed. | Window-scoped routing, idempotent protocol setup, ownership tests, crash recovery, and macOS reopen coverage. |
 | Medium | Native-view composition | Default and 920 px layouts plus packaged bounds passed. Multi-monitor moves, DPI matrix, zoom, minimize, resize storms, GPU failure, and accessibility zoom remain untested. | Automated viewport/DPI matrix and transition/overlay visual regression tests. |
 | Medium | Obsidian integration depth | Foldered Markdown, stable IDs, atomic reading-state and metadata transitions, body/path preservation, and stable-ID handoff to Obsidian/Explorer pass. Dispatch is proven with injected shell handlers; an installed Obsidian instance, plugins, sync providers, backlinks, conflicts, and external rename behavior remain untested. | Real Obsidian/vault and sync-provider matrix, URI-registration diagnostics, schema versioning, and conflict policy. |
+| Medium | JSON Canvas interoperability | Lattice writes the standard JSON Canvas shape and uses extension fields for page/object semantics. Other clients may ignore those extensions, and arbitrary third-party canvases are intentionally left untouched rather than imported. | Obsidian and multi-client compatibility matrix, extension-version migration tests, edge/group support policy, and import diagnostics. |
+| Medium | Canvas conflicts and broken references | Stable IDs, containment, optimistic concurrency, and duplicate-ID rejection pass. There is no merge UI, external-rename repair, cross-page object deep link, or broken page/file link report. | Conflict and repair UX, backlink index, rename/move policy, and adversarial concurrent-editor tests. |
 | Medium | Public-network smoke dependency | Packaged integration requires `https://example.com`, so offline, proxy, interception, or DNS failures can fail it. | Split deterministic local package checks from a networked integration gate and add proxy diagnostics. |
 | Medium | Trusted-shell stored data | Desktop/settings preferences and the vault display path persist locally; tab restore can be disabled and vault authority disconnected. Packaged CSP blocks network egress, but there is no unified shell-data reset. | Add a reviewed full shell reset/export flow, preserve CSP, and threat-review every shell network capability. |
 | Medium | Runtime preference observability | Electron exposes no public getter for fully resolved view preferences. The gate proves constructor intent and effective isolation behavior instead. | Retain behavioral probes, use upstream introspection if added, and require review for preference construction changes. |
@@ -27,5 +29,5 @@ deliberately rather than enabled as compatibility shortcuts.
 | Low | Windows brand assets | Setup and the executable use Electron's default icon because no approved multi-resolution Lattice `.ico` asset exists. | Approve a Lattice icon, generate the Windows icon matrix, and visually verify setup, Start, taskbar, shortcuts, and Apps settings. |
 | Low | Product quality attributes | Broader accessibility, localization, large-tab performance, memory pressure, battery use, telemetry, backup, and recovery are not characterized. | Define measurable NFRs and test them before beta. |
 
-Phase 9 must preserve the trusted-shell/remote-site separation and treat each relaxation of a
+Phase 10 must preserve the trusted-shell/remote-site separation and treat each relaxation of a
 denied browser capability as a separate security and product decision.

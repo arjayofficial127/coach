@@ -22,6 +22,11 @@ export const IPC = {
   vaultUpdateSavedLinkMetadata: "vault:update-saved-link-metadata",
   vaultOpenSavedLinkInObsidian: "vault:open-saved-link-in-obsidian",
   vaultRevealSavedLink: "vault:reveal-saved-link",
+  vaultListCanvasPages: "vault:list-canvas-pages",
+  vaultCreateCanvasPage: "vault:create-canvas-page",
+  vaultGetCanvasPage: "vault:get-canvas-page",
+  vaultSaveCanvasPage: "vault:save-canvas-page",
+  vaultRevealCanvasReference: "vault:reveal-canvas-reference",
   vaultDisconnect: "vault:disconnect",
 } as const;
 
@@ -112,6 +117,99 @@ export interface UpdateSavedLinkMetadataInput {
   description: string;
 }
 
+export type CanvasLinkKind = "page" | "object" | "url" | "document" | "image" | "file";
+
+export interface CanvasTypedLink {
+  id: string;
+  label: string;
+  kind: CanvasLinkKind;
+  target: string;
+}
+
+export interface CanvasNodeBase {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color?: string;
+}
+
+export interface CanvasTextNode extends CanvasNodeBase {
+  type: "text";
+  text: string;
+  latticeKind: "note" | "links";
+  latticeTitle: string;
+  latticeLinks?: CanvasTypedLink[];
+}
+
+export interface CanvasWebsiteNode extends CanvasNodeBase {
+  type: "link";
+  url: string;
+  latticeKind: "iframe";
+  latticeTitle: string;
+  latticeDescription: string;
+}
+
+export interface CanvasFileNode extends CanvasNodeBase {
+  type: "file";
+  file: string;
+  subpath?: string;
+  latticeKind: "document" | "image" | "file";
+  latticeTitle: string;
+  latticeDescription: string;
+}
+
+export type CanvasPageNode = CanvasTextNode | CanvasWebsiteNode | CanvasFileNode;
+
+export interface CanvasEdge {
+  id: string;
+  fromNode: string;
+  fromSide?: "top" | "right" | "bottom" | "left";
+  fromEnd?: "none" | "arrow";
+  toNode: string;
+  toSide?: "top" | "right" | "bottom" | "left";
+  toEnd?: "none" | "arrow";
+  color?: string;
+  label?: string;
+}
+
+export interface CanvasPageSummary {
+  id: string;
+  title: string;
+  description: string;
+  folder: string;
+  createdAt: string;
+  updatedAt: string;
+  nodeCount: number;
+}
+
+export interface CanvasPageRecord extends CanvasPageSummary {
+  version: 1;
+  nodes: CanvasPageNode[];
+  edges: CanvasEdge[];
+}
+
+export interface CreateCanvasPageInput {
+  title: string;
+  description: string;
+  folder: string;
+}
+
+export interface SaveCanvasPageInput {
+  id: string;
+  title: string;
+  description: string;
+  nodes: CanvasPageNode[];
+  edges: CanvasEdge[];
+}
+
+export interface RevealCanvasReferenceInput {
+  pageId: string;
+  nodeId: string;
+  linkId?: string;
+}
+
 export interface LatticeApi {
   shell: {
     onCommand(listener: (command: ShellCommand) => void): () => void;
@@ -141,6 +239,11 @@ export interface LatticeApi {
     updateSavedLinkMetadata(input: UpdateSavedLinkMetadataInput): Promise<SavedLinkRecord>;
     openSavedLinkInObsidian(id: string): Promise<void>;
     revealSavedLink(id: string): Promise<void>;
+    listCanvasPages(): Promise<CanvasPageSummary[]>;
+    createCanvasPage(input: CreateCanvasPageInput): Promise<CanvasPageRecord>;
+    getCanvasPage(id: string): Promise<CanvasPageRecord>;
+    saveCanvasPage(input: SaveCanvasPageInput): Promise<CanvasPageRecord>;
+    revealCanvasReference(input: RevealCanvasReferenceInput): Promise<void>;
     disconnect(): Promise<void>;
   };
 }

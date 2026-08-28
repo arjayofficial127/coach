@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
-import { link, lstat, mkdir, open, realpath, rm, stat, unlink } from "node:fs/promises";
+import { link, lstat, mkdir, open, realpath, rename, rm, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import type { ProbeNoteInput, SaveNoteResult } from "../../shared/contracts";
 
@@ -77,6 +77,24 @@ export async function publishNewFileAtomically(
 ): Promise<void> {
   await link(temporaryPath, finalPath);
   await unlink(temporaryPath);
+}
+
+export async function replaceFileAtomically(
+  temporaryPath: string,
+  finalPath: string,
+): Promise<void> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await rename(temporaryPath, finalPath);
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (attempt >= 40 || (code !== "EPERM" && code !== "EBUSY" && code !== "EACCES")) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
 }
 
 async function assertDirectoryContainsNoLink(root: string, directory: string): Promise<void> {

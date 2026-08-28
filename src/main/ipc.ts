@@ -3,6 +3,11 @@ import { z } from "zod";
 import { IPC } from "../shared/contracts";
 import type { BrowserRuntime } from "./browser/browser-runtime";
 import { isTrustedShellUrl } from "./policies/shell-origin";
+import {
+  parseCreateCanvasPageInput,
+  parseRevealCanvasReferenceInput,
+  parseSaveCanvasPageInput,
+} from "./vault/canvas-page";
 import type { VaultService } from "./vault/vault-service";
 
 const boundsSchema = z.object({
@@ -125,6 +130,22 @@ export function registerIpc(
   handle(IPC.vaultRevealSavedLink, async (_event, payload) => {
     const handoff = await vault.resolveSavedLinkHandoff(z.string().uuid().parse(payload));
     shellActions.showItemInFolder(handoff.absolutePath);
+  });
+  handle(IPC.vaultListCanvasPages, () => vault.listCanvasPages());
+  handle(IPC.vaultCreateCanvasPage, (_event, payload) =>
+    vault.createCanvasPage(parseCreateCanvasPageInput(payload)),
+  );
+  handle(IPC.vaultGetCanvasPage, (_event, payload) =>
+    vault.getCanvasPage(z.string().uuid().parse(payload)),
+  );
+  handle(IPC.vaultSaveCanvasPage, (_event, payload) =>
+    vault.saveCanvasPage(parseSaveCanvasPageInput(payload)),
+  );
+  handle(IPC.vaultRevealCanvasReference, async (_event, payload) => {
+    const absolutePath = await vault.resolveCanvasReference(
+      parseRevealCanvasReferenceInput(payload),
+    );
+    shellActions.showItemInFolder(absolutePath);
   });
   handle(IPC.vaultDisconnect, () => vault.disconnect());
 

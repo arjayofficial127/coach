@@ -5,6 +5,8 @@ import path from "node:path";
 import { app, BrowserWindow } from "electron";
 import type {
   BrowserBounds,
+  CanvasPageRecord,
+  CanvasPageSummary,
   SavedLinkRecord,
   SaveNoteResult,
   VaultInfo,
@@ -14,7 +16,7 @@ import { registerIpc } from "./ipc";
 import { installLatticeProtocol } from "./protocol";
 import { VaultService } from "./vault/vault-service";
 
-export interface PhaseEightSmokeEvidence {
+export interface PhaseNineSmokeEvidence {
   packaged: boolean;
   versions: { electron: string; chromium: string; node: string };
   shell: {
@@ -115,6 +117,27 @@ export interface PhaseEightSmokeEvidence {
     markReadVisible: boolean;
     nativeViewHidden: boolean;
   };
+  canvas: {
+    pageCount: number;
+    title: string;
+    folder: string;
+    nodeCount: number;
+    nodeKinds: string[];
+    typedLinkKinds: string[];
+    jsonCanvasShape: boolean;
+    pageLinkNavigated: boolean;
+    objectLinkFocused: boolean;
+    websiteOpenedInIsolatedView: boolean;
+    localRevealInvocations: number;
+    revealedPathMatches: boolean;
+    nativeViewHidden: boolean;
+    pathNotRendered: boolean;
+    temporaryFilesRemaining: number;
+    absolutePath: string;
+    sha256: string;
+    screenshotPath: string;
+    screenshotBytes: number;
+  };
   privacy: {
     before: { cookieCount: number; cacheBytes: number };
     after: { cookieCount: number; cacheBytes: number };
@@ -158,7 +181,12 @@ interface ShellProbeResult {
     markedRead: SavedLinkRecord;
     requeued: SavedLinkRecord;
   };
-  tabs: PhaseEightSmokeEvidence["tabs"];
+  canvas: {
+    parent: CanvasPageRecord;
+    child: CanvasPageRecord;
+    pages: CanvasPageSummary[];
+  };
+  tabs: PhaseNineSmokeEvidence["tabs"];
 }
 
 interface SessionDomResult {
@@ -184,6 +212,14 @@ interface SettingsDomResult {
   heading: string;
   privacyText: string;
   restoreTabsEnabled: boolean;
+}
+
+interface CanvasDomResult {
+  title: string;
+  objectCount: number;
+  iframeActionVisible: boolean;
+  typedLinkKinds: string[];
+  pathNotRendered: boolean;
 }
 
 interface DesktopLifecycleDomResult {
@@ -218,11 +254,11 @@ async function waitForRendererBounds(runtime: BrowserRuntime): Promise<BrowserBo
   throw new Error("The packaged React renderer did not report stable native-view bounds.");
 }
 
-export async function runPhaseEightSmoke(
+export async function runPhaseNineSmoke(
   rendererRoot: string,
   preloadPath: string,
-): Promise<PhaseEightSmokeEvidence> {
-  const smokeRoot = path.join(os.tmpdir(), "lattice-phase-eight");
+): Promise<PhaseNineSmokeEvidence> {
+  const smokeRoot = path.join(os.tmpdir(), "lattice-phase-nine");
   await mkdir(smokeRoot, { recursive: true });
 
   const window = new BrowserWindow({
@@ -302,6 +338,70 @@ export async function runPhaseEightSmoke(
       const markedRead = await window.lattice.vault.setReadingStatus({ id: note.id, status: "read" });
       const requeued = await window.lattice.vault.setReadingStatus({ id: note.id, status: "queued" });
       const links = await window.lattice.vault.listSavedLinks();
+      const child = await window.lattice.vault.createCanvasPage({
+        title: "Phase 9 child page",
+        description: "A page linked from another page.",
+        folder: "Projects/Browser/Lists"
+      });
+      const noteNodeId = crypto.randomUUID();
+      const websiteNodeId = crypto.randomUUID();
+      const linksNodeId = crypto.randomUUID();
+      const parentDraft = await window.lattice.vault.createCanvasPage({
+        title: "Phase 9 research canvas",
+        description: "A connected collection of pages, objects, websites, and files.",
+        folder: "Projects/Browser"
+      });
+      const parent = await window.lattice.vault.saveCanvasPage({
+        id: parentDraft.id,
+        title: parentDraft.title,
+        description: parentDraft.description,
+        nodes: [
+          {
+            id: noteNodeId,
+            type: "text",
+            x: 40,
+            y: 40,
+            width: 350,
+            height: 240,
+            text: "A Markdown description stored as a standard JSON Canvas text node.",
+            latticeKind: "note",
+            latticeTitle: "Description"
+          },
+          {
+            id: websiteNodeId,
+            type: "link",
+            x: 430,
+            y: 40,
+            width: 350,
+            height: 240,
+            url: "https://example.com/",
+            latticeKind: "iframe",
+            latticeTitle: "Reference website",
+            latticeDescription: "Opens through the isolated native website view."
+          },
+          {
+            id: linksNodeId,
+            type: "text",
+            x: 820,
+            y: 40,
+            width: 430,
+            height: 330,
+            text: "A typed list of related things.",
+            latticeKind: "links",
+            latticeTitle: "Connected things",
+            latticeLinks: [
+              { id: crypto.randomUUID(), label: "Child page", kind: "page", target: child.id },
+              { id: crypto.randomUUID(), label: "Key description", kind: "object", target: noteNodeId },
+              { id: crypto.randomUUID(), label: "Primary source", kind: "url", target: "https://example.com/source" },
+              { id: crypto.randomUUID(), label: "Local brief", kind: "document", target: "Files/brief.md" },
+              { id: crypto.randomUUID(), label: "Local image", kind: "image", target: "Files/image.png" },
+              { id: crypto.randomUUID(), label: "Local data", kind: "file", target: "Files/data.bin" }
+            ]
+          }
+        ],
+        edges: []
+      });
+      const pages = await window.lattice.vault.listCanvasPages();
       return {
         domReady: Boolean(document.querySelector(".lattice-shell")),
         bridgeVisible: typeof window.lattice !== "undefined",
@@ -311,6 +411,7 @@ export async function runPhaseEightSmoke(
         note,
         links,
         reading: { markedRead, requeued },
+        canvas: { parent, child, pages },
         tabs: {
           initialCount: initialSnapshot.tabs.length,
           afterCreateCount: createdSnapshot.tabs.length,
@@ -323,6 +424,29 @@ export async function runPhaseEightSmoke(
 
     const initialNoteBytes = await readFile(shellProbe.note.absolutePath);
     const obsidianStats = await stat(path.join(shellProbe.vault.displayPath, ".obsidian"));
+    const referencedFilesDirectory = path.join(shellProbe.vault.displayPath, "Files");
+    await mkdir(referencedFilesDirectory, { recursive: true });
+    await Promise.all([
+      writeFile(path.join(referencedFilesDirectory, "brief.md"), "# Phase 9 local brief\n", "utf8"),
+      writeFile(
+        path.join(referencedFilesDirectory, "image.png"),
+        Buffer.from("89504e470d0a1a0a", "hex"),
+      ),
+      writeFile(path.join(referencedFilesDirectory, "data.bin"), Buffer.from([0, 1, 2, 3])),
+    ]);
+    const parentCanvasDirectory = path.join(
+      shellProbe.vault.displayPath,
+      "Lattice Pages",
+      "Projects",
+      "Browser",
+    );
+    const parentCanvasFilename = (await readdir(parentCanvasDirectory)).find((entry) =>
+      entry.endsWith(`${shellProbe.canvas.parent.id.slice(0, 8)}.canvas`),
+    );
+    if (!parentCanvasFilename) throw new Error("The Phase 9 canvas file could not be found.");
+    const parentCanvasPath = path.join(parentCanvasDirectory, parentCanvasFilename);
+    const parentCanvasBytes = await readFile(parentCanvasPath);
+    const parentCanvasDocument = JSON.parse(parentCanvasBytes.toString("utf8"));
 
     // Seed a realistic two-tab session, reload only the trusted renderer, and prove
     // it reconnects to the existing native views instead of creating duplicates.
@@ -583,7 +707,7 @@ export async function runPhaseEightSmoke(
       throw new Error("Electron returned an empty metadata-editor capture.");
     }
     const metadataEditorScreenshot = metadataEditorImage.toPNG();
-    const metadataEditorScreenshotPath = path.join(smokeRoot, "phase-8-metadata-editor.png");
+    const metadataEditorScreenshotPath = path.join(smokeRoot, "phase-9-metadata-editor.png");
     await writeFile(metadataEditorScreenshotPath, metadataEditorScreenshot);
     window.hide();
     await window.webContents.executeJavaScript(`(() => {
@@ -639,7 +763,7 @@ export async function runPhaseEightSmoke(
     const handoffImage = await window.webContents.capturePage();
     if (handoffImage.isEmpty()) throw new Error("Electron returned an empty handoff capture.");
     const handoffScreenshot = handoffImage.toPNG();
-    const handoffScreenshotPath = path.join(smokeRoot, "phase-8-obsidian-handoff.png");
+    const handoffScreenshotPath = path.join(smokeRoot, "phase-9-obsidian-handoff.png");
     await writeFile(handoffScreenshotPath, handoffScreenshot);
     window.hide();
 
@@ -658,6 +782,7 @@ export async function runPhaseEightSmoke(
     const revealHandoffDeadline = Date.now() + 2_000;
     while (Date.now() < revealHandoffDeadline && revealedFilePaths.length === 0) await delay(25);
     const canonicalNotePath = await realpath(shellProbe.note.absolutePath);
+    const handoffRevealInvocations = revealedFilePaths.length;
     const decodedObsidianPath = openedExternalUris[0]
       ? new URL(openedExternalUris[0]).searchParams.get("path")
       : null;
@@ -690,8 +815,124 @@ export async function runPhaseEightSmoke(
     const shellImage = await window.webContents.capturePage();
     if (shellImage.isEmpty()) throw new Error("Electron returned an empty shell capture.");
     const shellScreenshot = shellImage.toPNG();
-    const shellScreenshotPath = path.join(smokeRoot, "phase-8-shell.png");
+    const shellScreenshotPath = path.join(smokeRoot, "phase-9-shell.png");
     await writeFile(shellScreenshotPath, shellScreenshot);
+
+    await window.webContents.executeJavaScript(`(() => {
+      const pages = [...document.querySelectorAll("button.library-row")]
+        .find((button) => button.textContent?.includes("Canvas pages"));
+      if (!(pages instanceof HTMLButtonElement)) throw new Error("Canvas pages action missing");
+      pages.click();
+    })()`);
+    const canvasIndexDeadline = Date.now() + 2_000;
+    while (Date.now() < canvasIndexDeadline) {
+      const ready = (await window.webContents.executeJavaScript(
+        `document.querySelector(".canvas-index-header h1")?.textContent === "Pages"`,
+      )) as boolean;
+      if (ready) break;
+      await delay(25);
+    }
+    await window.webContents.executeJavaScript(`(() => {
+      const page = [...document.querySelectorAll("button.canvas-page-card")]
+        .find((button) => button.querySelector("strong")?.textContent?.trim() === "Phase 9 research canvas");
+      if (!(page instanceof HTMLButtonElement)) throw new Error("Phase 9 canvas card missing");
+      page.click();
+    })()`);
+    const canvasEditorDeadline = Date.now() + 2_000;
+    let canvasUi: CanvasDomResult | null = null;
+    while (Date.now() < canvasEditorDeadline) {
+      canvasUi = (await window.webContents.executeJavaScript(`(() => ({
+        title: document.querySelector('input[aria-label="Edit canvas page title"]')?.value ?? "",
+        objectCount: document.querySelectorAll(".canvas-object").length,
+        iframeActionVisible: Boolean(document.querySelector(".canvas-open-live")),
+        typedLinkKinds: [...document.querySelectorAll('select[aria-label="Canvas link type"]')]
+          .map((select) => select.value),
+        pathNotRendered: !document.body.innerText.includes(${JSON.stringify(parentCanvasPath)}) &&
+          !document.body.innerText.includes("Lattice Pages/Projects/Browser")
+      }))()`)) as CanvasDomResult;
+      if (canvasUi.title === "Phase 9 research canvas" && canvasUi.objectCount === 3) break;
+      await delay(25);
+    }
+    if (canvasUi?.title !== "Phase 9 research canvas") {
+      throw new Error("The Phase 9 canvas editor did not become ready.");
+    }
+    const nativeViewHiddenForCanvas = !runtime.isVisible();
+    window.setSkipTaskbar(true);
+    window.showInactive();
+    await delay(100);
+    const canvasImage = await window.webContents.capturePage();
+    if (canvasImage.isEmpty()) throw new Error("Electron returned an empty canvas capture.");
+    const canvasScreenshot = canvasImage.toPNG();
+    const canvasScreenshotPath = path.join(smokeRoot, "phase-9-canvas.png");
+    await writeFile(canvasScreenshotPath, canvasScreenshot);
+    window.hide();
+
+    await window.webContents.executeJavaScript(`(() => {
+      const objectLink = document.querySelector('button[aria-label="Open Key description"]');
+      if (!(objectLink instanceof HTMLButtonElement)) throw new Error("Object link action missing");
+      objectLink.click();
+    })()`);
+    await delay(50);
+    const objectLinkFocused = (await window.webContents.executeJavaScript(
+      `Boolean(document.querySelector(".canvas-object.note.selected"))`,
+    )) as boolean;
+    await window.webContents.executeJavaScript(`(() => {
+      const fileLink = document.querySelector('button[aria-label="Open Local brief"]');
+      if (!(fileLink instanceof HTMLButtonElement)) throw new Error("File link action missing");
+      fileLink.click();
+    })()`);
+    const canvasRevealDeadline = Date.now() + 2_000;
+    while (Date.now() < canvasRevealDeadline && revealedFilePaths.length < 2) await delay(25);
+    const canonicalBriefPath = await realpath(path.join(referencedFilesDirectory, "brief.md"));
+    await window.webContents.executeJavaScript(`(() => {
+      const pageLink = document.querySelector('button[aria-label="Open Child page"]');
+      if (!(pageLink instanceof HTMLButtonElement)) throw new Error("Page link action missing");
+      pageLink.click();
+    })()`);
+    const pageLinkDeadline = Date.now() + 2_000;
+    let pageLinkNavigated = false;
+    while (Date.now() < pageLinkDeadline) {
+      pageLinkNavigated = (await window.webContents.executeJavaScript(
+        `document.querySelector('input[aria-label="Edit canvas page title"]')?.value === "Phase 9 child page"`,
+      )) as boolean;
+      if (pageLinkNavigated) break;
+      await delay(25);
+    }
+    await window.webContents.executeJavaScript(`(() => {
+      const back = [...document.querySelectorAll("button")]
+        .find((button) => button.textContent?.trim() === "Pages");
+      if (!(back instanceof HTMLButtonElement)) throw new Error("Canvas back action missing");
+      back.click();
+    })()`);
+    await delay(50);
+    await window.webContents.executeJavaScript(`(() => {
+      const page = [...document.querySelectorAll("button.canvas-page-card")]
+        .find((button) => button.querySelector("strong")?.textContent?.trim() === "Phase 9 research canvas");
+      if (!(page instanceof HTMLButtonElement)) throw new Error("Phase 9 canvas card missing");
+      page.click();
+    })()`);
+    await delay(50);
+    const tabsBeforeWebsiteOpen = runtime.snapshot().tabs.length;
+    await window.webContents.executeJavaScript(`(() => {
+      const website = document.querySelector(".canvas-open-live");
+      if (!(website instanceof HTMLButtonElement)) throw new Error("Website object action missing");
+      website.click();
+    })()`);
+    const websiteDeadline = Date.now() + 2_000;
+    let websiteOpenedInIsolatedView = false;
+    while (Date.now() < websiteDeadline) {
+      const websiteSnapshot = runtime.snapshot();
+      websiteOpenedInIsolatedView =
+        websiteSnapshot.tabs.length === tabsBeforeWebsiteOpen + 1 &&
+        websiteSnapshot.tabs.find((tab) => tab.id === websiteSnapshot.activeTabId)?.url ===
+          "https://example.com/";
+      if (websiteOpenedInIsolatedView) break;
+      await delay(25);
+    }
+    const websiteSnapshot = runtime.snapshot();
+    if (websiteSnapshot.tabs.length > tabsBeforeWebsiteOpen) {
+      await runtime.closeTab(websiteSnapshot.activeTabId);
+    }
 
     await window.webContents.executeJavaScript(`(async () => {
       await window.lattice.vault.disconnect();
@@ -700,7 +941,18 @@ export async function runPhaseEightSmoke(
       `window.lattice.vault.current()`,
     );
     const noteAfterDisconnect = await stat(shellProbe.note.absolutePath);
+    const canvasAfterDisconnect = await stat(parentCanvasPath);
 
+    const stableSecurityTab = runtime
+      .snapshot()
+      .tabs.find((tab) => tab.url.startsWith("https://example.com/") && !tab.loading);
+    if (!stableSecurityTab) {
+      throw new Error("No fully loaded HTTPS tab remained for the final security probe.");
+    }
+    runtime.switchTab(stableSecurityTab.id);
+    window.setSkipTaskbar(true);
+    window.showInactive();
+    await delay(100);
     runtime.setVisible(true);
     const probe = await runtime.collectSecurityProbe();
     window.hide();
@@ -717,7 +969,7 @@ export async function runPhaseEightSmoke(
       smokeRoot,
       app.isPackaged ? "packaged-smoke-evidence.json" : "dev-smoke-evidence.json",
     );
-    const evidence: PhaseEightSmokeEvidence = {
+    const evidence: PhaseNineSmokeEvidence = {
       packaged: app.isPackaged,
       versions: {
         electron: process.versions.electron ?? "unknown",
@@ -792,7 +1044,7 @@ export async function runPhaseEightSmoke(
       obsidianHandoff: {
         ...handoffUi,
         openInvocations: openedExternalUris.length,
-        revealInvocations: revealedFilePaths.length,
+        revealInvocations: handoffRevealInvocations,
         obsidianUri: openedExternalUris[0] ?? "",
         decodedPathMatches: decodedObsidianPath === canonicalNotePath.split(path.sep).join("/"),
         revealedPathMatches: revealedFilePaths[0] === canonicalNotePath,
@@ -814,6 +1066,36 @@ export async function runPhaseEightSmoke(
         itemTitle: queueDom.itemTitle,
         markReadVisible: queueDom.markReadVisible,
         nativeViewHidden: nativeViewHiddenForQueue,
+      },
+      canvas: {
+        pageCount: shellProbe.canvas.pages.length,
+        title: canvasUi.title,
+        folder: shellProbe.canvas.parent.folder,
+        nodeCount: canvasUi.objectCount,
+        nodeKinds: parentCanvasDocument.nodes.map(
+          (node: { type: string; latticeKind?: string }) =>
+            `${node.type}:${node.latticeKind ?? "standard"}`,
+        ),
+        typedLinkKinds: canvasUi.typedLinkKinds,
+        jsonCanvasShape:
+          Array.isArray(parentCanvasDocument.nodes) &&
+          Array.isArray(parentCanvasDocument.edges) &&
+          parentCanvasDocument.lattice?.id === shellProbe.canvas.parent.id &&
+          canvasAfterDisconnect.isFile(),
+        pageLinkNavigated,
+        objectLinkFocused,
+        websiteOpenedInIsolatedView,
+        localRevealInvocations: Math.max(0, revealedFilePaths.length - 1),
+        revealedPathMatches: revealedFilePaths[1] === canonicalBriefPath,
+        nativeViewHidden: nativeViewHiddenForCanvas,
+        pathNotRendered: canvasUi.pathNotRendered,
+        temporaryFilesRemaining: (await readdir(parentCanvasDirectory)).filter((entry) =>
+          entry.endsWith(".tmp"),
+        ).length,
+        absolutePath: parentCanvasPath,
+        sha256: createHash("sha256").update(parentCanvasBytes).digest("hex"),
+        screenshotPath: canvasScreenshotPath,
+        screenshotBytes: canvasScreenshot.byteLength,
       },
       privacy: {
         ...privacyProbe,

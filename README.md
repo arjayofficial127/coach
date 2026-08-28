@@ -1,10 +1,10 @@
-# Lattice — Phase 8
+# Lattice — Phase 9
 
 **Status: PASS (2026-08-29).** Lattice is an installable personal research browser with secure native
-website tabs, restart-safe desktops, fast local search, Obsidian-compatible saved links, and a
-durable reading queue plus explicit privacy controls.
+website tabs, restart-safe desktops, Obsidian-compatible saved links, and local spatial pages made
+of connected notes, websites, files, objects, and more pages.
 
-![Phase 8 Obsidian handoff](artifacts/phase-8/phase-8-obsidian-handoff.png)
+![Phase 9 canvas workspace](artifacts/phase-9/phase-9-canvas.png)
 
 ## What works
 
@@ -17,6 +17,15 @@ durable reading queue plus explicit privacy controls.
 - A live native tab can move to another desktop without reloading or losing its active state.
 - A desktop session can be reset with **Close all tabs**.
 - An Obsidian vault can be selected once and restored on the next launch.
+- Canvas pages are stored as open JSON Canvas `.canvas` files under `Lattice Pages/`, including
+  safe nested folders that Obsidian can browse directly.
+- A spatial page can contain draggable Markdown note objects, website objects, and typed link-list
+  objects. The page title, description, object positions, and timestamps round-trip atomically.
+- Link lists support page, object, HTTPS URL, document, image, and file references. Page links open
+  another page, object links focus an object, URLs open a new isolated native tab, and local-file
+  links reveal a canonical file inside the active vault.
+- Website objects never create an iframe in the trusted shell. **Open live** delegates to the same
+  locked-down `WebContentsView` boundary used by normal browser tabs.
 - Pages can be queued during capture, marked read, or queued again from the local library.
 - Saved-link titles and descriptions can be edited after capture through an atomic frontmatter-only
   update; the note path, URL, reading state, filename, folder, and Markdown body are preserved.
@@ -64,26 +73,26 @@ pnpm run package
 pnpm run smoke:packaged
 pnpm run installer
 pnpm run smoke:installer
-pnpm run verify:phase8
+pnpm run verify:phase9
 ```
 
 The unsigned Windows x64 portable app is generated at
 `out/Lattice-win32-x64/Lattice.exe`. The assisted installer is generated at
-`release/Lattice-Setup-0.8.0.exe`. Windows reputation warnings are expected until a later release
+`release/Lattice-Setup-0.9.0.exe`. Windows reputation warnings are expected until a later release
 phase adds a protected signing identity. The installer and updater are intentionally not presented
 as production distribution yet.
 
 ## Evidence and decisions
 
-- [Phase 8 report](docs/phase-8-report.md)
-- [Packaged smoke evidence](artifacts/phase-8/packaged-smoke-evidence.json)
-- [Installed-app smoke evidence](artifacts/phase-8/installed-smoke-evidence.json)
-- [Installer lifecycle evidence](artifacts/phase-8/installer-lifecycle-evidence.json)
-- [Obsidian handoff screenshot](artifacts/phase-8/phase-8-obsidian-handoff.png)
-- [Metadata editor screenshot](artifacts/phase-8/phase-8-metadata-editor.png)
-- [Installed Settings screenshot](artifacts/phase-8/installed-shell.png)
-- [Real WebContentsView screenshot](artifacts/phase-8/installed-remote-example-com.png)
-- [Generated edited Markdown](artifacts/phase-8/installed-smoke-note.md)
+- [Phase 9 report](docs/phase-9-report.md)
+- [Packaged smoke evidence](artifacts/phase-9/packaged-smoke-evidence.json)
+- [Installed-app smoke evidence](artifacts/phase-9/installed-smoke-evidence.json)
+- [Installer lifecycle evidence](artifacts/phase-9/installer-lifecycle-evidence.json)
+- [Canvas screenshot](artifacts/phase-9/phase-9-canvas.png)
+- [Generated JSON Canvas](artifacts/phase-9/packaged-smoke-canvas.canvas)
+- [Installed canvas screenshot](artifacts/phase-9/installed-canvas.png)
+- [Real WebContentsView screenshot](artifacts/phase-9/installed-remote-example-com.png)
+- [Generated edited Markdown](artifacts/phase-9/installed-smoke-note.md)
 - [Remaining risks](docs/unresolved-risks.md)
 - [Architecture decisions](docs/decisions/)
 - [Historical Phase 7 report](docs/phase-7-report.md)
@@ -93,12 +102,13 @@ The packaged evidence is bound to the exact source manifest used to build it. Th
 checks Authenticode state, Electron fuses, CSP, session separation, effective remote isolation,
 native tab lifecycle, reload reconciliation, command/native-view composition, guarded desktop
 deletion, live tab movement, atomic metadata editing with body/path preservation, layout bounds,
-safe stable-ID Obsidian/Explorer handoff, screenshot hashes, reading-state transitions, privacy
-clearing, non-destructive vault disconnect, and library read-back.
+safe stable-ID Obsidian/Explorer handoff, JSON Canvas shape, nested page indexing, all typed link
+kinds, page/object/file actions, website-object isolation, screenshot hashes, reading-state
+transitions, privacy clearing, non-destructive vault disconnect, and library read-back.
 
 ## Current phase boundary
 
-Phase 8 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
+Phase 9 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
 automatic updates, code signing, full history/scroll restoration, or Chrome-equivalent Safe
-Browsing. Those capabilities require explicit policy and security work; see the risk register
-before Phase 9.
+Browsing. It also does not claim full compatibility with every third-party JSON Canvas extension or
+repair externally broken page/file links. See the risk register before Phase 10.

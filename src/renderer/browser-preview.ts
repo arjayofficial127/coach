@@ -1,6 +1,7 @@
 import type {
   BrowserSnapshot,
   BrowserState,
+  CanvasPageRecord,
   LatticeApi,
   SavedLinkRecord,
   SaveNoteResult,
@@ -22,6 +23,7 @@ let tabs: BrowserState[] = [
 ];
 let vault: VaultInfo | null = null;
 let privacySummary = { cookieCount: 3, cacheBytes: 4_820_000 };
+let canvasPages: CanvasPageRecord[] = [];
 let links: SavedLinkRecord[] = [
   {
     id: "preview-design-systems",
@@ -215,8 +217,49 @@ export function installBrowserPreviewBridge(): void {
       },
       openSavedLinkInObsidian: async () => undefined,
       revealSavedLink: async () => undefined,
+      listCanvasPages: async () =>
+        canvasPages.map(({ nodes: _nodes, edges: _edges, ...page }) => page),
+      createCanvasPage: async (input) => {
+        if (!vault) throw new Error("Choose a vault before creating a canvas page.");
+        const timestamp = new Date().toISOString();
+        const page: CanvasPageRecord = {
+          version: 1,
+          id: crypto.randomUUID(),
+          title: input.title,
+          description: input.description,
+          folder: input.folder,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          nodeCount: 0,
+          nodes: [],
+          edges: [],
+        };
+        canvasPages = [page, ...canvasPages];
+        return structuredClone(page);
+      },
+      getCanvasPage: async (id) => {
+        const page = canvasPages.find((candidate) => candidate.id === id);
+        if (!page) throw new Error("The canvas page could not be found.");
+        return structuredClone(page);
+      },
+      saveCanvasPage: async (input) => {
+        const existing = canvasPages.find((candidate) => candidate.id === input.id);
+        if (!existing) throw new Error("The canvas page could not be found.");
+        const updated: CanvasPageRecord = {
+          ...existing,
+          ...input,
+          updatedAt: new Date().toISOString(),
+          nodeCount: input.nodes.length,
+        };
+        canvasPages = canvasPages.map((candidate) =>
+          candidate.id === input.id ? updated : candidate,
+        );
+        return structuredClone(updated);
+      },
+      revealCanvasReference: async () => undefined,
       disconnect: async () => {
         vault = null;
+        canvasPages = [];
       },
     },
   };

@@ -10,22 +10,24 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(await readFile(path.join(repositoryRoot, "package.json"), "utf8"));
 const installer = path.join(repositoryRoot, "release", `Lattice-Setup-${packageJson.version}.exe`);
 const portableRoot = path.join(repositoryRoot, "out", "Lattice-win32-x64");
-const installRoot = path.join(os.tmpdir(), `lattice-phase-eight-install-${process.pid}`);
+const installRoot = path.join(os.tmpdir(), `lattice-phase-nine-install-${process.pid}`);
 const installedExecutable = path.join(installRoot, "Lattice.exe");
 const uninstaller = path.join(installRoot, "Uninstall Lattice.exe");
 const smokeEvidenceSource = path.join(
   os.tmpdir(),
-  "lattice-phase-eight",
+  "lattice-phase-nine",
   "packaged-smoke-evidence.json",
 );
-const evidenceRoot = path.join(repositoryRoot, "artifacts", "phase-8");
+const evidenceRoot = path.join(repositoryRoot, "artifacts", "phase-9");
 const lifecycleEvidencePath = path.join(evidenceRoot, "installer-lifecycle-evidence.json");
 const installedSmokeTarget = path.join(evidenceRoot, "installed-smoke-evidence.json");
 const shellScreenshotTarget = path.join(evidenceRoot, "installed-shell.png");
 const metadataScreenshotTarget = path.join(evidenceRoot, "installed-metadata-editor.png");
 const handoffScreenshotTarget = path.join(evidenceRoot, "installed-obsidian-handoff.png");
+const canvasScreenshotTarget = path.join(evidenceRoot, "installed-canvas.png");
 const remoteScreenshotTarget = path.join(evidenceRoot, "installed-remote-example-com.png");
 const noteTarget = path.join(evidenceRoot, "installed-smoke-note.md");
+const canvasTarget = path.join(evidenceRoot, "installed-smoke-canvas.canvas");
 const startMenuShortcut = path.join(
   process.env.APPDATA ?? "",
   "Microsoft",
@@ -143,12 +145,12 @@ async function verifyFuses(target) {
 }
 
 if (process.platform !== "win32") {
-  throw new Error("The Phase 8 installer lifecycle gate must run on Windows.");
+  throw new Error("The Phase 9 installer lifecycle gate must run on Windows.");
 }
 if (
   path.resolve(path.dirname(installRoot)).toLowerCase() !==
     path.resolve(os.tmpdir()).toLowerCase() ||
-  !path.basename(installRoot).startsWith("lattice-phase-eight-install-")
+  !path.basename(installRoot).startsWith("lattice-phase-nine-install-")
 ) {
   throw new Error("Refusing to manage an install test directory outside the OS temp directory.");
 }
@@ -185,15 +187,17 @@ await Promise.all(
     shellScreenshotTarget,
     metadataScreenshotTarget,
     handoffScreenshotTarget,
+    canvasScreenshotTarget,
     remoteScreenshotTarget,
     noteTarget,
+    canvasTarget,
   ].map((target) => rm(target, { force: true })),
 );
 
 const installerBytes = await readFile(installer);
 const installerSignature = authenticodeStatus(installer);
 if (installerSignature !== "NotSigned") {
-  throw new Error(`Expected an unsigned Phase 8 installer, got ${installerSignature}.`);
+  throw new Error(`Expected an unsigned Phase 9 installer, got ${installerSignature}.`);
 }
 
 await runProcess(installer, ["/S", "/currentuser", `/D=${installRoot}`], 120_000);
@@ -248,7 +252,7 @@ if (installedSignature !== "NotSigned") {
 }
 const fuses = await verifyFuses(installedExecutable);
 
-await runProcess(installedExecutable, ["--phase8-smoke"], 45_000);
+await runProcess(installedExecutable, ["--phase9-smoke"], 75_000);
 const smoke = JSON.parse(await readFile(smokeEvidenceSource, "utf8"));
 const smokeFailures = [];
 if (smoke.packaged !== true) smokeFailures.push("installed app was not packaged");
@@ -299,6 +303,19 @@ if (
 ) {
   smokeFailures.push("installed Obsidian handoff workflow failed");
 }
+if (
+  smoke.canvas?.pageCount !== 2 ||
+  smoke.canvas?.nodeCount !== 3 ||
+  !smoke.canvas?.jsonCanvasShape ||
+  !smoke.canvas?.pageLinkNavigated ||
+  !smoke.canvas?.objectLinkFocused ||
+  !smoke.canvas?.websiteOpenedInIsolatedView ||
+  !smoke.canvas?.revealedPathMatches ||
+  !smoke.canvas?.nativeViewHidden ||
+  smoke.canvas?.temporaryFilesRemaining !== 0
+) {
+  smokeFailures.push("installed JSON Canvas page workflow failed");
+}
 if (smokeFailures.length > 0) {
   throw new Error(`Installed application smoke failed:\n- ${smokeFailures.join("\n- ")}`);
 }
@@ -306,11 +323,15 @@ if (smokeFailures.length > 0) {
 await copyFile(smoke.shell.screenshotPath, shellScreenshotTarget);
 await copyFile(smoke.metadataEditing.screenshotPath, metadataScreenshotTarget);
 await copyFile(smoke.obsidianHandoff.screenshotPath, handoffScreenshotTarget);
+await copyFile(smoke.canvas.screenshotPath, canvasScreenshotTarget);
 await copyFile(smoke.remote.screenshotPath, remoteScreenshotTarget);
 await copyFile(smoke.note.absolutePath, noteTarget);
+await copyFile(smoke.canvas.absolutePath, canvasTarget);
 smoke.shell.artifactPath = shellScreenshotTarget;
 smoke.metadataEditing.artifactPath = metadataScreenshotTarget;
 smoke.obsidianHandoff.artifactPath = handoffScreenshotTarget;
+smoke.canvas.screenshotArtifactPath = canvasScreenshotTarget;
+smoke.canvas.artifactPath = canvasTarget;
 smoke.remote.artifactPath = remoteScreenshotTarget;
 smoke.note.artifactPath = noteTarget;
 smoke.installedExecutable = installedExecutable;
@@ -371,4 +392,4 @@ const lifecycleEvidence = {
 };
 await writeFile(lifecycleEvidencePath, `${JSON.stringify(lifecycleEvidence, null, 2)}\n`, "utf8");
 
-console.log(`Phase 8 installer lifecycle passed. Evidence: ${lifecycleEvidencePath}`);
+console.log(`Phase 9 installer lifecycle passed. Evidence: ${lifecycleEvidencePath}`);

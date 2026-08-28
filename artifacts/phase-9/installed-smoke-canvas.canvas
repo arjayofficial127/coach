@@ -1,0 +1,86 @@
+{
+  "nodes": [
+    {
+      "id": "98b774f6-119c-4a8d-ad84-da7e0a62b8c7",
+      "x": 40,
+      "y": 40,
+      "width": 350,
+      "height": 240,
+      "type": "text",
+      "text": "A Markdown description stored as a standard JSON Canvas text node.",
+      "latticeKind": "note",
+      "latticeTitle": "Description"
+    },
+    {
+      "id": "c1d1ee5a-c30f-4131-b3b7-654d6bca7fb7",
+      "x": 430,
+      "y": 40,
+      "width": 350,
+      "height": 240,
+      "type": "link",
+      "url": "https://example.com/",
+      "latticeKind": "iframe",
+      "latticeTitle": "Reference website",
+      "latticeDescription": "Opens through the isolated native website view."
+    },
+    {
+      "id": "bb62c357-bbd4-4a27-baee-8550a3da629d",
+      "x": 820,
+      "y": 40,
+      "width": 430,
+      "height": 330,
+      "type": "text",
+      "text": "A typed list of related things.",
+      "latticeKind": "links",
+      "latticeTitle": "Connected things",
+      "latticeLinks": [
+        {
+          "id": "9827105a-436c-4ede-8f3c-2ad55502b068",
+          "label": "Child page",
+          "kind": "page",
+          "target": "3572f33b-f7d2-4377-b582-e083e642decf"
+        },
+        {
+          "id": "271169b6-f71d-4413-b1fd-d9b1728f9aec",
+          "label": "Key description",
+          "kind": "object",
+          "target": "98b774f6-119c-4a8d-ad84-da7e0a62b8c7"
+        },
+        {
+          "id": "19373335-6886-412f-b7c8-b029763567c1",
+          "label": "Primary source",
+          "kind": "url",
+          "target": "https://example.com/source"
+        },
+        {
+          "id": "af2511ed-250c-45c1-b669-465f1e4094e2",
+          "label": "Local brief",
+          "kind": "document",
+          "target": "Files/brief.md"
+        },
+        {
+          "id": "78b52a22-73b8-4d44-aa55-5410bd7309e0",
+          "label": "Local image",
+          "kind": "image",
+          "target": "Files/image.png"
+        },
+        {
+          "id": "7fdb1a1f-9064-4b34-97f7-26d06e570dcf",
+          "label": "Local data",
+          "kind": "file",
+          "target": "Files/data.bin"
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "lattice": {
+    "version": 1,
+    "id": "f168a2d9-615b-44c4-acd0-d6b7131ed616",
+    "title": "Phase 9 research canvas",
+    "description": "A connected collection of pages, objects, websites, and files.",
+    "folder": "Projects/Browser",
+    "createdAt": "2026-08-28T18:27:32.327Z",
+    "updatedAt": "2026-08-28T18:27:32.351Z"
+  }
+}
