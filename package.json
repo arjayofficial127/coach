@@ -1,0 +1,55 @@
+{
+  "name": "lattice",
+  "productName": "Lattice",
+  "version": "0.2.0",
+  "description": "A secure Electron research browser with desktops and Obsidian-compatible Markdown capture.",
+  "author": "Lattice Project",
+  "type": "module",
+  "main": "dist/main/index.cjs",
+  "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "start": "pnpm run build:electron && concurrently -k -n main,preload,renderer,electron \"pnpm run watch:main\" \"pnpm run watch:preload\" \"vite --config vite.renderer.config.ts\" \"pnpm run start:electron\"",
+    "start:electron": "wait-on http://127.0.0.1:5173 && cross-env LATTICE_DEV_SERVER_URL=http://127.0.0.1:5173 nodemon --watch dist/main --ext cjs --exec \"electron dist/main/index.cjs\"",
+    "watch:main": "esbuild src/main/index.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/main/index.cjs --watch",
+    "watch:preload": "esbuild src/preload/index.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/main/preload.cjs --watch",
+    "build:electron": "esbuild src/main/index.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/main/index.cjs && esbuild src/preload/index.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/main/preload.cjs",
+    "build:renderer": "vite build --config vite.renderer.config.ts --outDir dist/renderer --emptyOutDir",
+    "build": "pnpm run build:electron && pnpm run build:renderer",
+    "check": "biome check . && tsc --noEmit && vitest run",
+    "format": "biome check --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "package": "pnpm run check && pnpm run build && node scripts/package.mjs",
+    "smoke:packaged": "node scripts/verify-packaged-smoke.mjs",
+    "verify:phase2": "pnpm run package && pnpm run smoke:packaged"
+  },
+  "dependencies": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.10",
+    "@electron/fuses": "2.1.3",
+    "@electron/packager": "20.3.0",
+    "@types/node": "26.4.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "@vitejs/plugin-react": "6.1.0",
+    "@vitest/coverage-v8": "4.1.11",
+    "concurrently": "10.0.5",
+    "cross-env": "10.1.0",
+    "electron": "44.0.0",
+    "esbuild": "0.28.2",
+    "nodemon": "3.1.14",
+    "typescript": "7.0.2",
+    "vite": "8.2.2",
+    "vitest": "4.1.11",
+    "wait-on": "9.1.0"
+  }
+}

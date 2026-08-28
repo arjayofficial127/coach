@@ -1,0 +1,114 @@
+{
+  "packaged": true,
+  "versions": {
+    "electron": "44.0.0",
+    "chromium": "152.0.7977.54",
+    "node": "24.18.1"
+  },
+  "shell": {
+    "url": "lattice://app/index.html",
+    "title": "Lattice Phase 0",
+    "domReady": true,
+    "bridgeVisible": true,
+    "contentSecurityPolicy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'self' data:; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'",
+    "rendererReportedBounds": {
+      "x": 0,
+      "y": 124,
+      "width": 676,
+      "height": 527
+    },
+    "nativeSlotBounds": {
+      "x": 0,
+      "y": 124.80000305175781,
+      "width": 676.4000244140625,
+      "height": 527.6000366210938
+    },
+    "vaultPanelBounds": {
+      "x": 676.4000244140625,
+      "y": 96.4000015258789,
+      "width": 310,
+      "height": 556
+    }
+  },
+  "remote": {
+    "url": "https://example.com/",
+    "title": "Example Domain",
+    "viewBounds": {
+      "x": 0,
+      "y": 124,
+      "width": 676,
+      "height": 472
+    },
+    "configuredPreferences": {
+      "nodeIntegration": false,
+      "nodeIntegrationInWorker": false,
+      "nodeIntegrationInSubFrames": false,
+      "contextIsolation": true,
+      "sandbox": true,
+      "webSecurity": true,
+      "allowRunningInsecureContent": false,
+      "experimentalFeatures": false,
+      "webviewTag": false,
+      "preloadConfigured": false
+    },
+    "webContentsType": "window",
+    "nativeViewConstructor": "WebContentsView",
+    "sessionSeparatedFromShell": true,
+    "isolation": {
+      "nodeProcessVisible": false,
+      "requireVisible": false,
+      "latticeBridgeVisible": false,
+      "webviewTagApiVisible": false,
+      "popupReturnedNull": true,
+      "geolocationPermissionState": "denied",
+      "popupHandlerTriggered": true,
+      "permissionCheckHandlerTriggered": true
+    },
+    "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-zero\\remote-example-com.png",
+    "screenshotBytes": 17736,
+    "screenshotMethod": "devtools-protocol",
+    "screenshotPixels": {
+      "width": 845,
+      "height": 590
+    },
+    "screenshotSha256": "97bd46a392cb77c63d24c844bead10d7bc5eaf5341f5965da5fe93f0f5c069a0",
+    "artifactPath": "C:\\coach\\artifacts\\phase-0\\remote-example-com.png"
+  },
+  "webContentsDestroyedAfterClose": true,
+  "note": {
+    "vaultPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-zero\\vault-3b2fcb3a-cb99-4eef-93f2-6ea710c737b5",
+    "disposableVault": true,
+    "obsidianDirectoryPresent": true,
+    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-zero\\vault-3b2fcb3a-cb99-4eef-93f2-6ea710c737b5\\Saved Links\\2026-08-28 - Phase 0 packaged smoke - faaa5181.md",
+    "relativePath": "Saved Links\\2026-08-28 - Phase 0 packaged smoke - faaa5181.md",
+    "bytesWritten": 453,
+    "bytesReadBack": 453,
+    "sha256": "6d288f44e6f1b7ca1cb0a19fa33baac4b7b541ed1151ee2d292d4aed9abfbfa9",
+    "temporaryFilesRemaining": 0,
+    "artifactPath": "C:\\coach\\artifacts\\phase-0\\packaged-smoke-note.md"
+  },
+  "evidencePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-zero\\packaged-smoke-evidence.json",
+  "verifiedAt": "2026-08-28T14:15:06.438Z",
+  "package": {
+    "executable": "C:\\coach\\out\\Lattice-win32-x64\\Lattice.exe",
+    "appAsar": "C:\\coach\\out\\Lattice-win32-x64\\resources\\app.asar",
+    "sourceManifestPath": "C:\\coach\\out\\Lattice-win32-x64\\resources\\phase0-source-manifest.json",
+    "sourceManifestSha256": "4a46a573595253a9819808d7f4ef3884bc7347de562be474f757b890666d4dfa",
+    "sourceManifestFiles": 32,
+    "bytes": 244440576,
+    "sha256": "c1912f72b0543e87f25568c55b1b4e07a513d5f0ff0597161458285cec824f41",
+    "asarBytes": 777412,
+    "asarSha256": "a9167fb94d3145d893e854a948c31458b7a08d1251028640238d5b8f86597bce",
+    "authenticodeStatus": "NotSigned",
+    "signed": false,
+    "fuses": {
+      "RunAsNode": false,
+      "EnableCookieEncryption": true,
+      "EnableNodeOptionsEnvironmentVariable": false,
+      "EnableNodeCliInspectArguments": false,
+      "EnableEmbeddedAsarIntegrityValidation": true,
+      "OnlyLoadAppFromAsar": true,
+      "GrantFileProtocolExtraPrivileges": false
+    }
+  }
+}

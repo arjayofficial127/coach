@@ -1,0 +1,15 @@
+node_modules/
+.pnpm-store/
+.vite/
+out/
+coverage/
+artifacts/*
+!artifacts/phase-0/
+!artifacts/phase-0/packaged-smoke-evidence.json
+!artifacts/phase-0/packaged-smoke-note.md
+!artifacts/phase-0/remote-example-com.png
+.package-source/
+dist/
+*.log
+.DS_Store
+Thumbs.db
