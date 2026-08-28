@@ -9,6 +9,9 @@ import { VaultService } from "./vault/vault-service";
 
 registerLatticeScheme();
 app.enableSandbox();
+if (process.platform === "win32") {
+  app.setAppUserModelId("app.lattice.browser");
+}
 
 let mainWindow: BrowserWindow | null = null;
 let browserRuntime: BrowserRuntime | null = null;
@@ -77,7 +80,7 @@ async function createMainWindow(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
-  if (process.argv.includes("--phase4-smoke")) {
+  if (process.argv.includes("--phase4-smoke") || process.argv.includes("--phase5-smoke")) {
     try {
       const rendererRoot = path.join(__dirname, "../renderer");
       const evidence = await runPhaseFourSmoke(rendererRoot, path.join(__dirname, "preload.cjs"));

@@ -5,6 +5,7 @@ import path from "node:path";
 const SOURCE_INPUTS = [
   ".npmrc",
   "biome.json",
+  "electron-builder.yml",
   "index.html",
   "package.json",
   "pnpm-lock.yaml",
@@ -14,7 +15,9 @@ const SOURCE_INPUTS = [
   "vitest.config.ts",
   "src",
   "scripts/package.mjs",
+  "scripts/build-installer.mjs",
   "scripts/source-manifest.mjs",
+  "scripts/verify-installer.mjs",
   "scripts/verify-packaged-smoke.mjs",
 ];
 

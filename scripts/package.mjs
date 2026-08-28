@@ -73,4 +73,4 @@ await writeFile(
 );
 
 await rm(stagingRoot, { recursive: true, force: true });
-console.log(`Packaged unsigned Phase 4 build: ${packagedRoot}`);
+console.log(`Packaged unsigned Phase 5 build: ${packagedRoot}`);

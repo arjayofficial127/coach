@@ -1,0 +1,56 @@
+{
+  "verifiedAt": "2026-08-28T17:28:16.522Z",
+  "version": "0.5.0",
+  "installer": {
+    "path": "C:\\coach\\release\\Lattice-Setup-0.5.0.exe",
+    "bytes": 110918597,
+    "sha256": "fe263bebaf3d99d9462b953fe8107baf0c1c38ef38c50d87ea47cca783dc2d67",
+    "authenticodeStatus": "NotSigned",
+    "signed": false
+  },
+  "installation": {
+    "mode": "current-user",
+    "silent": true,
+    "isolatedTestDirectory": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-five-install-60600",
+    "uninstallRecordCreated": true,
+    "uninstallRecord": {
+      "PSChildName": "a580a7fa-68d5-53ac-9906-76801e868ef9",
+      "DisplayName": "Lattice",
+      "DisplayVersion": "0.5.0",
+      "InstallLocation": null,
+      "UninstallString": "\"C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-five-install-60600\\Uninstall Lattice.exe\" /currentuser"
+    },
+    "startMenuShortcutCreated": true,
+    "desktopShortcutConfigured": false,
+    "portableHashes": {
+      "executable": "03faf2c948606c0406392a9f62f3903482ee4d52f1d242cde3ad9d48fa333cb4",
+      "appAsar": "5b6798b0ebd40fd4a2c4ae1ed9c2c34a8009c65ce66904e8eb8d358531ad8464",
+      "sourceManifest": "df35225ac906ffadd94d9b652df995844fea5366a93be86bcf36c6adf41f769f"
+    },
+    "installedHashes": {
+      "executable": "03faf2c948606c0406392a9f62f3903482ee4d52f1d242cde3ad9d48fa333cb4",
+      "appAsar": "5b6798b0ebd40fd4a2c4ae1ed9c2c34a8009c65ce66904e8eb8d358531ad8464",
+      "sourceManifest": "df35225ac906ffadd94d9b652df995844fea5366a93be86bcf36c6adf41f769f"
+    },
+    "hardenedPackagePreserved": true,
+    "authenticodeStatus": "NotSigned",
+    "fuses": {
+      "RunAsNode": false,
+      "EnableCookieEncryption": true,
+      "EnableNodeOptionsEnvironmentVariable": false,
+      "EnableNodeCliInspectArguments": false,
+      "EnableEmbeddedAsarIntegrityValidation": true,
+      "OnlyLoadAppFromAsar": true,
+      "GrantFileProtocolExtraPrivileges": false
+    },
+    "smokeEvidence": "C:\\coach\\artifacts\\phase-5\\installed-smoke-evidence.json"
+  },
+  "uninstall": {
+    "silent": true,
+    "executableRemoved": true,
+    "installRootRemoved": true,
+    "uninstallRecordRemoved": true,
+    "startMenuShortcutRemoved": true,
+    "userDataDeletionConfigured": false
+  }
+}

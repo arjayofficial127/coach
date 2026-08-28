@@ -1,0 +1,22 @@
+appId: app.lattice.browser
+productName: Lattice
+artifactName: Lattice-Setup-${version}.${ext}
+compression: normal
+directories:
+  output: release
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  uninstallDisplayName: Lattice
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: false
+  createStartMenuShortcut: true
+  shortcutName: Lattice
+  runAfterFinish: false

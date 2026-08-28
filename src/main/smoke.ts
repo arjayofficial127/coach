@@ -151,14 +151,22 @@ function delay(milliseconds: number): Promise<void> {
 
 async function waitForRendererBounds(runtime: BrowserRuntime): Promise<BrowserBounds> {
   const deadline = Date.now() + 5_000;
+  let previousBounds: BrowserBounds | null = null;
+  let stableSamples = 0;
   while (Date.now() < deadline) {
     const bounds = runtime.getBounds();
     if (bounds.width >= 100 && bounds.height >= 100 && bounds.x >= 0 && bounds.y >= 0) {
-      return bounds;
+      if (previousBounds && JSON.stringify(bounds) === JSON.stringify(previousBounds)) {
+        stableSamples += 1;
+      } else {
+        previousBounds = bounds;
+        stableSamples = 1;
+      }
+      if (stableSamples >= 4) return bounds;
     }
     await delay(25);
   }
-  throw new Error("The packaged React renderer did not report usable native-view bounds.");
+  throw new Error("The packaged React renderer did not report stable native-view bounds.");
 }
 
 export async function runPhaseFourSmoke(

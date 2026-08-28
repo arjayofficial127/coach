@@ -1,13 +1,13 @@
-# Phase 4 unresolved risks
+# Phase 5 unresolved risks
 
-Phase 4 is a strong personal prototype, not a production general-purpose browser. The original
+Phase 5 is an installable personal prototype, not a production general-purpose browser. The original
 deny-by-default security posture remains; new capabilities must be accepted and designed
 deliberately rather than enabled as compatibility shortcuts.
 
-| Priority | Risk | Current Phase 4 position | Exit criterion |
+| Priority | Risk | Current Phase 5 position | Exit criterion |
 | --- | --- | --- | --- |
 | Critical | Arbitrary-site browser security | Electron is hardened, but Lattice does not claim Chrome-equivalent site isolation, anti-exploitation, Safe Browsing, extension review, or patch response. | Threat model, Electron upgrade SLA, security regression suite, incident/update process, and explicit product-claim boundary. |
-| Critical | Unsigned distribution | The portable executable is intentionally `NotSigned`; there is no installer or updater. | Protected signing identity, signed installer and update metadata, rollback/recovery, and release-channel design. |
+| Critical | Unsigned distribution | The assisted current-user installer and installed executable are intentionally `NotSigned`; there is no updater or public release channel. | Protected signing identity, signed installer and update metadata, rollback/recovery, and release-channel design. |
 | High | OAuth and popup compatibility | All popups are denied, so many login flows fail. | Brokered child-view design with opener isolation, strict rules, lifecycle tests, and clear consent. |
 | High | Downloads | All downloads are canceled. | Intent-driven download manager, safe destinations, filename handling, quarantine/reputation integration, progress/cancel, and cleanup tests. |
 | High | Permissions and devices | Camera, microphone, location, notifications, MIDI, USB, serial, Bluetooth, and screen capture are denied. | Per-origin policy store and UX, narrow grants, revocation, indicators, privacy review, and tests. |
@@ -24,7 +24,8 @@ deliberately rather than enabled as compatibility shortcuts.
 | Medium | Trusted-shell stored data | Desktop/settings preferences and the vault display path persist locally; tab restore can be disabled and vault authority disconnected. Packaged CSP blocks network egress, but there is no unified shell-data reset. | Add a reviewed full shell reset/export flow, preserve CSP, and threat-review every shell network capability. |
 | Medium | Runtime preference observability | Electron exposes no public getter for fully resolved view preferences. The gate proves constructor intent and effective isolation behavior instead. | Retain behavioral probes, use upstream introspection if added, and require review for preference construction changes. |
 | Medium | Supply chain | Versions and lockfile are pinned and the package source manifest is verified, but there is no CI audit, SBOM, signed provenance, or update bot. | CI audit/SBOM/provenance checks and dependency-update ownership. |
+| Low | Windows brand assets | Setup and the executable use Electron's default icon because no approved multi-resolution Lattice `.ico` asset exists. | Approve a Lattice icon, generate the Windows icon matrix, and visually verify setup, Start, taskbar, shortcuts, and Apps settings. |
 | Low | Product quality attributes | Broader accessibility, localization, large-tab performance, memory pressure, battery use, telemetry, backup, and recovery are not characterized. | Define measurable NFRs and test them before beta. |
 
-Phase 5 must preserve the trusted-shell/remote-site separation and treat each relaxation of a
+Phase 6 must preserve the trusted-shell/remote-site separation and treat each relaxation of a
 denied browser capability as a separate security and product decision.

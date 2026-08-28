@@ -1,10 +1,10 @@
-# Lattice — Phase 4
+# Lattice — Phase 5
 
-**Status: PASS (2026-08-29).** Lattice is a working personal research browser with secure native
+**Status: PASS (2026-08-29).** Lattice is an installable personal research browser with secure native
 website tabs, restart-safe desktops, fast local search, Obsidian-compatible saved links, and a
 durable reading queue plus explicit privacy controls.
 
-![Packaged Phase 4 settings](artifacts/phase-4/phase-4-shell.png)
+![Installed Phase 5 settings](artifacts/phase-5/installed-shell.png)
 
 ## What works
 
@@ -22,6 +22,9 @@ durable reading queue plus explicit privacy controls.
 - Website cookies, cache, local storage, IndexedDB, service workers, and related data can be cleared
   through an explicit two-step action.
 - Tab restoration can be disabled, and a vault can be disconnected without deleting Markdown.
+- An assisted current-user Windows installer supports a selectable destination and clean uninstall.
+- Installation preserves the byte-exact hardened executable, ASAR, source manifest, and Electron
+  fuses; uninstall preserves user data and external Obsidian Markdown.
 - Saving a page atomically writes Markdown under `Saved Links/<Desktop>/` with a stable desktop ID,
   URL, title, and description.
 - The in-app library reads those files recursively and filters them by desktop or text.
@@ -52,16 +55,24 @@ Run the quality and release gates:
 pnpm run check
 pnpm run package
 pnpm run smoke:packaged
-pnpm run verify:phase4
+pnpm run installer
+pnpm run smoke:installer
+pnpm run verify:phase5
 ```
 
-The unsigned Windows x64 app is generated at
-`out/Lattice-win32-x64/Lattice.exe`. It is a portable application directory, not an installer.
-Windows reputation warnings are expected until a later phase adds code signing and installation.
+The unsigned Windows x64 portable app is generated at
+`out/Lattice-win32-x64/Lattice.exe`. The assisted installer is generated at
+`release/Lattice-Setup-0.5.0.exe`. Windows reputation warnings are expected until a later release
+phase adds a protected signing identity. The installer and updater are intentionally not presented
+as production distribution yet.
 
 ## Evidence and decisions
 
-- [Phase 4 report](docs/phase-4-report.md)
+- [Phase 5 report](docs/phase-5-report.md)
+- [Installer lifecycle evidence](artifacts/phase-5/installer-lifecycle-evidence.json)
+- [Installed-app smoke evidence](artifacts/phase-5/installed-smoke-evidence.json)
+- [Installed Settings screenshot](artifacts/phase-5/installed-shell.png)
+- [Historical Phase 4 report](docs/phase-4-report.md)
 - [Packaged smoke evidence](artifacts/phase-4/packaged-smoke-evidence.json)
 - [Packaged Settings screenshot](artifacts/phase-4/phase-4-shell.png)
 - [Real WebContentsView screenshot](artifacts/phase-4/remote-example-com.png)
@@ -78,7 +89,7 @@ disconnect, and library read-back.
 
 ## Current phase boundary
 
-Phase 4 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
-an installer, updates, code signing, full history/scroll restoration, or Chrome-equivalent Safe
+Phase 5 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
+automatic updates, code signing, full history/scroll restoration, or Chrome-equivalent Safe
 Browsing. Those capabilities require explicit policy and security work; see the risk register
-before Phase 5.
+before Phase 6.
