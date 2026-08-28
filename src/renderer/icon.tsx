@@ -9,6 +9,7 @@ export type IconName =
   | "close"
   | "command"
   | "desktop"
+  | "edit"
   | "folder"
   | "globe"
   | "grid"
@@ -33,6 +34,7 @@ const paths: Record<IconName, ReactNode> = {
     <path d="M9 6V4.5a2.5 2.5 0 1 0-2.5 2.5H18M15 18v1.5a2.5 2.5 0 1 0 2.5-2.5H6M6 7a2.5 2.5 0 1 0 0 5h12a2.5 2.5 0 1 0 0 5H6" />
   ),
   desktop: <path d="M4 5h16v11H4zM9 20h6M12 16v4" />,
+  edit: <path d="M4 20h4l11-11-4-4L4 16v4ZM13.5 6.5l4 4" />,
   folder: <path d="M3.5 6.5h6l2-2h9v15h-17z" />,
   globe: (
     <>

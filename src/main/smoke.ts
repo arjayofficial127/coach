@@ -14,7 +14,7 @@ import { registerIpc } from "./ipc";
 import { installLatticeProtocol } from "./protocol";
 import { VaultService } from "./vault/vault-service";
 
-export interface PhaseSixSmokeEvidence {
+export interface PhaseSevenSmokeEvidence {
   packaged: boolean;
   versions: { electron: string; chromium: string; node: string };
   shell: {
@@ -81,6 +81,18 @@ export interface PhaseSixSmokeEvidence {
     adjacentDesktopActivated: boolean;
     savedResearchDesktopPreserved: boolean;
   };
+  metadataEditing: {
+    formVisible: boolean;
+    title: string;
+    description: string;
+    pathPreserved: boolean;
+    bodyPreserved: boolean;
+    urlPreserved: boolean;
+    readingStatePreserved: boolean;
+    temporaryFilesRemaining: number;
+    screenshotPath: string;
+    screenshotBytes: number;
+  };
   readingQueue: {
     capturedAsQueued: boolean;
     markedRead: boolean;
@@ -134,7 +146,7 @@ interface ShellProbeResult {
     markedRead: SavedLinkRecord;
     requeued: SavedLinkRecord;
   };
-  tabs: PhaseSixSmokeEvidence["tabs"];
+  tabs: PhaseSevenSmokeEvidence["tabs"];
 }
 
 interface SessionDomResult {
@@ -149,6 +161,11 @@ interface QueueDomResult {
   summary: string;
   itemTitle: string;
   markReadVisible: boolean;
+}
+
+interface MetadataDomResult {
+  title: string;
+  description: string;
 }
 
 interface SettingsDomResult {
@@ -189,11 +206,11 @@ async function waitForRendererBounds(runtime: BrowserRuntime): Promise<BrowserBo
   throw new Error("The packaged React renderer did not report stable native-view bounds.");
 }
 
-export async function runPhaseSixSmoke(
+export async function runPhaseSevenSmoke(
   rendererRoot: string,
   preloadPath: string,
-): Promise<PhaseSixSmokeEvidence> {
-  const smokeRoot = path.join(os.tmpdir(), "lattice-phase-six");
+): Promise<PhaseSevenSmokeEvidence> {
+  const smokeRoot = path.join(os.tmpdir(), "lattice-phase-seven");
   await mkdir(smokeRoot, { recursive: true });
 
   const window = new BrowserWindow({
@@ -254,8 +271,8 @@ export async function runPhaseSixSmoke(
       const closedSnapshot = await window.lattice.browser.closeTab(createdTabId);
       const vault = await window.lattice.vault.createDisposable();
       const note = await window.lattice.vault.saveProbeNote({
-        title: "Phase 6 packaged smoke",
-        url: "https://example.com/phase-six",
+        title: "Phase 7 packaged smoke",
+        url: "https://example.com/phase-seven",
         description: "Atomic Markdown written into a desktop folder and read back through the packaged library.",
         folder: "Research",
         desktopId: "research",
@@ -283,8 +300,7 @@ export async function runPhaseSixSmoke(
       };
     })()`)) as ShellProbeResult;
 
-    const noteBytes = await readFile(shellProbe.note.absolutePath);
-    const noteDirectoryEntries = await readdir(path.dirname(shellProbe.note.absolutePath));
+    const initialNoteBytes = await readFile(shellProbe.note.absolutePath);
     const obsidianStats = await stat(path.join(shellProbe.vault.displayPath, ".obsidian"));
 
     // Seed a realistic two-tab session, reload only the trusted renderer, and prove
@@ -319,7 +335,7 @@ export async function runPhaseSixSmoke(
       if (sessionDom?.status.includes("Restored 2 tabs") && sessionDom.tabTitle) break;
       await delay(25);
     }
-    if (!sessionDom) throw new Error("The Phase 6 session UI did not become ready.");
+    if (!sessionDom) throw new Error("The Phase 7 session UI did not become ready.");
     const afterReload = runtime.snapshot();
     const privacyProbe = await runtime.collectPrivacyClearProbe();
 
@@ -414,7 +430,7 @@ export async function runPhaseSixSmoke(
       if (movedDom.activeDesktop === "Inspiration" && movedDom.activeTabTitle) break;
       await delay(25);
     }
-    if (!movedDom) throw new Error("The Phase 6 tab move UI did not become ready.");
+    if (!movedDom) throw new Error("The Phase 7 tab move UI did not become ready.");
     const movedTabRetained = runtime.snapshot().activeTabId === movedTabId;
 
     await window.webContents.executeJavaScript(`(() => {
@@ -483,7 +499,7 @@ export async function runPhaseSixSmoke(
       if (!deletedDom.buildPresent && deletedDom.activeDesktop === "Inspiration") break;
       await delay(25);
     }
-    if (!deletedDom) throw new Error("The Phase 6 desktop delete UI did not become ready.");
+    if (!deletedDom) throw new Error("The Phase 7 desktop delete UI did not become ready.");
 
     await window.webContents.executeJavaScript(`(() => {
       const button = [...document.querySelectorAll("button.library-row")]
@@ -504,8 +520,87 @@ export async function runPhaseSixSmoke(
       if (queueDom.heading === "Reading queue" && queueDom.itemTitle) break;
       await delay(25);
     }
-    if (!queueDom) throw new Error("The Phase 6 reading queue UI did not become ready.");
+    if (!queueDom) throw new Error("The Phase 7 reading queue UI did not become ready.");
     const nativeViewHiddenForQueue = !runtime.isVisible();
+
+    await window.webContents.executeJavaScript(`(() => {
+      const edit = [...document.querySelectorAll(".link-card-actions button")]
+        .find((button) => button.textContent?.includes("Edit"));
+      if (!(edit instanceof HTMLButtonElement)) throw new Error("Saved-link edit action missing");
+      edit.click();
+    })()`);
+    const editFormDeadline = Date.now() + 2_000;
+    let editFormVisible = false;
+    while (Date.now() < editFormDeadline) {
+      editFormVisible = (await window.webContents.executeJavaScript(
+        `Boolean(document.querySelector(".link-edit-form"))`,
+      )) as boolean;
+      if (editFormVisible) break;
+      await delay(25);
+    }
+    await window.webContents.executeJavaScript(`(() => {
+      const title = document.querySelector('input[aria-label="Saved link title"]');
+      const description = document.querySelector('textarea[aria-label="Saved link description"]');
+      const form = document.querySelector(".link-edit-form");
+      if (!(title instanceof HTMLInputElement) ||
+          !(description instanceof HTMLTextAreaElement) ||
+          !(form instanceof HTMLFormElement)) {
+        throw new Error("Saved-link edit form missing");
+      }
+      const inputSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      const textareaSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+      inputSetter?.call(title, "Phase 7 edited research note");
+      title.dispatchEvent(new Event("input", { bubbles: true }));
+      textareaSetter?.call(description, "Refined after capture without replacing the Obsidian note body.");
+      description.dispatchEvent(new Event("input", { bubbles: true }));
+    })()`);
+    window.setSkipTaskbar(true);
+    window.showInactive();
+    await delay(100);
+    const metadataEditorImage = await window.webContents.capturePage();
+    if (metadataEditorImage.isEmpty()) {
+      throw new Error("Electron returned an empty metadata-editor capture.");
+    }
+    const metadataEditorScreenshot = metadataEditorImage.toPNG();
+    const metadataEditorScreenshotPath = path.join(smokeRoot, "phase-7-metadata-editor.png");
+    await writeFile(metadataEditorScreenshotPath, metadataEditorScreenshot);
+    window.hide();
+    await window.webContents.executeJavaScript(`(() => {
+      const form = document.querySelector(".link-edit-form");
+      if (!(form instanceof HTMLFormElement)) throw new Error("Saved-link edit form missing");
+      form.requestSubmit();
+    })()`);
+    const metadataDeadline = Date.now() + 2_000;
+    let metadataDom: MetadataDomResult | null = null;
+    while (Date.now() < metadataDeadline) {
+      metadataDom = (await window.webContents.executeJavaScript(`(() => ({
+        title: document.querySelector(".link-card h2")?.textContent?.trim() ?? "",
+        description: document.querySelector(".link-card p")?.textContent?.trim() ?? ""
+      }))()`)) as MetadataDomResult;
+      if (
+        metadataDom.title === "Phase 7 edited research note" &&
+        metadataDom.description.startsWith("Refined after capture")
+      ) {
+        break;
+      }
+      await delay(25);
+    }
+    if (
+      metadataDom?.title !== "Phase 7 edited research note" ||
+      !metadataDom.description.startsWith("Refined after capture")
+    ) {
+      throw new Error("The Phase 7 metadata edit UI did not become ready.");
+    }
+    const editedLinks = (await window.webContents.executeJavaScript(
+      `window.lattice.vault.listSavedLinks()`,
+    )) as SavedLinkRecord[];
+    const editedLink = editedLinks.find((link) => link.id === shellProbe.note.id);
+    const finalNoteBytes = await readFile(shellProbe.note.absolutePath);
+    const noteDirectoryEntries = await readdir(path.dirname(shellProbe.note.absolutePath));
+    const initialMarkdown = initialNoteBytes.toString("utf8");
+    const finalMarkdown = finalNoteBytes.toString("utf8");
+    const initialBody = initialMarkdown.slice(initialMarkdown.indexOf("\n---\n", 4) + 5);
+    const finalBody = finalMarkdown.slice(finalMarkdown.indexOf("\n---\n", 4) + 5);
 
     await window.webContents.executeJavaScript(`(() => {
       const button = document.querySelector('button[aria-label="Settings"]');
@@ -523,7 +618,7 @@ export async function runPhaseSixSmoke(
       if (settingsDom.heading === "Settings" && settingsDom.privacyText) break;
       await delay(25);
     }
-    if (!settingsDom) throw new Error("The Phase 6 settings UI did not become ready.");
+    if (!settingsDom) throw new Error("The Phase 7 settings UI did not become ready.");
     const nativeViewHiddenForSettings = !runtime.isVisible();
 
     // Chromium only exposes composed surfaces while the owning window is shown. Keep
@@ -535,7 +630,7 @@ export async function runPhaseSixSmoke(
     const shellImage = await window.webContents.capturePage();
     if (shellImage.isEmpty()) throw new Error("Electron returned an empty shell capture.");
     const shellScreenshot = shellImage.toPNG();
-    const shellScreenshotPath = path.join(smokeRoot, "phase-6-shell.png");
+    const shellScreenshotPath = path.join(smokeRoot, "phase-7-shell.png");
     await writeFile(shellScreenshotPath, shellScreenshot);
 
     await window.webContents.executeJavaScript(`(async () => {
@@ -562,7 +657,7 @@ export async function runPhaseSixSmoke(
       smokeRoot,
       app.isPackaged ? "packaged-smoke-evidence.json" : "dev-smoke-evidence.json",
     );
-    const evidence: PhaseSixSmokeEvidence = {
+    const evidence: PhaseSevenSmokeEvidence = {
       packaged: app.isPackaged,
       versions: {
         electron: process.versions.electron ?? "unknown",
@@ -619,6 +714,21 @@ export async function runPhaseSixSmoke(
         adjacentDesktopActivated: deletedDom.activeDesktop === "Inspiration",
         savedResearchDesktopPreserved: deletedDom.researchSummary.includes("1 saved"),
       },
+      metadataEditing: {
+        formVisible: editFormVisible,
+        title: metadataDom.title,
+        description: metadataDom.description,
+        pathPreserved: editedLink?.relativePath === shellProbe.note.relativePath,
+        bodyPreserved: initialBody === finalBody,
+        urlPreserved: editedLink?.url === shellProbe.note.url,
+        readingStatePreserved:
+          editedLink?.readingStatus === "queued" &&
+          editedLink.queuedAt === shellProbe.reading.requeued.queuedAt,
+        temporaryFilesRemaining: noteDirectoryEntries.filter((entry) => entry.endsWith(".tmp"))
+          .length,
+        screenshotPath: metadataEditorScreenshotPath,
+        screenshotBytes: metadataEditorScreenshot.byteLength,
+      },
       readingQueue: {
         capturedAsQueued:
           shellProbe.note.readingStatus === "queued" && Boolean(shellProbe.note.queuedAt),
@@ -649,8 +759,8 @@ export async function runPhaseSixSmoke(
         absolutePath: shellProbe.note.absolutePath,
         relativePath: shellProbe.note.relativePath,
         bytesWritten: shellProbe.note.bytesWritten,
-        bytesReadBack: noteBytes.byteLength,
-        sha256: createHash("sha256").update(noteBytes).digest("hex"),
+        bytesReadBack: initialNoteBytes.byteLength,
+        sha256: createHash("sha256").update(finalNoteBytes).digest("hex"),
         temporaryFilesRemaining: noteDirectoryEntries.filter((entry) => entry.endsWith(".tmp"))
           .length,
         libraryCount: shellProbe.links.length,

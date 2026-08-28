@@ -134,6 +134,9 @@ export function LatticeApp() {
   const [commandQuery, setCommandQuery] = useState("");
   const [sessionReady, setSessionReady] = useState(false);
   const [updatingLinkId, setUpdatingLinkId] = useState<string | null>(null);
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
+  const [editingLinkTitle, setEditingLinkTitle] = useState("");
+  const [editingLinkDescription, setEditingLinkDescription] = useState("");
   const [privacy, setPrivacy] = useState<BrowserPrivacySummary>({
     cookieCount: 0,
     cacheBytes: 0,
@@ -761,6 +764,40 @@ export function LatticeApp() {
     }
   };
 
+  const beginEditingLink = (link: SavedLinkRecord) => {
+    setEditingLinkId(link.id);
+    setEditingLinkTitle(link.title);
+    setEditingLinkDescription(link.description);
+  };
+
+  const cancelEditingLink = () => {
+    setEditingLinkId(null);
+    setEditingLinkTitle("");
+    setEditingLinkDescription("");
+  };
+
+  const saveLinkMetadata = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingLinkId || !editingLinkTitle.trim()) return;
+    setUpdatingLinkId(editingLinkId);
+    try {
+      const updated = await window.lattice.vault.updateSavedLinkMetadata({
+        id: editingLinkId,
+        title: editingLinkTitle,
+        description: editingLinkDescription,
+      });
+      setLinks((current) =>
+        current.map((candidate) => (candidate.id === updated.id ? updated : candidate)),
+      );
+      cancelEditingLink();
+      setStatus("Saved link metadata updated; note body and path were preserved");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setUpdatingLinkId(null);
+    }
+  };
+
   const openCommandPalette = () => {
     setCommandQuery("");
     setCommandOpen(true);
@@ -1340,29 +1377,71 @@ export function LatticeApp() {
                         }
                         key={`${link.id}-${link.relativePath}`}
                       >
-                        <button
-                          type="button"
-                          className="link-main"
-                          onClick={() => void openUrl(link.url, true)}
-                        >
-                          <span className="link-domain">
-                            <span>{displayHost(link.url).slice(0, 1).toUpperCase()}</span>
-                            {displayHost(link.url)}
-                          </span>
-                          <h2>{link.title}</h2>
-                          <p>{link.description || "No description added."}</p>
-                        </button>
+                        {editingLinkId === link.id ? (
+                          <form className="link-edit-form" onSubmit={saveLinkMetadata}>
+                            <label>
+                              <span>Title</span>
+                              <input
+                                value={editingLinkTitle}
+                                onChange={(event) => setEditingLinkTitle(event.target.value)}
+                                maxLength={200}
+                                required
+                                aria-label="Saved link title"
+                              />
+                            </label>
+                            <label>
+                              <span>Description</span>
+                              <textarea
+                                value={editingLinkDescription}
+                                onChange={(event) => setEditingLinkDescription(event.target.value)}
+                                maxLength={4000}
+                                rows={3}
+                                aria-label="Saved link description"
+                              />
+                            </label>
+                            <div>
+                              <button
+                                type="submit"
+                                disabled={updatingLinkId === link.id || !editingLinkTitle.trim()}
+                              >
+                                Save changes
+                              </button>
+                              <button type="button" onClick={cancelEditingLink}>
+                                Cancel
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          <button
+                            type="button"
+                            className="link-main"
+                            onClick={() => void openUrl(link.url, true)}
+                          >
+                            <span className="link-domain">
+                              <span>{displayHost(link.url).slice(0, 1).toUpperCase()}</span>
+                              {displayHost(link.url)}
+                            </span>
+                            <h2>{link.title}</h2>
+                            <p>{link.description || "No description added."}</p>
+                          </button>
+                        )}
                         <footer>
                           <span>
                             <Icon name="folder" />
                             {link.folder || "Saved Links"}
                           </span>
                           <div className="link-card-actions">
+                            {editingLinkId !== link.id && (
+                              <button type="button" onClick={() => beginEditingLink(link)}>
+                                <Icon name="edit" />
+                                Edit
+                              </button>
+                            )}
                             {link.readingStatus === "queued" ? (
                               <button
                                 type="button"
                                 onClick={() => void updateReadingStatus(link, "read")}
-                                disabled={updatingLinkId === link.id}
+                                disabled={updatingLinkId === link.id || editingLinkId === link.id}
                               >
                                 <Icon name="check" />
                                 Mark read
@@ -1371,7 +1450,7 @@ export function LatticeApp() {
                               <button
                                 type="button"
                                 onClick={() => void updateReadingStatus(link, "queued")}
-                                disabled={updatingLinkId === link.id}
+                                disabled={updatingLinkId === link.id || editingLinkId === link.id}
                               >
                                 <Icon name="bookmark" />
                                 {link.readingStatus === "read" ? "Read again" : "Read later"}
@@ -1496,7 +1575,7 @@ export function LatticeApp() {
                     </div>
                     <div className="settings-card-copy">
                       <span className="settings-kicker">About</span>
-                      <h2>Lattice 0.6.0</h2>
+                      <h2>Lattice 0.7.0</h2>
                       <p>
                         Current privacy controls. Remote Node access, downloads, popups, device
                         permissions, and unsafe protocols remain disabled.

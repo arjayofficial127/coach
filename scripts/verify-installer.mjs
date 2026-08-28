@@ -10,18 +10,19 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(await readFile(path.join(repositoryRoot, "package.json"), "utf8"));
 const installer = path.join(repositoryRoot, "release", `Lattice-Setup-${packageJson.version}.exe`);
 const portableRoot = path.join(repositoryRoot, "out", "Lattice-win32-x64");
-const installRoot = path.join(os.tmpdir(), `lattice-phase-six-install-${process.pid}`);
+const installRoot = path.join(os.tmpdir(), `lattice-phase-seven-install-${process.pid}`);
 const installedExecutable = path.join(installRoot, "Lattice.exe");
 const uninstaller = path.join(installRoot, "Uninstall Lattice.exe");
 const smokeEvidenceSource = path.join(
   os.tmpdir(),
-  "lattice-phase-six",
+  "lattice-phase-seven",
   "packaged-smoke-evidence.json",
 );
-const evidenceRoot = path.join(repositoryRoot, "artifacts", "phase-6");
+const evidenceRoot = path.join(repositoryRoot, "artifacts", "phase-7");
 const lifecycleEvidencePath = path.join(evidenceRoot, "installer-lifecycle-evidence.json");
 const installedSmokeTarget = path.join(evidenceRoot, "installed-smoke-evidence.json");
 const shellScreenshotTarget = path.join(evidenceRoot, "installed-shell.png");
+const metadataScreenshotTarget = path.join(evidenceRoot, "installed-metadata-editor.png");
 const remoteScreenshotTarget = path.join(evidenceRoot, "installed-remote-example-com.png");
 const noteTarget = path.join(evidenceRoot, "installed-smoke-note.md");
 const startMenuShortcut = path.join(
@@ -141,12 +142,12 @@ async function verifyFuses(target) {
 }
 
 if (process.platform !== "win32") {
-  throw new Error("The Phase 6 installer lifecycle gate must run on Windows.");
+  throw new Error("The Phase 7 installer lifecycle gate must run on Windows.");
 }
 if (
   path.resolve(path.dirname(installRoot)).toLowerCase() !==
     path.resolve(os.tmpdir()).toLowerCase() ||
-  !path.basename(installRoot).startsWith("lattice-phase-six-install-")
+  !path.basename(installRoot).startsWith("lattice-phase-seven-install-")
 ) {
   throw new Error("Refusing to manage an install test directory outside the OS temp directory.");
 }
@@ -181,6 +182,7 @@ await Promise.all(
     lifecycleEvidencePath,
     installedSmokeTarget,
     shellScreenshotTarget,
+    metadataScreenshotTarget,
     remoteScreenshotTarget,
     noteTarget,
   ].map((target) => rm(target, { force: true })),
@@ -189,7 +191,7 @@ await Promise.all(
 const installerBytes = await readFile(installer);
 const installerSignature = authenticodeStatus(installer);
 if (installerSignature !== "NotSigned") {
-  throw new Error(`Expected an unsigned Phase 6 installer, got ${installerSignature}.`);
+  throw new Error(`Expected an unsigned Phase 7 installer, got ${installerSignature}.`);
 }
 
 await runProcess(installer, ["/S", "/currentuser", `/D=${installRoot}`], 120_000);
@@ -244,7 +246,7 @@ if (installedSignature !== "NotSigned") {
 }
 const fuses = await verifyFuses(installedExecutable);
 
-await runProcess(installedExecutable, ["--phase6-smoke"], 45_000);
+await runProcess(installedExecutable, ["--phase7-smoke"], 45_000);
 const smoke = JSON.parse(await readFile(smokeEvidenceSource, "utf8"));
 const smokeFailures = [];
 if (smoke.packaged !== true) smokeFailures.push("installed app was not packaged");
@@ -278,14 +280,24 @@ if (
 ) {
   smokeFailures.push("installed desktop lifecycle workflow failed");
 }
+if (
+  smoke.metadataEditing?.title !== "Phase 7 edited research note" ||
+  !smoke.metadataEditing?.bodyPreserved ||
+  !smoke.metadataEditing?.pathPreserved ||
+  !smoke.metadataEditing?.readingStatePreserved
+) {
+  smokeFailures.push("installed saved-link metadata editing failed");
+}
 if (smokeFailures.length > 0) {
   throw new Error(`Installed application smoke failed:\n- ${smokeFailures.join("\n- ")}`);
 }
 
 await copyFile(smoke.shell.screenshotPath, shellScreenshotTarget);
+await copyFile(smoke.metadataEditing.screenshotPath, metadataScreenshotTarget);
 await copyFile(smoke.remote.screenshotPath, remoteScreenshotTarget);
 await copyFile(smoke.note.absolutePath, noteTarget);
 smoke.shell.artifactPath = shellScreenshotTarget;
+smoke.metadataEditing.artifactPath = metadataScreenshotTarget;
 smoke.remote.artifactPath = remoteScreenshotTarget;
 smoke.note.artifactPath = noteTarget;
 smoke.installedExecutable = installedExecutable;
@@ -346,4 +358,4 @@ const lifecycleEvidence = {
 };
 await writeFile(lifecycleEvidencePath, `${JSON.stringify(lifecycleEvidence, null, 2)}\n`, "utf8");
 
-console.log(`Phase 6 installer lifecycle passed. Evidence: ${lifecycleEvidencePath}`);
+console.log(`Phase 7 installer lifecycle passed. Evidence: ${lifecycleEvidencePath}`);

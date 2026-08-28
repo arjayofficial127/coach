@@ -21,7 +21,7 @@ function sha256(bytes) {
 }
 
 if (process.platform !== "win32") {
-  throw new Error("The Phase 6 installer gate must run on Windows.");
+  throw new Error("The Phase 7 installer gate must run on Windows.");
 }
 if (path.dirname(releaseRoot) !== repositoryRoot) {
   throw new Error("Refusing to replace a release directory outside the repository root.");
@@ -89,4 +89,4 @@ await writeFile(
   "utf8",
 );
 
-console.log(`Built unsigned Phase 6 installer: ${installerPath}`);
+console.log(`Built unsigned Phase 7 installer: ${installerPath}`);

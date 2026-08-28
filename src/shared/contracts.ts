@@ -19,6 +19,7 @@ export const IPC = {
   vaultSaveProbeNote: "vault:save-probe-note",
   vaultListSavedLinks: "vault:list-saved-links",
   vaultSetReadingStatus: "vault:set-reading-status",
+  vaultUpdateSavedLinkMetadata: "vault:update-saved-link-metadata",
   vaultDisconnect: "vault:disconnect",
 } as const;
 
@@ -103,6 +104,12 @@ export interface SetReadingStatusInput {
   status: ReadingStatus;
 }
 
+export interface UpdateSavedLinkMetadataInput {
+  id: string;
+  title: string;
+  description: string;
+}
+
 export interface LatticeApi {
   shell: {
     onCommand(listener: (command: ShellCommand) => void): () => void;
@@ -129,6 +136,7 @@ export interface LatticeApi {
     saveProbeNote(input: ProbeNoteInput): Promise<SaveNoteResult>;
     listSavedLinks(): Promise<SavedLinkRecord[]>;
     setReadingStatus(input: SetReadingStatusInput): Promise<SavedLinkRecord>;
+    updateSavedLinkMetadata(input: UpdateSavedLinkMetadataInput): Promise<SavedLinkRecord>;
     disconnect(): Promise<void>;
   };
 }

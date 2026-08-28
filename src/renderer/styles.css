@@ -1533,6 +1533,67 @@ kbd {
   -webkit-line-clamp: 3;
 }
 
+.link-edit-form {
+  display: grid;
+  min-height: 138px;
+  gap: 9px;
+  padding: 13px 15px;
+}
+
+.link-edit-form label {
+  display: grid;
+  gap: 4px;
+  color: var(--subtle);
+  font-size: 8px;
+  font-weight: 650;
+}
+
+.link-edit-form input,
+.link-edit-form textarea {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  outline: none;
+  background: #111118;
+  padding: 7px 8px;
+  color: var(--text);
+  font: inherit;
+  font-size: 9px;
+  resize: vertical;
+}
+
+.link-edit-form input:focus,
+.link-edit-form textarea:focus {
+  border-color: rgba(139, 124, 246, 0.48);
+  box-shadow: 0 0 0 2px rgba(139, 124, 246, 0.08);
+}
+
+.link-edit-form > div {
+  display: flex;
+  gap: 6px;
+}
+
+.link-edit-form > div button {
+  height: 27px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface-2);
+  padding: 0 9px;
+  color: #aaa8b6;
+  font-size: 8px;
+}
+
+.link-edit-form > div button:first-child {
+  border-color: rgba(139, 124, 246, 0.25);
+  background: rgba(139, 124, 246, 0.12);
+  color: #b8aff5;
+}
+
+.link-edit-form > div button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .link-card > footer {
   display: flex;
   min-height: 42px;

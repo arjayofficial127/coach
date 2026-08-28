@@ -38,6 +38,12 @@ const readingStatusSchema = z.object({
   status: z.enum(["saved", "queued", "read"]),
 });
 
+const savedLinkMetadataSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().trim().min(1).max(200),
+  description: z.string().max(4000),
+});
+
 const tabIdSchema = z.string().uuid();
 
 function assertTrustedShell(event: IpcMainInvokeEvent, window: BrowserWindow): void {
@@ -97,6 +103,9 @@ export function registerIpc(
   handle(IPC.vaultListSavedLinks, () => vault.listSavedLinks());
   handle(IPC.vaultSetReadingStatus, (_event, payload) =>
     vault.setReadingStatus(readingStatusSchema.parse(payload)),
+  );
+  handle(IPC.vaultUpdateSavedLinkMetadata, (_event, payload) =>
+    vault.updateSavedLinkMetadata(savedLinkMetadataSchema.parse(payload)),
   );
   handle(IPC.vaultDisconnect, () => vault.disconnect());
 

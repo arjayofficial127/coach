@@ -1,0 +1,56 @@
+{
+  "verifiedAt": "2026-08-28T17:51:27.126Z",
+  "version": "0.7.0",
+  "installer": {
+    "path": "C:\\coach\\release\\Lattice-Setup-0.7.0.exe",
+    "bytes": 110921431,
+    "sha256": "e2310a9dcc97f95e99ec96bbeb76334dfce08d56d0527692272b0a8dc2e672e4",
+    "authenticodeStatus": "NotSigned",
+    "signed": false
+  },
+  "installation": {
+    "mode": "current-user",
+    "silent": true,
+    "isolatedTestDirectory": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-seven-install-55232",
+    "uninstallRecordCreated": true,
+    "uninstallRecord": {
+      "PSChildName": "a580a7fa-68d5-53ac-9906-76801e868ef9",
+      "DisplayName": "Lattice",
+      "DisplayVersion": "0.7.0",
+      "InstallLocation": null,
+      "UninstallString": "\"C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-seven-install-55232\\Uninstall Lattice.exe\" /currentuser"
+    },
+    "startMenuShortcutCreated": true,
+    "desktopShortcutConfigured": false,
+    "portableHashes": {
+      "executable": "b8cdd79fc6dd83205aa67e83b69b1ae0354c8cd10e2f440a2cbdf6d121a5938f",
+      "appAsar": "2fa5e412fdb757e529c404c8165fd5feb08b355773a3c18279b16a9abac7921c",
+      "sourceManifest": "3439b6441857337f075dc2a0f193c7b0fa19b87517c0935c847999b6c074f3a2"
+    },
+    "installedHashes": {
+      "executable": "b8cdd79fc6dd83205aa67e83b69b1ae0354c8cd10e2f440a2cbdf6d121a5938f",
+      "appAsar": "2fa5e412fdb757e529c404c8165fd5feb08b355773a3c18279b16a9abac7921c",
+      "sourceManifest": "3439b6441857337f075dc2a0f193c7b0fa19b87517c0935c847999b6c074f3a2"
+    },
+    "hardenedPackagePreserved": true,
+    "authenticodeStatus": "NotSigned",
+    "fuses": {
+      "RunAsNode": false,
+      "EnableCookieEncryption": true,
+      "EnableNodeOptionsEnvironmentVariable": false,
+      "EnableNodeCliInspectArguments": false,
+      "EnableEmbeddedAsarIntegrityValidation": true,
+      "OnlyLoadAppFromAsar": true,
+      "GrantFileProtocolExtraPrivileges": false
+    },
+    "smokeEvidence": "C:\\coach\\artifacts\\phase-7\\installed-smoke-evidence.json"
+  },
+  "uninstall": {
+    "silent": true,
+    "executableRemoved": true,
+    "installRootRemoved": true,
+    "uninstallRecordRemoved": true,
+    "startMenuShortcutRemoved": true,
+    "userDataDeletionConfigured": false
+  }
+}

@@ -202,6 +202,17 @@ export function installBrowserPreviewBridge(): void {
         links = links.map((link) => (link.id === input.id ? updated : link));
         return { ...updated };
       },
+      updateSavedLinkMetadata: async (input) => {
+        const existing = links.find((link) => link.id === input.id);
+        if (!existing) throw new Error("The saved link could not be found.");
+        const updated = {
+          ...existing,
+          title: input.title.trim().replace(/\s+/g, " "),
+          description: input.description,
+        };
+        links = links.map((link) => (link.id === input.id ? updated : link));
+        return { ...updated };
+      },
       disconnect: async () => {
         vault = null;
       },
