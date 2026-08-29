@@ -7404,7 +7404,7 @@ kbd {
   width: 100%;
   min-width: 0;
   min-height: 48px;
-  grid-template-columns: 36px minmax(0, 1fr) 16px;
+  grid-template-columns: minmax(0, 1fr) 16px;
   align-items: center;
   gap: 10px;
   border-radius: 11px;
