@@ -1484,12 +1484,18 @@ kbd {
   gap: 3px;
   overflow-x: auto;
   overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.tabs-viewport::-webkit-scrollbar {
+  display: none;
 }
 
 .browser-tab {
   display: grid;
-  flex: 0 0 178px;
-  width: 178px;
+  flex: 1 1 178px;
+  width: clamp(120px, 18vw, 220px);
+  min-width: 120px;
   height: 35px;
   grid-template-columns: 18px minmax(0, 1fr) 18px;
   align-items: center;
