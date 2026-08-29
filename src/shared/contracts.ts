@@ -32,6 +32,9 @@ export const IPC = {
   vaultCreateCanvasPage: "vault:create-canvas-page",
   vaultGetCanvasPage: "vault:get-canvas-page",
   vaultSaveCanvasPage: "vault:save-canvas-page",
+  vaultTrashSavedLink: "vault:trash-saved-link",
+  vaultTrashCanvasPage: "vault:trash-canvas-page",
+  vaultRestoreTrash: "vault:restore-trash",
   vaultRevealCanvasReference: "vault:reveal-canvas-reference",
   vaultReferenceIndex: "vault:reference-index",
   vaultDisconnect: "vault:disconnect",
@@ -137,6 +140,12 @@ export interface SaveNoteResult {
   relativePath: string;
   absolutePath: string;
   bytesWritten: number;
+}
+
+export interface VaultTrashResult {
+  token: string;
+  kind: "saved-link" | "canvas-page";
+  title: string;
 }
 
 export interface SavedLinkRecord {
@@ -326,6 +335,9 @@ export interface LatticeApi {
     createCanvasPage(input: CreateCanvasPageInput): Promise<CanvasPageRecord>;
     getCanvasPage(id: string): Promise<CanvasPageRecord>;
     saveCanvasPage(input: SaveCanvasPageInput): Promise<CanvasPageRecord>;
+    trashSavedLink(id: string): Promise<VaultTrashResult>;
+    trashCanvasPage(id: string): Promise<VaultTrashResult>;
+    restoreTrash(token: string): Promise<void>;
     revealCanvasReference(input: RevealCanvasReferenceInput): Promise<void>;
     referenceIndex(): Promise<VaultReferenceIndex>;
     disconnect(): Promise<void>;

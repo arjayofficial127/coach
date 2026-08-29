@@ -1012,7 +1012,7 @@ export function LatticeApp() {
     if (!contextualTab || !vault || contextualTab.url === "about:blank") return;
     setSaving(true);
     try {
-      await window.lattice.vault.saveProbeNote({
+      const savedLink = await window.lattice.vault.saveProbeNote({
         title: displayTitle(contextualTab),
         url: contextualTab.url,
         description: captureDescription.trim(),
@@ -1024,6 +1024,16 @@ export function LatticeApp() {
       setReferenceIndex(await window.lattice.vault.referenceIndex());
       setSaved(true);
       setStatus(queueCapture ? "Saved to your reading queue" : "Saved to Obsidian");
+      offerRecovery(`Saved ${savedLink.title}`, async () => {
+        await window.lattice.vault.trashSavedLink(savedLink.id);
+        const [savedLinks, references] = await Promise.all([
+          window.lattice.vault.listSavedLinks(),
+          window.lattice.vault.referenceIndex(),
+        ]);
+        setLinks(savedLinks);
+        setReferenceIndex(references);
+        setSaved(false);
+      });
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     } finally {
@@ -1424,6 +1434,34 @@ export function LatticeApp() {
           );
         });
       }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setUpdatingLinkId(null);
+    }
+  };
+
+  const trashSavedLink = async (link: SavedLinkRecord) => {
+    setUpdatingLinkId(link.id);
+    try {
+      const trashed = await window.lattice.vault.trashSavedLink(link.id);
+      const [savedLinks, references] = await Promise.all([
+        window.lattice.vault.listSavedLinks(),
+        window.lattice.vault.referenceIndex(),
+      ]);
+      setLinks(savedLinks);
+      setReferenceIndex(references);
+      if (editingLinkId === link.id) cancelEditingLink();
+      setStatus(`Moved “${link.title}” to Lattice Trash`);
+      offerRecovery(`Moved ${link.title} to Lattice Trash`, async () => {
+        await window.lattice.vault.restoreTrash(trashed.token);
+        const [restoredLinks, restoredReferences] = await Promise.all([
+          window.lattice.vault.listSavedLinks(),
+          window.lattice.vault.referenceIndex(),
+        ]);
+        setLinks(restoredLinks);
+        setReferenceIndex(restoredReferences);
+      });
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     } finally {
@@ -2614,6 +2652,16 @@ export function LatticeApp() {
                                 >
                                   <Icon name="folder" />
                                 </button>
+                                <button
+                                  type="button"
+                                  className="icon-only destructive-link-action"
+                                  aria-label="Move saved note to Lattice Trash"
+                                  title="Move to Lattice Trash"
+                                  onClick={() => void trashSavedLink(link)}
+                                  disabled={updatingLinkId === link.id}
+                                >
+                                  <Icon name="trash" />
+                                </button>
                               </>
                             )}
                             {link.readingStatus === "queued" ? (
@@ -2659,6 +2707,7 @@ export function LatticeApp() {
                 openUrl={(url) => openUrl(url, true)}
                 onDirtyChange={handleCanvasDirtyChange}
                 reportStatus={setStatus}
+                offerRecovery={offerRecovery}
               />
             )}
 

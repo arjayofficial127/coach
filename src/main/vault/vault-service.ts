@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { dialog } from "electron";
@@ -16,13 +16,15 @@ import type {
   UpdateSavedLinkMetadataInput,
   VaultInfo,
   VaultReferenceIndex,
+  VaultTrashResult,
 } from "../../shared/contracts";
-import { saveProbeNoteAtomically } from "./atomic-note";
+import { assertPathWithinRoot, saveProbeNoteAtomically } from "./atomic-note";
 import {
   createCanvasPageAtomically,
   getCanvasPageFromVault,
   listCanvasPagesFromVault,
   resolveCanvasFileReference,
+  resolveCanvasPagePath,
   saveCanvasPageAtomically,
 } from "./canvas-page";
 import { updateReadingStatusAtomically } from "./reading-status";
@@ -35,8 +37,15 @@ interface ActiveVault extends VaultInfo {
   canonicalPath: string;
 }
 
+interface TrashedVaultFile {
+  vaultRoot: string;
+  originalPath: string;
+  trashPath: string;
+}
+
 export class VaultService {
   private activeVault: ActiveVault | null = null;
+  private readonly trashedFiles = new Map<string, TrashedVaultFile>();
 
   constructor(private readonly statePath?: string) {}
 
@@ -175,6 +184,63 @@ export class VaultService {
     return saveCanvasPageAtomically(this.activeVault.canonicalPath, input);
   }
 
+  async trashSavedLink(id: string): Promise<VaultTrashResult> {
+    const root = this.requireActiveVault("Choose a vault before removing a saved link.");
+    const matches = (await listSavedLinksFromVault(root)).filter((link) => link.id === id);
+    if (matches.length !== 1) {
+      throw new Error(
+        matches.length === 0
+          ? "The saved link could not be found."
+          : "Duplicate saved-link IDs must be resolved in Obsidian first.",
+      );
+    }
+    const link = matches[0];
+    if (!link) throw new Error("The saved link could not be found.");
+    const source = path.resolve(root, link.relativePath);
+    const token = await this.moveToTrash(root, source);
+    return { token, kind: "saved-link", title: link.title };
+  }
+
+  async trashCanvasPage(id: string): Promise<VaultTrashResult> {
+    const root = this.requireActiveVault("Choose a vault before removing a canvas page.");
+    const page = await getCanvasPageFromVault(root, id);
+    const source = await resolveCanvasPagePath(root, id);
+    const token = await this.moveToTrash(root, source);
+    return { token, kind: "canvas-page", title: page.title };
+  }
+
+  async restoreTrash(token: string): Promise<void> {
+    const entry = this.trashedFiles.get(token);
+    if (!entry)
+      throw new Error("This recovery action has expired. The file remains in .lattice-trash.");
+    const root = this.requireActiveVault(
+      "Reconnect the original vault before restoring this file.",
+    );
+    if (root !== entry.vaultRoot) {
+      throw new Error("Reconnect the original vault before restoring this file.");
+    }
+    assertPathWithinRoot(root, entry.originalPath);
+    assertPathWithinRoot(root, entry.trashPath);
+    const trashStats = await lstat(entry.trashPath);
+    if (!trashStats.isFile() || trashStats.isSymbolicLink()) {
+      throw new Error("The recoverable file is no longer available.");
+    }
+    try {
+      await lstat(entry.originalPath);
+      throw new Error(
+        "A file now exists at the original location; the trashed copy was left safe.",
+      );
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+    const originalDirectory = path.dirname(entry.originalPath);
+    await mkdir(originalDirectory, { recursive: true });
+    const canonicalOriginalDirectory = await realpath(originalDirectory);
+    assertPathWithinRoot(root, canonicalOriginalDirectory);
+    await rename(entry.trashPath, entry.originalPath);
+    this.trashedFiles.delete(token);
+  }
+
   async resolveCanvasReference(input: RevealCanvasReferenceInput): Promise<string> {
     if (!this.activeVault) throw new Error("Choose a vault before revealing a canvas file.");
     return resolveCanvasFileReference(this.activeVault.canonicalPath, input);
@@ -197,6 +263,39 @@ export class VaultService {
   async disconnect(): Promise<void> {
     this.activeVault = null;
     if (this.statePath) await rm(this.statePath, { force: true });
+  }
+
+  private requireActiveVault(message: string): string {
+    if (!this.activeVault) throw new Error(message);
+    return this.activeVault.canonicalPath;
+  }
+
+  private async moveToTrash(root: string, source: string): Promise<string> {
+    assertPathWithinRoot(root, source);
+    const sourceStats = await lstat(source);
+    if (!sourceStats.isFile() || sourceStats.isSymbolicLink()) {
+      throw new Error("Only regular vault files can be moved to Lattice Trash.");
+    }
+    const canonicalSource = await realpath(source);
+    assertPathWithinRoot(root, canonicalSource);
+    const trashDirectory = path.join(root, ".lattice-trash");
+    assertPathWithinRoot(root, trashDirectory);
+    await mkdir(trashDirectory, { recursive: true });
+    const canonicalTrashDirectory = await realpath(trashDirectory);
+    assertPathWithinRoot(root, canonicalTrashDirectory);
+    const token = randomUUID();
+    const trashPath = path.join(
+      canonicalTrashDirectory,
+      `${Date.now()}-${token}-${path.basename(canonicalSource)}`,
+    );
+    assertPathWithinRoot(root, trashPath);
+    await rename(source, trashPath);
+    this.trashedFiles.set(token, {
+      vaultRoot: root,
+      originalPath: source,
+      trashPath,
+    });
+    return token;
   }
 
   private async setActiveVault(

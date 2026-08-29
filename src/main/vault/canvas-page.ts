@@ -476,6 +476,10 @@ export async function getCanvasPageFromVault(
   return (await findUniqueCanvasPage(vaultRoot, id)).located.page;
 }
 
+export async function resolveCanvasPagePath(vaultRoot: string, id: string): Promise<string> {
+  return (await findUniqueCanvasPage(vaultRoot, id)).located.absolutePath;
+}
+
 export async function saveCanvasPageAtomically(
   vaultRoot: string,
   rawInput: SaveCanvasPageInput,

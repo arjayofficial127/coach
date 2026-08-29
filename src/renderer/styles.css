@@ -3283,8 +3283,21 @@ kbd {
   gap: 10px;
 }
 
-.canvas-page-card {
+.canvas-page-shell {
+  position: relative;
+  overflow: hidden;
+  border-radius: 13px;
+}
+
+.link-card-actions button.destructive-link-action:hover {
+  border-color: rgba(232, 115, 132, 0.3);
+  background: rgba(232, 115, 132, 0.1);
+  color: #df8d9a;
+}
+
+.canvas-page-open {
   display: grid;
+  width: 100%;
   min-height: 94px;
   grid-template-columns: 40px minmax(0, 1fr) auto;
   align-items: center;
@@ -3293,6 +3306,7 @@ kbd {
   border-radius: 13px;
   background: rgba(255, 255, 255, 0.025);
   padding: 14px;
+  padding-right: 42px;
   color: #cac7d3;
   text-align: left;
   transition: 150ms ease;
@@ -3319,7 +3333,7 @@ kbd {
   width: 16px;
 }
 
-.canvas-page-card > span:nth-child(2) {
+.canvas-page-copy {
   display: grid;
   min-width: 0;
   gap: 5px;
@@ -3348,6 +3362,30 @@ kbd {
   font-size: 7px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.canvas-page-trash {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #777381;
+}
+
+.canvas-page-trash:hover {
+  border-color: rgba(232, 115, 132, 0.28);
+  background: rgba(232, 115, 132, 0.09);
+  color: #df8d9a;
+}
+
+.canvas-page-trash svg {
+  width: 13px;
 }
 
 .canvas-editor {

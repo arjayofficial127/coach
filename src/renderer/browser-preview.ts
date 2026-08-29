@@ -9,6 +9,10 @@ import type {
   VaultInfo,
 } from "../shared/contracts";
 
+type PreviewTrashEntry =
+  | { kind: "saved-link"; item: SavedLinkRecord }
+  | { kind: "canvas-page"; item: CanvasPageRecord };
+
 const now = Date.now();
 let activeTabId = "11111111-1111-4111-8111-111111111111";
 let tabs: BrowserState[] = [
@@ -35,6 +39,7 @@ let profileState: ProfileState = {
     },
   ],
 };
+const previewTrash = new Map<string, PreviewTrashEntry>();
 const profileTabs = new Map<string, { activeTabId: string; tabs: BrowserState[] }>();
 let vault: VaultInfo | null = null;
 let privacySummary = { cookieCount: 3, cacheBytes: 4_820_000 };
@@ -342,6 +347,29 @@ export function installBrowserPreviewBridge(): void {
           candidate.id === input.id ? updated : candidate,
         );
         return structuredClone(updated);
+      },
+      trashSavedLink: async (id) => {
+        const item = links.find((candidate) => candidate.id === id);
+        if (!item) throw new Error("The saved link could not be found.");
+        const token = crypto.randomUUID();
+        previewTrash.set(token, { kind: "saved-link", item: structuredClone(item) });
+        links = links.filter((candidate) => candidate.id !== id);
+        return { token, kind: "saved-link", title: item.title };
+      },
+      trashCanvasPage: async (id) => {
+        const item = canvasPages.find((candidate) => candidate.id === id);
+        if (!item) throw new Error("The canvas page could not be found.");
+        const token = crypto.randomUUID();
+        previewTrash.set(token, { kind: "canvas-page", item: structuredClone(item) });
+        canvasPages = canvasPages.filter((candidate) => candidate.id !== id);
+        return { token, kind: "canvas-page", title: item.title };
+      },
+      restoreTrash: async (token) => {
+        const entry = previewTrash.get(token);
+        if (!entry) throw new Error("This recovery action has expired.");
+        if (entry.kind === "saved-link") links = [entry.item, ...links];
+        else canvasPages = [entry.item, ...canvasPages];
+        previewTrash.delete(token);
       },
       revealCanvasReference: async () => undefined,
       referenceIndex: async () => ({

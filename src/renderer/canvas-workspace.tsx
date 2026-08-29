@@ -30,6 +30,7 @@ interface CanvasWorkspaceProps {
   openUrl(url: string): Promise<void>;
   onDirtyChange(dirty: boolean): void;
   reportStatus(message: string): void;
+  offerRecovery(message: string, run: () => void | Promise<void>, actionLabel?: string): void;
 }
 
 interface DragState {
@@ -82,6 +83,7 @@ export function CanvasWorkspace({
   openUrl,
   onDirtyChange,
   reportStatus,
+  offerRecovery,
 }: CanvasWorkspaceProps) {
   const [draft, setDraft] = useState<CanvasPageRecord | null>(null);
   const draftRef = useRef<CanvasPageRecord | null>(null);
@@ -208,6 +210,19 @@ export function CanvasWorkspace({
       setDraftDirty(false);
       resetHistory();
       reportStatus("Canvas page created atomically in the Obsidian vault");
+      offerRecovery(`Created ${created.title}`, async () => {
+        if (
+          dirtyRef.current &&
+          !window.confirm("Discard edits and undo creation of this Canvas page?")
+        ) {
+          throw new Error("Creation undo cancelled; current edits remain.");
+        }
+        await window.lattice.vault.trashCanvasPage(created.id);
+        replaceDraft(null);
+        setDraftDirty(false);
+        resetHistory();
+        await refreshPages();
+      });
     } catch (error) {
       reportStatus(error instanceof Error ? error.message : String(error));
     }
@@ -242,6 +257,7 @@ export function CanvasWorkspace({
     if (!draft) return;
     setSaving(true);
     try {
+      const previous = await window.lattice.vault.getCanvasPage(draft.id);
       const saved = await window.lattice.vault.saveCanvasPage({
         id: draft.id,
         title: draft.title,
@@ -253,10 +269,49 @@ export function CanvasWorkspace({
       setDraftDirty(false);
       await refreshPages();
       reportStatus("Canvas page saved atomically");
+      offerRecovery(
+        "Canvas save completed",
+        async () => {
+          if (
+            dirtyRef.current &&
+            !window.confirm(
+              "Discard newer unsaved Canvas changes and restore the prior saved version?",
+            )
+          ) {
+            throw new Error("Saved-version restore cancelled; current edits remain.");
+          }
+          const restored = await window.lattice.vault.saveCanvasPage({
+            id: previous.id,
+            title: previous.title,
+            description: previous.description,
+            nodes: previous.nodes,
+            edges: previous.edges,
+          });
+          replaceDraft(restored);
+          setDraftDirty(false);
+          resetHistory();
+          await refreshPages();
+        },
+        "Restore version",
+      );
     } catch (error) {
       reportStatus(error instanceof Error ? error.message : String(error));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const trashPage = async (page: CanvasPageSummary) => {
+    try {
+      const trashed = await window.lattice.vault.trashCanvasPage(page.id);
+      await refreshPages();
+      reportStatus(`Moved “${page.title}” to Lattice Trash`);
+      offerRecovery(`Moved ${page.title} to Lattice Trash`, async () => {
+        await window.lattice.vault.restoreTrash(trashed.token);
+        await refreshPages();
+      });
+    } catch (error) {
+      reportStatus(error instanceof Error ? error.message : String(error));
     }
   };
 
@@ -606,37 +661,47 @@ export function CanvasWorkspace({
                 </header>
                 <div className="canvas-page-grid">
                   {folderPages.map((page) => (
-                    <button
-                      type="button"
-                      className="canvas-page-card"
-                      key={page.id}
-                      onClick={() => void openPage(page.id)}
-                    >
-                      <span className="canvas-page-glyph">
-                        <Icon name="library" />
-                      </span>
-                      <span>
-                        <strong>{page.title}</strong>
-                        <small>{page.description || "No page description"}</small>
-                      </span>
-                      <b>{page.nodeCount} objects</b>
-                      {referenceIndex.entries.filter(
-                        (entry) => entry.targetKey === `page:${page.id}`,
-                      ).length > 0 && (
-                        <em>
-                          {
-                            referenceIndex.entries.filter(
-                              (entry) => entry.targetKey === `page:${page.id}`,
-                            ).length
-                          }{" "}
-                          incoming · from{" "}
-                          {referenceIndex.entries
-                            .filter((entry) => entry.targetKey === `page:${page.id}`)
-                            .map((entry) => entry.source.title)
-                            .join(", ")}
-                        </em>
-                      )}
-                    </button>
+                    <article className="canvas-page-shell" key={page.id}>
+                      <button
+                        type="button"
+                        className="canvas-page-card canvas-page-open"
+                        onClick={() => void openPage(page.id)}
+                      >
+                        <span className="canvas-page-glyph">
+                          <Icon name="library" />
+                        </span>
+                        <span className="canvas-page-copy">
+                          <strong>{page.title}</strong>
+                          <small>{page.description || "No page description"}</small>
+                        </span>
+                        <b>{page.nodeCount} objects</b>
+                        {referenceIndex.entries.filter(
+                          (entry) => entry.targetKey === `page:${page.id}`,
+                        ).length > 0 && (
+                          <em>
+                            {
+                              referenceIndex.entries.filter(
+                                (entry) => entry.targetKey === `page:${page.id}`,
+                              ).length
+                            }{" "}
+                            incoming · from{" "}
+                            {referenceIndex.entries
+                              .filter((entry) => entry.targetKey === `page:${page.id}`)
+                              .map((entry) => entry.source.title)
+                              .join(", ")}
+                          </em>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className="canvas-page-trash"
+                        aria-label={`Move ${page.title} to Lattice Trash`}
+                        title="Move to Lattice Trash"
+                        onClick={() => void trashPage(page)}
+                      >
+                        <Icon name="trash" />
+                      </button>
+                    </article>
                   ))}
                 </div>
               </section>

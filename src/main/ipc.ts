@@ -195,6 +195,15 @@ export function registerIpc(
   handle(IPC.vaultSaveCanvasPage, (_event, payload) =>
     vault.saveCanvasPage(parseSaveCanvasPageInput(payload)),
   );
+  handle(IPC.vaultTrashSavedLink, (_event, payload) =>
+    vault.trashSavedLink(z.string().uuid().parse(payload)),
+  );
+  handle(IPC.vaultTrashCanvasPage, (_event, payload) =>
+    vault.trashCanvasPage(z.string().uuid().parse(payload)),
+  );
+  handle(IPC.vaultRestoreTrash, (_event, payload) =>
+    vault.restoreTrash(z.string().uuid().parse(payload)),
+  );
   handle(IPC.vaultRevealCanvasReference, async (_event, payload) => {
     const absolutePath = await vault.resolveCanvasReference(
       parseRevealCanvasReferenceInput(payload),
