@@ -1444,10 +1444,10 @@ kbd {
   display: flex;
   height: 35px;
   align-self: flex-end;
-  min-width: 114px;
+  min-width: 84px;
   align-items: center;
   gap: 7px;
-  padding: 0 10px 0 8px;
+  padding: 0 8px;
   color: #858391;
   font-size: 9px;
   font-weight: 650;
