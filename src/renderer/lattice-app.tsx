@@ -22,7 +22,7 @@ import type {
   VaultReferenceIndex,
 } from "../shared/contracts";
 import latticeLogoUrl from "./assets/lattice-logo.svg";
-import { journalItemsForLane } from "./bullet-journal-model";
+import { journalItemsForLane, localDayKey } from "./bullet-journal-model";
 import { CanvasWorkspace } from "./canvas-workspace";
 import {
   FOCUS_STORAGE_KEY,
@@ -39,6 +39,7 @@ import {
   DEFAULT_RUNNABLE_APPS_STATE,
   parseRunnableAppsState,
   RUNNABLE_APPS_STORAGE_KEY,
+  type RunnableAppId,
   type RunnableAppsState,
 } from "./runnable-apps-model";
 import { RunnableAppsSurface } from "./runnable-apps-surface";
@@ -278,6 +279,7 @@ export function LatticeApp() {
     useState<CustomThemePreferences>(DEFAULT_CUSTOM_THEME);
   const [focusIntention, setFocusIntention] = useState("");
   const [runnableApps, setRunnableApps] = useState<RunnableAppsState>(DEFAULT_RUNNABLE_APPS_STATE);
+  const [runnableAppTarget, setRunnableAppTarget] = useState<RunnableAppId>("pomodoro");
   const [profileState, setProfileState] = useState<ProfileState | null>(null);
   const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -453,8 +455,19 @@ export function LatticeApp() {
   }, [libraryQuery, links]);
   const visibleLinks = surface === "queue" ? queuedLinks : filteredLinks;
   const queueCount = links.filter((link) => link.readingStatus === "queued").length;
-  const nextQueuedLink = queuedLinks[0] ?? null;
   const dailyFlowInboxCount = journalItemsForLane(runnableApps.bulletJournal, "inbox").length;
+  const todayFocusItems = useMemo(
+    () => journalItemsForLane(runnableApps.bulletJournal, "today", localDayKey()).slice(0, 3),
+    [runnableApps.bulletJournal],
+  );
+  const queuePreview = queuedLinks.slice(0, 3);
+  const greeting = (() => {
+    const hour = new Date().getHours();
+    const timeOfDay = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+    const profileName = activeProfile?.name.trim();
+    const familiarName = profileName && profileName.toLowerCase() !== "personal" ? profileName : "";
+    return `Good ${timeOfDay}${familiarName ? `, ${familiarName}` : ""}`;
+  })();
   const recentCanvasPage = useMemo(
     () =>
       [...canvasPages].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0] ??
@@ -1184,6 +1197,16 @@ export function LatticeApp() {
 
   const showRunnableApps = () => {
     if (!confirmCanvasLeave()) return;
+    setRunnableAppTarget("pomodoro");
+    setSurface("apps");
+    setCaptureOpen(false);
+    setCommandOpen(false);
+    setBrowserMenuOpen(false);
+  };
+
+  const showRunnableApp = (appId: RunnableAppId) => {
+    if (!confirmCanvasLeave()) return;
+    setRunnableAppTarget(appId);
     setSurface("apps");
     setCaptureOpen(false);
     setCommandOpen(false);
@@ -2511,10 +2534,10 @@ export function LatticeApp() {
               <div className="trusted-surface home-surface">
                 <div className="home-hero">
                   <span className="hero-kicker">
-                    <Icon name="sparkle" /> Focus · {activeDesktop?.name ?? "Research"}
+                    <Icon name="sparkle" /> {greeting}
                   </span>
-                  <h1>Welcome back. Choose one thing.</h1>
-                  <p>You do not need to recover every open thread at once.</p>
+                  <h1>Let&apos;s focus on what matters.</h1>
+                  <p>One meaningful next step. Everything else can wait.</p>
                   <label className="focus-intention">
                     <span>What matters now?</span>
                     <input
@@ -2534,25 +2557,21 @@ export function LatticeApp() {
                       ref={omniboxRef}
                       value={homeQuery}
                       onChange={(event) => setHomeQuery(event.target.value)}
-                      placeholder="Start a focused search or paste a link"
+                      placeholder="Search, command, or paste a link"
                     />
+                    <kbd>Ctrl K</kbd>
                     <button type="submit">
                       Go <span>↗</span>
                     </button>
                   </form>
                 </div>
-                <section className="resume-section" aria-labelledby="resume-heading">
-                  <header>
-                    <div>
-                      <span className="eyebrow">A gentle way back</span>
-                      <h2 id="resume-heading">Resume one thread</h2>
-                    </div>
-                    <span>Focus view hides everything else until you press Esc.</span>
-                  </header>
-                  <div className="resume-grid">
+
+                <section className="home-dashboard" aria-label="Your focus dashboard">
+                  <div className="home-dashboard-stack">
                     <button
                       type="button"
-                      className="resume-card primary-resume"
+                      className="home-panel-card home-context-card primary-context"
+                      data-home-card="recent-thread"
                       onClick={() => {
                         if (resumableTab) {
                           void switchTab(resumableTab).then(() => setDistractionFree(true));
@@ -2561,94 +2580,203 @@ export function LatticeApp() {
                         }
                       }}
                     >
-                      <span className="resume-icon violet">
-                        <Icon name="globe" />
+                      <span className="home-card-label">Resume recent thread</span>
+                      <span className="home-context-main">
+                        <span className="home-card-icon violet">
+                          <Icon name="globe" />
+                        </span>
+                        <span>
+                          <strong>
+                            {resumableTab ? displayTitle(resumableTab) : "Start a focused search"}
+                          </strong>
+                          <small>
+                            {resumableTab
+                              ? `${displayHost(resumableTab.url)} · ${activeDesktop?.name ?? "Workspace"}`
+                              : "Your next useful thread begins here"}
+                          </small>
+                        </span>
+                        <Icon name="arrow-right" />
                       </span>
-                      <span>
-                        <small>{resumableTab ? "Continue browsing" : "Begin"}</small>
-                        <strong>
-                          {resumableTab ? displayTitle(resumableTab) : "Start a focused search"}
-                        </strong>
-                        <em>
-                          {resumableTab
-                            ? displayHost(resumableTab.url)
-                            : "Use the search field above"}
-                        </em>
-                      </span>
-                      <Icon name="arrow-right" />
+                      <em>{resumableTab ? "Ready to continue" : "No open website yet"}</em>
                     </button>
+
                     <button
                       type="button"
-                      className="resume-card"
-                      onClick={() => {
-                        if (nextQueuedLink) {
-                          void openUrl(nextQueuedLink.url, true).then(() =>
-                            setDistractionFree(true),
-                          );
-                        } else {
-                          void showReadingQueue();
-                        }
-                      }}
+                      className="home-panel-card home-context-card"
+                      data-home-card="canvas"
+                      onClick={() => void showCanvasPages(recentCanvasPage?.id ?? null)}
                     >
-                      <span className="resume-icon cyan">
+                      <span className="home-card-label">Canvas / workspace</span>
+                      <span className="home-context-main">
+                        <span className="home-card-icon amber">
+                          <Icon name="grid" />
+                        </span>
+                        <span>
+                          <strong>{recentCanvasPage?.title ?? "Create a connected canvas"}</strong>
+                          <small>
+                            {recentCanvasPage
+                              ? `${recentCanvasPage.nodeCount} objects · Edited ${relativeDate(recentCanvasPage.updatedAt)}`
+                              : "Websites, notes, files, and ideas on one page"}
+                          </small>
+                        </span>
+                        <Icon name="arrow-right" />
+                      </span>
+                    </button>
+                  </div>
+
+                  <article className="home-panel-card home-list-card" data-home-card="today-focus">
+                    <header>
+                      <span className="home-card-icon sunlit">
+                        <Icon name="sparkle" />
+                      </span>
+                      <span>
+                        <small>Today&apos;s focus</small>
+                        <strong>{focusIntention || "Choose up to three outcomes"}</strong>
+                      </span>
+                    </header>
+                    <div className="home-task-list">
+                      {todayFocusItems.length > 0 ? (
+                        todayFocusItems.map((item) => (
+                          <button
+                            type="button"
+                            className={item.now ? "home-task-row now" : "home-task-row"}
+                            key={item.id}
+                            onClick={() => showRunnableApp("daily-flow")}
+                          >
+                            <span className="home-task-marker" />
+                            <span>{item.text}</span>
+                            {item.now && <em>Now</em>}
+                          </button>
+                        ))
+                      ) : (
+                        <button
+                          type="button"
+                          className="home-list-empty"
+                          onClick={() => showRunnableApp("daily-flow")}
+                        >
+                          <span className="home-task-marker" />
+                          <span>Choose today&apos;s first small task in Daily Flow</span>
+                          <Icon name="arrow-right" />
+                        </button>
+                      )}
+                    </div>
+                    <footer>
+                      <span>{todayFocusItems.length} of 3 chosen</span>
+                      <button type="button" onClick={() => showRunnableApp("daily-flow")}>
+                        Open Daily Flow <Icon name="arrow-right" />
+                      </button>
+                    </footer>
+                  </article>
+
+                  <article
+                    className="home-panel-card home-list-card"
+                    data-home-card="reading-queue"
+                  >
+                    <header>
+                      <span className="home-card-icon cyan">
                         <Icon name="bookmark" />
                       </span>
                       <span>
-                        <small>{nextQueuedLink ? "Read next" : "Reading queue"}</small>
-                        <strong>{nextQueuedLink?.title ?? "Nothing waiting for you"}</strong>
-                        <em>
-                          {nextQueuedLink
-                            ? displayHost(nextQueuedLink.url)
-                            : "Add only what is worth returning to"}
-                        </em>
+                        <small>Reading queue</small>
+                        <strong>
+                          {queueCount > 0 ? "Worth returning to" : "Nothing waiting for you"}
+                        </strong>
                       </span>
-                      <b>{queueCount}</b>
-                    </button>
-                    <button
-                      type="button"
-                      className="resume-card"
-                      onClick={() => {
-                        void showCanvasPages(recentCanvasPage?.id ?? null).then(() =>
-                          setDistractionFree(true),
-                        );
-                      }}
-                    >
-                      <span className="resume-icon amber">
-                        <Icon name="grid" />
-                      </span>
-                      <span>
-                        <small>{recentCanvasPage ? "Return to a canvas" : "Canvas pages"}</small>
-                        <strong>{recentCanvasPage?.title ?? "Map the work visually"}</strong>
-                        <em>
-                          {recentCanvasPage
-                            ? `${recentCanvasPage.nodeCount} objects · ${relativeDate(recentCanvasPage.updatedAt)}`
-                            : "Keep related websites, notes, and files together"}
-                        </em>
-                      </span>
-                      <Icon name="arrow-right" />
-                    </button>
-                  </div>
+                    </header>
+                    <div className="home-reading-list">
+                      {queuePreview.length > 0 ? (
+                        queuePreview.map((link) => (
+                          <button
+                            type="button"
+                            className="home-reading-row"
+                            key={link.id}
+                            onClick={() => void openUrl(link.url, true)}
+                          >
+                            <span className="home-reading-thumbnail">
+                              <Icon name="globe" />
+                            </span>
+                            <span>
+                              <strong>{link.title}</strong>
+                              <small>{displayHost(link.url)}</small>
+                            </span>
+                            <Icon name="arrow-right" />
+                          </button>
+                        ))
+                      ) : (
+                        <button
+                          type="button"
+                          className="home-list-empty"
+                          onClick={showReadingQueue}
+                        >
+                          <span className="home-card-icon cyan">
+                            <Icon name="bookmark" />
+                          </span>
+                          <span>Save only what deserves another look</span>
+                          <Icon name="arrow-right" />
+                        </button>
+                      )}
+                    </div>
+                    <footer>
+                      <span>{queueCount} queued</span>
+                      <button type="button" onClick={showReadingQueue}>
+                        See all <Icon name="arrow-right" />
+                      </button>
+                    </footer>
+                  </article>
                 </section>
-                <nav className="home-destination-strip" aria-label="All destinations">
-                  <button type="button" onClick={() => void showLibrary()}>
-                    <Icon name="bookmark" /> {links.length} saved links <kbd>Alt 4</kbd>
+
+                <nav className="home-quick-routes" aria-label="All destinations">
+                  <button
+                    type="button"
+                    data-home-route="saved-links"
+                    onClick={() => void showLibrary()}
+                  >
+                    <span className="home-card-icon violet">
+                      <Icon name="bookmark" />
+                    </span>
+                    <span>
+                      <small>Saved links</small>
+                      <strong>Articles, docs, and resources</strong>
+                    </span>
+                    <b>{links.length}</b>
                   </button>
-                  <button type="button" onClick={() => void showCanvasPages()}>
-                    <Icon name="grid" /> {canvasPages.length} canvas pages <kbd>Alt 3</kbd>
+                  <button type="button" data-home-route="runnable-apps" onClick={showRunnableApps}>
+                    <span className="home-card-icon green">
+                      <Icon name="timer" />
+                    </span>
+                    <span>
+                      <small>Runnable apps</small>
+                      <strong>Tools that run locally</strong>
+                    </span>
+                    <b>3</b>
                   </button>
-                  <button type="button" onClick={showRunnableApps}>
-                    <Icon name="timer" /> Runnable apps <kbd>Alt 7</kbd>
-                  </button>
-                  <button type="button" onClick={() => void showSettings()}>
-                    <Icon name="settings" /> Settings <kbd>Alt 6</kbd>
+                  <button
+                    type="button"
+                    data-home-route="settings"
+                    onClick={() => void showSettings()}
+                  >
+                    <span className="home-card-icon neutral">
+                      <Icon name="settings" />
+                    </span>
+                    <span>
+                      <small>Settings</small>
+                      <strong>Preferences, shortcuts, and privacy</strong>
+                    </span>
+                    <Icon name="arrow-right" />
                   </button>
                 </nav>
-                <div className="privacy-note">
-                  <Icon name="lock" />
-                  <span>
-                    <strong>Local and calm by design</strong>Your intention, workspace, and Markdown
-                    stay on this computer.
+
+                <div className="home-privacy-card">
+                  <span className="home-card-icon violet">
+                    <Icon name="lock" />
                   </span>
+                  <span>
+                    <strong>Private by design. Always local.</strong>
+                    <small>
+                      Your data stays on this device. Lattice never sees or stores your content.
+                    </small>
+                  </span>
+                  <em>Local-first</em>
                 </div>
               </div>
             )}
@@ -2892,8 +3020,9 @@ export function LatticeApp() {
 
             {surface === "apps" && (
               <RunnableAppsSurface
-                key={activeProfile?.id ?? "profile-loading"}
+                key={`${activeProfile?.id ?? "profile-loading"}-${runnableAppTarget}`}
                 state={runnableApps}
+                initialApp={runnableAppTarget}
                 onChange={setRunnableApps}
                 reportStatus={setStatus}
                 offerRecovery={offerRecovery}

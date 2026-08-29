@@ -96,8 +96,11 @@ export interface PhaseNineSmokeEvidence {
   };
   navigation: {
     heading: string;
-    resumeCardCount: number;
-    destinations: string[];
+    dashboardCards: string[];
+    quickRoutes: string[];
+    todayTaskCount: number;
+    readingPreviewCount: number;
+    privacyPromise: string;
     intention: string;
     focusMode: boolean;
     chromeHidden: boolean;
@@ -675,9 +678,13 @@ export async function runPhaseNineSmoke(
       await new Promise((resolve) => setTimeout(resolve, 75));
       return {
         heading: document.querySelector('.home-hero h1')?.textContent?.trim() ?? "",
-        resumeCardCount: document.querySelectorAll('.resume-card').length,
-        destinations: [...document.querySelectorAll('.home-destination-strip button')]
-          .map((button) => button.textContent?.replace(/\\s+/g, " ").trim() ?? ""),
+        dashboardCards: [...document.querySelectorAll('[data-home-card]')]
+          .map((card) => card.getAttribute('data-home-card') ?? ""),
+        quickRoutes: [...document.querySelectorAll('[data-home-route]')]
+          .map((route) => route.getAttribute('data-home-route') ?? ""),
+        todayTaskCount: document.querySelectorAll('.home-task-row').length,
+        readingPreviewCount: document.querySelectorAll('.home-reading-row').length,
+        privacyPromise: document.querySelector('.home-privacy-card strong')?.textContent?.trim() ?? "",
         intention: document.querySelector('.focus-session-copy strong')?.textContent?.trim() ?? "",
         focusMode: document.querySelector('.lattice-shell')?.classList.contains('focus-mode') ?? false,
         chromeHidden: getComputedStyle(document.querySelector('.activity-rail')).display === 'none' &&
@@ -686,8 +693,11 @@ export async function runPhaseNineSmoke(
       };
     })()`)) as {
       heading: string;
-      resumeCardCount: number;
-      destinations: string[];
+      dashboardCards: string[];
+      quickRoutes: string[];
+      todayTaskCount: number;
+      readingPreviewCount: number;
+      privacyPromise: string;
       intention: string;
       focusMode: boolean;
       chromeHidden: boolean;

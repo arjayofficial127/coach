@@ -305,8 +305,13 @@ if (!smoke.webContentsDestroyedAfterClose) {
   smokeFailures.push("installed native web contents did not close cleanly");
 }
 if (
-  smoke.navigation?.heading !== "Welcome back. Choose one thing." ||
-  smoke.navigation?.resumeCardCount !== 3 ||
+  smoke.navigation?.heading !== "Let's focus on what matters." ||
+  JSON.stringify(smoke.navigation?.dashboardCards) !==
+    JSON.stringify(["recent-thread", "canvas", "today-focus", "reading-queue"]) ||
+  JSON.stringify(smoke.navigation?.quickRoutes) !==
+    JSON.stringify(["saved-links", "runnable-apps", "settings"]) ||
+  smoke.navigation?.readingPreviewCount < 1 ||
+  smoke.navigation?.privacyPromise !== "Private by design. Always local." ||
   !smoke.navigation?.focusMode ||
   !smoke.navigation?.chromeHidden ||
   !smoke.navigation?.nativeViewHidden ||

@@ -20,6 +20,7 @@ import { WealthLabSurface } from "./wealth-lab-surface";
 
 interface RunnableAppsSurfaceProps {
   state: RunnableAppsState;
+  initialApp?: RunnableAppId;
   onChange: (state: RunnableAppsState) => void;
   reportStatus: (status: string) => void;
   offerRecovery: (message: string, run: () => void | Promise<void>, actionLabel?: string) => void;
@@ -42,12 +43,13 @@ function historyTimestamp(value: string): string {
 
 export function RunnableAppsSurface({
   state,
+  initialApp = "pomodoro",
   onChange,
   reportStatus,
   offerRecovery,
 }: RunnableAppsSurfaceProps) {
   const [task, setTask] = useState("");
-  const [selectedApp, setSelectedApp] = useState<RunnableAppId>("pomodoro");
+  const [selectedApp, setSelectedApp] = useState<RunnableAppId>(initialApp);
   const [plannedMinutes, setPlannedMinutes] = useState(25);
   const [now, setNow] = useState(Date.now());
   const [correctingRunId, setCorrectingRunId] = useState<string | null>(null);

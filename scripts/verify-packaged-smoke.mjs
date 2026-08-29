@@ -223,11 +223,16 @@ if (
   );
 }
 if (
-  evidence.navigation?.heading !== "Welcome back. Choose one thing." ||
-  evidence.navigation?.resumeCardCount !== 3 ||
+  evidence.navigation?.heading !== "Let's focus on what matters." ||
+  JSON.stringify(evidence.navigation?.dashboardCards) !==
+    JSON.stringify(["recent-thread", "canvas", "today-focus", "reading-queue"]) ||
+  JSON.stringify(evidence.navigation?.quickRoutes) !==
+    JSON.stringify(["saved-links", "runnable-apps", "settings"]) ||
+  evidence.navigation?.readingPreviewCount < 1 ||
+  evidence.navigation?.privacyPromise !== "Private by design. Always local." ||
   evidence.navigation?.intention !== "Finish one meaningful thread"
 ) {
-  failures.push("focus home did not expose the intended calm resume model");
+  failures.push("focus home did not expose the intended real-data dashboard model");
 }
 if (
   !evidence.navigation?.focusMode ||
