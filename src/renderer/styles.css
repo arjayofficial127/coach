@@ -8085,3 +8085,944 @@ kbd {
     transition: none;
   }
 }
+
+/* Council New Tab shell: a quiet browser launch surface with one consolidated sidebar. */
+.lattice-shell.new-tab-shell {
+  --coach-sidebar-width: 334px;
+  --coach-chrome-height: 56px;
+  --coach-bg: #101017;
+  --coach-sidebar-bg: #121219;
+  --coach-surface: #17171f;
+  --coach-ink: #f0eff7;
+  --coach-muted: #9897a8;
+  --coach-border: rgba(255, 255, 255, 0.08);
+  --coach-purple: #8b7cf6;
+  --coach-purple-strong: #9a8cff;
+  --coach-purple-soft: rgba(139, 124, 246, 0.15);
+  --coach-purple-border: rgba(139, 124, 246, 0.32);
+  --coach-cream: #fffaf0;
+  --coach-success: #24b979;
+  --coach-radius-sm: 10px;
+  --coach-radius-md: 14px;
+  --coach-radius-lg: 17px;
+  --coach-radius-paper: 18px;
+}
+
+.lattice-shell.new-tab-shell.theme-adaptive {
+  --coach-bg: #fdfdfc;
+  --coach-sidebar-bg: #fbfbfa;
+  --coach-surface: #ffffff;
+  --coach-ink: #171b24;
+  --coach-muted: #697184;
+  --coach-border: rgba(27, 31, 43, 0.08);
+  --coach-purple: #6d52f2;
+  --coach-purple-strong: #6548eb;
+  --coach-purple-soft: #f1efff;
+  --coach-purple-border: #d8d2ff;
+}
+
+.lattice-shell.new-tab-shell:not(.focus-mode) {
+  grid-template-columns: var(--coach-sidebar-width) minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--coach-bg);
+}
+
+.lattice-shell.new-tab-shell:not(.focus-mode) > .activity-rail {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  border: 0;
+  padding: 0;
+}
+
+.lattice-shell.new-tab-shell > .workspace-panel {
+  z-index: 6;
+  overflow-x: visible;
+  overflow-y: auto;
+  border-right: 1px solid var(--coach-border);
+  background-color: var(--coach-sidebar-bg);
+  padding: 20px 20px 18px;
+  color: var(--coach-ink);
+  scrollbar-width: thin;
+}
+
+.lattice-shell.new-tab-shell .workspace-heading {
+  padding: 0;
+}
+
+.lattice-shell.new-tab-shell .workspace-selector {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: 58px;
+  grid-template-columns: 42px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 12px;
+  border-radius: var(--coach-radius-md);
+  background: transparent;
+  padding: 4px 6px 4px 0;
+  color: var(--coach-ink);
+  text-align: left;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.lattice-shell.new-tab-shell .workspace-selector:hover,
+.lattice-shell.new-tab-shell .workspace-selector[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--coach-purple) 7%, transparent);
+}
+
+.lattice-shell.new-tab-shell .workspace-selector-logo {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--coach-purple) 14%, var(--coach-border));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--coach-purple-soft) 58%, var(--coach-surface));
+}
+
+.lattice-shell.new-tab-shell .workspace-selector-logo img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+.lattice-shell.new-tab-shell .workspace-title {
+  gap: 5px;
+}
+
+.lattice-shell.new-tab-shell .workspace-title .eyebrow {
+  color: var(--coach-muted);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+}
+
+.lattice-shell.new-tab-shell .workspace-title strong {
+  color: var(--coach-ink);
+  font-size: 15px;
+  font-weight: 680;
+}
+
+.lattice-shell.new-tab-shell .workspace-selector > svg {
+  width: 16px;
+  height: 16px;
+  color: var(--coach-muted);
+}
+
+.lattice-shell.new-tab-shell .workspace-menu {
+  top: 62px;
+  right: 0;
+  width: 248px;
+  border-color: var(--coach-border);
+  background: var(--coach-surface);
+  color: var(--coach-ink);
+}
+
+.lattice-shell.new-tab-shell .panel-search {
+  width: 100%;
+  height: 48px;
+  margin: 14px 0 18px;
+  gap: 10px;
+  border: 1px solid var(--coach-border);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--coach-surface) 74%, transparent);
+  padding: 0 13px;
+  color: var(--coach-muted);
+  font-size: 13px;
+}
+
+.lattice-shell.new-tab-shell .panel-search:hover {
+  border-color: color-mix(in srgb, var(--coach-purple) 34%, var(--coach-border));
+  background: color-mix(in srgb, var(--coach-purple-soft) 48%, transparent);
+  color: var(--coach-ink);
+}
+
+.lattice-shell.new-tab-shell .panel-search svg {
+  width: 18px;
+  height: 18px;
+}
+
+.lattice-shell.new-tab-shell .panel-search kbd {
+  min-width: 46px;
+  border-color: var(--coach-border);
+  background: color-mix(in srgb, var(--coach-surface) 82%, transparent);
+  padding: 4px 6px;
+  color: var(--coach-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.lattice-shell.new-tab-shell .section-label {
+  height: 26px;
+  padding: 0 1px;
+  color: var(--coach-muted);
+  font-size: 10px;
+  letter-spacing: 0.17em;
+}
+
+.lattice-shell.new-tab-shell .desktop-section-label {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.lattice-shell.new-tab-shell .section-label button {
+  width: 40px;
+  height: 40px;
+  color: var(--coach-muted);
+}
+
+.lattice-shell.new-tab-shell .desktop-list {
+  gap: 7px;
+}
+
+.lattice-shell.new-tab-shell .desktop-item {
+  min-height: 64px;
+  grid-template-columns: 42px minmax(0, 1fr) 28px;
+  gap: 10px;
+  border: 1px solid var(--coach-border);
+  border-radius: var(--coach-radius-md);
+  background: transparent;
+  padding: 10px 11px;
+  color: var(--coach-ink);
+}
+
+.lattice-shell.new-tab-shell.theme-adaptive .desktop-item,
+.lattice-shell.new-tab-shell.theme-adaptive .desktop-item:hover {
+  background: transparent;
+}
+
+.lattice-shell.new-tab-shell .desktop-item:hover {
+  border-color: var(--coach-border);
+  background: color-mix(in srgb, var(--coach-surface) 70%, transparent);
+}
+
+.lattice-shell.new-tab-shell .desktop-item.active,
+.lattice-shell.new-tab-shell.theme-adaptive .desktop-item.active {
+  border-color: var(--coach-purple-border);
+  background: var(--coach-purple-soft);
+  color: var(--coach-ink);
+}
+
+.lattice-shell.new-tab-shell .desktop-select,
+.lattice-shell.new-tab-shell .desktop-glyph {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+}
+
+.lattice-shell.new-tab-shell .desktop-select:hover {
+  background: transparent;
+}
+
+.lattice-shell.new-tab-shell .desktop-glyph svg {
+  width: 18px;
+  height: 18px;
+}
+
+.lattice-shell.new-tab-shell .desktop-copy {
+  gap: 4px;
+}
+
+.lattice-shell.new-tab-shell .desktop-copy strong {
+  color: var(--coach-ink);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.lattice-shell.new-tab-shell .desktop-copy small {
+  color: var(--coach-muted);
+  font-size: 11px;
+}
+
+.lattice-shell.new-tab-shell .desktop-archive-trigger {
+  width: 28px;
+  height: 28px;
+}
+
+.lattice-shell.new-tab-shell .navigation-label {
+  margin-top: 18px;
+  margin-bottom: 6px;
+}
+
+.lattice-shell.new-tab-shell .focus-navigation {
+  gap: 2px;
+  margin-bottom: 17px;
+}
+
+.lattice-shell.new-tab-shell .navigation-row,
+.lattice-shell.new-tab-shell .library-row.navigation-row {
+  min-height: 50px;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 11px;
+  border-color: transparent;
+  border-radius: 12px;
+  background: transparent;
+  padding: 5px 8px;
+  color: var(--coach-ink);
+}
+
+.lattice-shell.new-tab-shell .navigation-row:hover,
+.lattice-shell.new-tab-shell .library-row.navigation-row:hover {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--coach-purple) 6%, transparent);
+  color: var(--coach-ink);
+}
+
+.lattice-shell.new-tab-shell .navigation-row.active,
+.lattice-shell.new-tab-shell .library-row.navigation-row.active {
+  border-color: transparent;
+  background: var(--coach-purple-soft);
+  color: var(--coach-ink);
+}
+
+.lattice-shell.new-tab-shell .navigation-row-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  box-shadow: 0 4px 12px rgba(20, 24, 35, 0.06);
+}
+
+.lattice-shell.new-tab-shell .navigation-row-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.lattice-shell.new-tab-shell .navigation-row strong {
+  color: var(--coach-ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.lattice-shell.new-tab-shell .navigation-row small {
+  color: var(--coach-muted);
+  font-size: 10px;
+}
+
+.lattice-shell.new-tab-shell .navigation-row :where(kbd, b),
+.lattice-shell.new-tab-shell .library-row b {
+  min-width: 24px;
+  border: 1px solid var(--coach-border);
+  border-radius: 7px;
+  background: transparent;
+  padding: 3px 5px;
+  color: var(--coach-muted);
+  font-size: 9px;
+  font-weight: 650;
+  text-align: center;
+}
+
+.lattice-shell.new-tab-shell .library-label {
+  margin-bottom: 4px;
+}
+
+.lattice-shell.new-tab-shell > .workspace-panel > .library-row {
+  display: grid;
+  width: 100%;
+  min-height: 44px;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  padding: 0 9px;
+  color: var(--coach-muted);
+  text-align: left;
+}
+
+.lattice-shell.new-tab-shell > .workspace-panel > .library-row:hover,
+.lattice-shell.new-tab-shell > .workspace-panel > .library-row.active {
+  background: color-mix(in srgb, var(--coach-purple) 6%, transparent);
+  color: var(--coach-ink);
+}
+
+.lattice-shell.new-tab-shell > .workspace-panel > .library-row svg {
+  width: 17px;
+  height: 17px;
+}
+
+.lattice-shell.new-tab-shell .vault-card {
+  position: relative;
+  min-height: 70px;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 11px;
+  border: 1px solid color-mix(in srgb, var(--coach-success) 20%, var(--coach-border));
+  border-radius: var(--coach-radius-md);
+  background: color-mix(in srgb, var(--coach-success) 5%, var(--coach-surface));
+  padding: 12px;
+}
+
+.lattice-shell.new-tab-shell .vault-card-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--coach-success) 10%, transparent);
+  color: var(--coach-success);
+}
+
+.lattice-shell.new-tab-shell .vault-card-copy strong {
+  color: var(--coach-ink);
+  font-size: 12px;
+}
+
+.lattice-shell.new-tab-shell .vault-card-copy span {
+  color: var(--coach-muted);
+  font-size: 10px;
+}
+
+.lattice-shell.new-tab-shell .vault-card-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--coach-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--coach-success) 12%, transparent);
+}
+
+.lattice-shell.new-tab-shell .new-tab-content {
+  grid-template-rows: var(--coach-chrome-height) minmax(0, 1fr);
+  background: var(--coach-bg);
+}
+
+.lattice-shell.new-tab-shell .tab-strip {
+  align-items: end;
+  border-bottom-color: var(--coach-border);
+  background: color-mix(in srgb, var(--coach-bg) 96%, var(--coach-purple) 4%);
+  padding-left: 10px;
+}
+
+.lattice-shell.new-tab-shell .tabs-viewport {
+  gap: 4px;
+}
+
+.lattice-shell.new-tab-shell .browser-tab {
+  width: min(250px, 23vw);
+  max-width: 250px;
+  height: 46px;
+  border-color: transparent;
+  border-radius: 12px 12px 0 0;
+  color: var(--coach-muted);
+}
+
+.lattice-shell.new-tab-shell .browser-tab:hover {
+  background: color-mix(in srgb, var(--coach-surface) 42%, transparent);
+  color: var(--coach-ink);
+}
+
+.lattice-shell.new-tab-shell .browser-tab.active,
+.lattice-shell.new-tab-shell.theme-adaptive .browser-tab.active {
+  border-color: var(--coach-border);
+  border-bottom-color: var(--coach-surface);
+  background: color-mix(in srgb, var(--coach-surface) 97%, var(--coach-purple) 3%);
+  color: var(--coach-ink);
+}
+
+.lattice-shell.new-tab-shell .tab-title {
+  font-size: 12px;
+}
+
+.lattice-shell.new-tab-shell .new-tab-button {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 3px;
+  color: var(--coach-muted);
+}
+
+.lattice-shell.new-tab-shell .new-tab-surface {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(560px, 644px) minmax(360px, 400px);
+  align-content: start;
+  justify-content: center;
+  column-gap: clamp(48px, 5vw, 72px);
+  overflow-x: hidden;
+  background-color: var(--coach-bg);
+  background-image: radial-gradient(
+    700px 440px at 50% 19%,
+    color-mix(in srgb, var(--coach-purple) 3.5%, transparent),
+    transparent 68%
+  );
+  padding: 128px max(40px, calc((100% - 1128px) / 2)) 56px;
+  color: var(--coach-ink);
+}
+
+.lattice-shell.new-tab-shell .new-tab-page-actions {
+  position: absolute;
+  z-index: 3;
+  top: 31px;
+  right: 42px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.lattice-shell.new-tab-shell .new-tab-page-actions button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 11px;
+  background: transparent;
+  padding: 0 11px;
+  color: var(--coach-muted);
+  font-size: 13px;
+  font-weight: 560;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.lattice-shell.new-tab-shell .new-tab-page-actions button:hover {
+  background: color-mix(in srgb, var(--coach-purple) 7%, transparent);
+  color: var(--coach-ink);
+}
+
+.lattice-shell.new-tab-shell .new-tab-page-actions button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.lattice-shell.new-tab-shell .new-tab-page-actions .new-tab-appearance {
+  width: 42px;
+  padding: 0;
+  border: 1px solid var(--coach-border);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--coach-surface) 75%, transparent);
+}
+
+.lattice-shell.new-tab-shell .new-tab-search-zone {
+  display: block;
+  min-width: 0;
+}
+
+.lattice-shell.new-tab-shell .new-tab-heading {
+  display: block;
+}
+
+.lattice-shell.new-tab-shell .new-tab-kicker {
+  margin-bottom: 25px;
+  color: var(--coach-purple);
+  font-size: 11px;
+  letter-spacing: 0.17em;
+}
+
+.lattice-shell.new-tab-shell .new-tab-kicker svg {
+  width: 16px;
+  height: 16px;
+}
+
+.lattice-shell.new-tab-shell .new-tab-heading h1 {
+  max-width: 650px;
+  color: var(--coach-ink);
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-size: clamp(54px, 4.2vw, 68px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
+
+.lattice-shell.new-tab-shell .new-tab-heading p {
+  margin-top: 18px;
+  color: var(--coach-muted);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.lattice-shell.new-tab-shell .new-tab-search {
+  height: 86px;
+  grid-template-columns: 24px minmax(0, 1fr) 124px;
+  gap: 14px;
+  margin-top: 28px;
+  border-color: color-mix(in srgb, var(--coach-purple) 22%, var(--coach-border));
+  border-radius: var(--coach-radius-lg);
+  background: color-mix(in srgb, var(--coach-surface) 96%, transparent);
+  padding: 10px 10px 10px 20px;
+  box-shadow:
+    0 1px 2px rgba(20, 24, 35, 0.025),
+    0 12px 30px rgba(20, 24, 35, 0.05);
+}
+
+.lattice-shell.new-tab-shell .new-tab-search:focus-within {
+  box-shadow:
+    0 0 0 3px rgba(108, 83, 246, 0.09),
+    0 12px 30px rgba(25, 29, 45, 0.05);
+}
+
+.lattice-shell.new-tab-shell .new-tab-search > svg {
+  width: 23px;
+  height: 23px;
+  color: var(--coach-muted);
+}
+
+.lattice-shell.new-tab-shell .new-tab-search input {
+  color: var(--coach-ink);
+  font-size: 17px;
+}
+
+.lattice-shell.new-tab-shell .new-tab-search input::placeholder {
+  color: var(--coach-muted);
+}
+
+.lattice-shell.new-tab-shell .new-tab-search button {
+  width: 124px;
+  height: 58px;
+  justify-content: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #7357f5, #6548eb);
+  padding: 0;
+  font-size: 14px;
+  box-shadow: 0 10px 24px rgba(100, 76, 245, 0.24);
+}
+
+.lattice-shell.new-tab-shell .new-tab-search button:active {
+  transform: translateY(0);
+}
+
+.lattice-shell.new-tab-shell .new-tab-suggestions {
+  gap: 14px;
+  margin-top: 29px;
+}
+
+.lattice-shell.new-tab-shell .new-tab-suggestions-heading {
+  min-height: 14px;
+  padding: 0;
+}
+
+.lattice-shell.new-tab-shell .new-tab-suggestions-heading span {
+  color: var(--coach-muted);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+}
+
+.lattice-shell.new-tab-shell .new-tab-suggestion-grid {
+  column-gap: 16px;
+  row-gap: 14px;
+}
+
+.lattice-shell.new-tab-shell .new-tab-suggestion-grid > button {
+  min-height: 96px;
+  grid-template-columns: 56px minmax(0, 1fr) 16px;
+  gap: 16px;
+  border-color: var(--coach-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--coach-surface) 82%, transparent);
+  padding: 16px 17px;
+  color: var(--coach-ink);
+  box-shadow:
+    0 1px 2px rgba(20, 24, 35, 0.025),
+    0 12px 30px rgba(20, 24, 35, 0.045);
+}
+
+.lattice-shell.new-tab-shell .new-tab-suggestion-grid > button:hover {
+  border-color: color-mix(in srgb, var(--coach-purple) 28%, var(--coach-border));
+  box-shadow:
+    0 2px 4px rgba(20, 24, 35, 0.03),
+    0 16px 34px rgba(20, 24, 35, 0.07);
+}
+
+.lattice-shell.new-tab-shell .new-tab-app-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+}
+
+.lattice-shell.new-tab-shell .new-tab-app-icon svg {
+  width: 23px;
+  height: 23px;
+}
+
+.lattice-shell.new-tab-shell .new-tab-suggestion-grid strong {
+  color: var(--coach-ink);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.lattice-shell.new-tab-shell .new-tab-suggestion-grid small {
+  margin-top: 2px;
+  color: var(--coach-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.lattice-shell.new-tab-shell .new-tab-suggestion-grid > button > svg {
+  width: 15px;
+  height: 15px;
+  color: var(--coach-muted);
+}
+
+.lattice-shell.new-tab-shell .quick-note {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 340px;
+  min-height: 690px;
+  align-self: start;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 18px;
+  overflow: visible;
+  border: 1px solid rgba(90, 77, 49, 0.1);
+  border-radius: var(--coach-radius-paper);
+  background:
+    radial-gradient(circle at 1px 1px, rgba(145, 112, 37, 0.035) 1px, transparent 1.2px) 0 0 / 7px
+    7px,
+    linear-gradient(180deg, #fffdf7 0%, var(--coach-cream) 100%);
+  padding: 40px 32px 28px;
+  color: #171b24;
+  box-shadow: 0 18px 48px rgba(95, 73, 23, 0.09);
+  transform: none;
+}
+
+.lattice-shell.new-tab-shell .quick-note-tape {
+  top: -10px;
+  width: 88px;
+  height: 24px;
+  background: rgba(228, 216, 192, 0.58);
+  box-shadow: 0 2px 5px rgba(91, 72, 22, 0.06);
+  transform: translateX(-50%) rotate(-0.8deg);
+}
+
+.lattice-shell.new-tab-shell .quick-note header {
+  display: block;
+}
+
+.lattice-shell.new-tab-shell .quick-note-accent {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: #a76d05;
+  transform: rotate(-10deg);
+}
+
+.lattice-shell.new-tab-shell .quick-note-accent svg {
+  width: 22px;
+  height: 22px;
+}
+
+.lattice-shell.new-tab-shell .quick-note header strong {
+  display: block;
+  margin-top: 15px;
+  color: #171b24;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-size: 37px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.04;
+}
+
+.lattice-shell.new-tab-shell .quick-note header p {
+  max-width: 300px;
+  margin-top: 16px;
+  color: #697184;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.lattice-shell.new-tab-shell .quick-note textarea,
+.lattice-shell.new-tab-shell.theme-adaptive .quick-note textarea {
+  width: 100%;
+  min-height: 232px;
+  margin-top: 22px;
+  resize: vertical;
+  border: 1px solid rgba(90, 77, 49, 0.1);
+  border-radius: 14px;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 42px,
+      rgba(61, 68, 82, 0.08) 43px
+    ),
+    rgba(255, 255, 255, 0.42);
+  padding: 15px 18px;
+  color: #262a33;
+  font-family: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 43px;
+}
+
+.lattice-shell.new-tab-shell .quick-note textarea::placeholder {
+  color: rgba(73, 61, 34, 0.47);
+  font-family: "Segoe Print", "Bradley Hand", cursive;
+  font-size: 17px;
+  line-height: 1.55;
+}
+
+.lattice-shell.new-tab-shell .quick-note-actions {
+  width: 100%;
+  margin-top: 28px;
+}
+
+.lattice-shell.new-tab-shell .quick-note-actions small {
+  color: #7a7180;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.lattice-shell.new-tab-shell .quick-note-actions > button {
+  min-width: 164px;
+  height: 54px;
+  justify-content: center;
+  border-radius: 13px;
+  background: #eeeaff;
+  padding: 0 18px;
+  color: #5f43e7;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(100, 76, 245, 0.1);
+}
+
+.lattice-shell.new-tab-shell .quick-note-actions > button:hover:not(:disabled) {
+  background: #e4deff;
+}
+
+.lattice-shell.new-tab-shell .quick-note-actions > button:disabled {
+  background: #f1eee8;
+  color: #9b948b;
+  opacity: 1;
+}
+
+.lattice-shell.new-tab-shell .quick-note footer {
+  width: 100%;
+  margin-top: auto;
+  border-top-color: rgba(90, 77, 49, 0.12);
+  padding-top: 22px;
+}
+
+.lattice-shell.new-tab-shell .quick-note footer button {
+  min-height: 40px;
+  color: #303744;
+  font-size: 12px;
+}
+
+.lattice-shell.new-tab-shell .quick-note footer button:hover {
+  color: #6548eb;
+}
+
+.lattice-shell.new-tab-shell .quick-note footer span {
+  color: #757b88;
+  font-size: 11px;
+}
+
+@media (max-width: 1420px) {
+  .lattice-shell.new-tab-shell .new-tab-surface {
+    grid-template-columns: minmax(510px, 1fr) minmax(350px, 380px);
+    column-gap: 38px;
+    padding-inline: 44px;
+  }
+
+  .lattice-shell.new-tab-shell .new-tab-heading h1 {
+    font-size: clamp(54px, 4.4vw, 62px);
+  }
+}
+
+@media (max-width: 1240px) {
+  .lattice-shell.new-tab-shell .new-tab-surface {
+    grid-template-columns: minmax(0, 680px);
+    padding-top: 112px;
+  }
+
+  .lattice-shell.new-tab-shell .quick-note {
+    width: min(400px, 100%);
+    margin-top: 54px;
+    justify-self: center;
+  }
+}
+
+@media (max-width: 1000px) {
+  .lattice-shell.new-tab-shell:not(.focus-mode) {
+    --coach-sidebar-width: 286px;
+  }
+
+  .lattice-shell.new-tab-shell > .workspace-panel {
+    padding-inline: 15px;
+  }
+
+  .lattice-shell.new-tab-shell .new-tab-surface {
+    padding-inline: 30px;
+  }
+
+  .lattice-shell.new-tab-shell .new-tab-page-actions {
+    right: 28px;
+  }
+}
+
+@media (max-width: 760px) {
+  .lattice-shell.new-tab-shell:not(.focus-mode) {
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+  }
+
+  .lattice-shell.new-tab-shell:not(.focus-mode) > .workspace-panel {
+    display: none;
+  }
+
+  .lattice-shell.new-tab-shell .new-tab-page-actions button:not(.new-tab-appearance) {
+    width: 42px;
+    overflow: hidden;
+    padding: 0;
+    color: transparent;
+    gap: 0;
+  }
+
+  .lattice-shell.new-tab-shell .new-tab-page-actions button:not(.new-tab-appearance) svg {
+    color: var(--coach-muted);
+  }
+
+  .lattice-shell.new-tab-shell .new-tab-surface {
+    padding: 102px 20px 44px;
+  }
+
+  .lattice-shell.new-tab-shell .new-tab-suggestion-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lattice-shell.new-tab-shell .new-tab-heading h1 {
+    font-size: clamp(43px, 12vw, 56px);
+  }
+
+  .lattice-shell.new-tab-shell .new-tab-search {
+    grid-template-columns: 22px minmax(0, 1fr) 58px;
+  }
+
+  .lattice-shell.new-tab-shell .new-tab-search button {
+    width: 58px;
+    font-size: 0;
+  }
+
+  .lattice-shell.new-tab-shell .new-tab-search button svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .lattice-shell.new-tab-shell .quick-note {
+    min-width: 0;
+    padding-inline: 25px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lattice-shell.new-tab-shell .workspace-selector,
+  .lattice-shell.new-tab-shell .panel-search,
+  .lattice-shell.new-tab-shell .desktop-item,
+  .lattice-shell.new-tab-shell .navigation-row,
+  .lattice-shell.new-tab-shell .library-row,
+  .lattice-shell.new-tab-shell .new-tab-page-actions button,
+  .lattice-shell.new-tab-shell .new-tab-search button,
+  .lattice-shell.new-tab-shell .new-tab-suggestion-grid > button {
+    transition: none;
+  }
+
+  .lattice-shell.new-tab-shell .new-tab-search button:hover,
+  .lattice-shell.new-tab-shell .new-tab-suggestion-grid > button:hover {
+    transform: none;
+  }
+}

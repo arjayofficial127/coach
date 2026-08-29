@@ -283,6 +283,14 @@ async function restoreProfileBrowser(
   };
 }
 
+function formatCount(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function formatWaitingNotes(count: number) {
+  return count === 0 ? "No notes waiting" : `${formatCount(count, "note")} waiting`;
+}
+
 export function LatticeApp() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const webStageRef = useRef<HTMLElement>(null);
@@ -295,12 +303,14 @@ export function LatticeApp() {
   const pendingRecoveryRef = useRef<PendingRecovery | null>(null);
   const recoveryTimerRef = useRef<number | null>(null);
   const canvasDirtyRef = useRef(false);
+  const quickNoteCaptureBusyRef = useRef(false);
   const [workspace, setWorkspace] = useState<WorkspacePreferences>(DEFAULT_WORKSPACE);
   const [settings, setSettings] = useState<SettingsPreferences>(DEFAULT_SETTINGS);
   const [customThemeDraft, setCustomThemeDraft] =
     useState<CustomThemePreferences>(DEFAULT_CUSTOM_THEME);
   const [focusIntention, setFocusIntention] = useState("");
   const [quickNote, setQuickNote] = useState("");
+  const [capturingQuickNote, setCapturingQuickNote] = useState(false);
   const [runnableApps, setRunnableApps] = useState<RunnableAppsState>(DEFAULT_RUNNABLE_APPS_STATE);
   const [runnableAppTarget, setRunnableAppTarget] = useState<RunnableAppId>("pomodoro");
   const [dailyFlowTargetView, setDailyFlowTargetView] = useState<DailyFlowView>("today");
@@ -487,6 +497,11 @@ export function LatticeApp() {
   const quickCaptureInboxCount = journalItemsForLane(runnableApps.bulletJournal, "inbox").filter(
     (item) => item.kind === "note",
   ).length;
+  const isNewTabSurface = surface === "home";
+  const searchShortcutLabel = useMemo(() => {
+    if (typeof navigator === "undefined") return "Ctrl K";
+    return /Mac|iPad|iPhone|iPod/i.test(navigator.platform) ? "⌘ K" : "Ctrl K";
+  }, []);
   const todayFocusItems = useMemo(
     () => journalItemsForLane(runnableApps.bulletJournal, "today", localDayKey()).slice(0, 3),
     [runnableApps.bulletJournal],
@@ -511,7 +526,7 @@ export function LatticeApp() {
         kind: "app",
         id: "new-tab-app-daily-flow",
         label: "Daily Flow",
-        detail: `${dailyFlowInboxCount} capture${dailyFlowInboxCount === 1 ? "" : "s"} in Inbox`,
+        detail: `${formatCount(dailyFlowInboxCount, "capture")} in Inbox`,
         appId: "daily-flow",
       },
       {
@@ -569,7 +584,7 @@ export function LatticeApp() {
             kind: "canvas",
             id: `new-tab-canvas-${recentCanvasPage.id}`,
             label: recentCanvasPage.title,
-            detail: `Canvas · ${recentCanvasPage.nodeCount} objects`,
+            detail: `Canvas · ${formatCount(recentCanvasPage.nodeCount, "object")}`,
             pageId: recentCanvasPage.id,
           },
         ]
@@ -1487,11 +1502,17 @@ export function LatticeApp() {
 
   const captureQuickNote = (event: FormEvent) => {
     event.preventDefault();
+    if (quickNoteCaptureBusyRef.current) return;
+    const note = quickNote.trim();
+    if (!note) return;
+
+    quickNoteCaptureBusyRef.current = true;
+    setCapturingQuickNote(true);
     const previous = runnableApps;
     try {
       const next = {
         ...runnableApps,
-        bulletJournal: captureJournalInboxNote(runnableApps.bulletJournal, quickNote),
+        bulletJournal: captureJournalInboxNote(runnableApps.bulletJournal, note),
       };
       setRunnableApps(next);
       setQuickNote("");
@@ -1499,6 +1520,9 @@ export function LatticeApp() {
       offerRecovery("Quick note captured to Inbox", () => setRunnableApps(previous));
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      quickNoteCaptureBusyRef.current = false;
+      setCapturingQuickNote(false);
     }
   };
 
@@ -1552,6 +1576,12 @@ export function LatticeApp() {
       setSettings(previous);
       setCustomThemeDraft(previous.customTheme);
     });
+  };
+
+  const cycleTheme = () => {
+    const currentIndex = THEME_CATALOG.findIndex((theme) => theme.id === settings.activeTheme);
+    const nextTheme = THEME_CATALOG[(currentIndex + 1) % THEME_CATALOG.length];
+    if (nextTheme) selectTheme(nextTheme.id);
   };
 
   const applyCustomTheme = () => {
@@ -2059,8 +2089,8 @@ export function LatticeApp() {
   return (
     <div
       className={`lattice-shell${focusMode ? " focus-mode" : ""}${
-        settings.activeTheme === "lattice-dark" ? "" : " theme-adaptive"
-      }`}
+        isNewTabSurface ? " new-tab-shell" : ""
+      }${settings.activeTheme === "lattice-dark" ? "" : " theme-adaptive"}`}
       data-theme={settings.activeTheme}
       data-theme-name={
         settings.activeTheme === "custom"
@@ -2304,26 +2334,50 @@ export function LatticeApp() {
 
       <aside className="workspace-panel">
         <div className="workspace-heading">
-          <div className="workspace-title">
-            <span className="eyebrow">Workspace</span>
-            <strong>
-              {activeProfile ? `${activeProfile.name} research` : "Personal research"}
-            </strong>
-          </div>
           <button
-            className="icon-button subtle"
+            className="workspace-selector"
             type="button"
-            aria-label="Workspace menu"
+            aria-label="Open workspace menu"
             aria-expanded={workspaceMenuOpen}
             onClick={() => {
               setConfirmHardDeleteDesktopId(null);
               setWorkspaceMenuOpen((open) => !open);
             }}
           >
-            <Icon name="more" />
+            <span className="workspace-selector-logo">
+              <img src={latticeLogoUrl} alt="" />
+            </span>
+            <span className="workspace-title">
+              <span className="eyebrow">Workspace</span>
+              <strong>
+                {activeProfile ? `${activeProfile.name} research` : "Personal research"}
+              </strong>
+            </span>
+            <Icon name="chevron-down" />
           </button>
           {workspaceMenuOpen && (
             <div className="workspace-menu">
+              <button
+                type="button"
+                onClick={() => {
+                  setWorkspaceMenuOpen(false);
+                  setProfileEditor(null);
+                  setProfileMenuOpen(true);
+                }}
+              >
+                <Icon name="command" />
+                Website profiles
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setWorkspaceMenuOpen(false);
+                  void showSettings();
+                }}
+              >
+                <Icon name="settings" />
+                Settings &amp; appearance
+              </button>
               <button type="button" onClick={() => void closeAllTabs()}>
                 <Icon name="close" />
                 Close all tabs
@@ -2342,6 +2396,12 @@ export function LatticeApp() {
             </div>
           )}
         </div>
+
+        <button type="button" className="panel-search" onClick={openCommandPalette}>
+          <Icon name="search" />
+          <span>Search everything</span>
+          <kbd>{searchShortcutLabel}</kbd>
+        </button>
 
         {archivedDesktopsOpen && (
           <section className="archived-desktops-panel" data-archived-desktops>
@@ -2488,7 +2548,7 @@ export function LatticeApp() {
                       onClick={() => void selectDesktop(desktop.id)}
                     >
                       <small>
-                        {tabCount} tabs · {linkCount} saved
+                        {formatCount(tabCount, "tab")} · {linkCount} saved
                       </small>
                     </button>
                   </span>
@@ -2502,11 +2562,6 @@ export function LatticeApp() {
                   >
                     <Icon name="close" />
                   </button>
-                  {active ? (
-                    <span className="active-dot" />
-                  ) : (
-                    <span className="desktop-dot-spacer" />
-                  )}
                 </div>
                 {archiveDesktopId === desktop.id && (
                   <aside className="desktop-archive-popover" data-archive-panel={desktop.id}>
@@ -2600,12 +2655,6 @@ export function LatticeApp() {
           </form>
         )}
 
-        <button type="button" className="panel-search" onClick={openCommandPalette}>
-          <Icon name="search" />
-          <span>Search everything</span>
-          <kbd>⌘ K</kbd>
-        </button>
-
         <div className="section-label navigation-label">
           <span>Navigate</span>
         </div>
@@ -2623,7 +2672,6 @@ export function LatticeApp() {
               <strong>Dashboard</strong>
               <small>Review what matters</small>
             </span>
-            <kbd>1</kbd>
           </button>
           <button
             type="button"
@@ -2636,9 +2684,8 @@ export function LatticeApp() {
             </span>
             <span>
               <strong>Browse</strong>
-              <small>{contextualTab ? displayTitle(contextualTab) : "Start somewhere new"}</small>
+              <small>Start somewhere new</small>
             </span>
-            <kbd>2</kbd>
           </button>
           <button
             type="button"
@@ -2721,12 +2768,14 @@ export function LatticeApp() {
               Connect
             </button>
           )}
+          {vault && <span className="vault-card-status" aria-hidden="true" />}
         </div>
       </aside>
 
       <section
         className={[
           "content-shell",
+          isNewTabSurface ? "new-tab-content" : "",
           captureOpen ? "drawer-open" : "",
           focusMode ? "focus-content" : "",
         ]
@@ -2734,10 +2783,12 @@ export function LatticeApp() {
           .join(" ")}
       >
         <header className="tab-strip">
-          <div className="desktop-context">
-            <span className={`context-dot ${activeDesktop?.color ?? "violet"}`} />
-            {activeDesktop?.name ?? "Desk 1"}
-          </div>
+          {!isNewTabSurface && (
+            <div className="desktop-context">
+              <span className={`context-dot ${activeDesktop?.color ?? "violet"}`} />
+              {activeDesktop?.name ?? "Desk 1"}
+            </div>
+          )}
           <div className="tabs-viewport">
             {desktopTabs.map((tab) => (
               <div
@@ -2888,10 +2939,10 @@ export function LatticeApp() {
           </form>
         )}
 
-        {surface !== "browser" && (
+        {surface !== "browser" && surface !== "home" && (
           <header className="surface-toolbar">
             <div className="surface-toolbar-context">
-              {surface !== "home" && surface !== "dashboard" && (
+              {surface !== "dashboard" && (
                 <button type="button" className="surface-back" onClick={showDashboard}>
                   <Icon name="arrow-left" />
                   Dashboard
@@ -2900,7 +2951,7 @@ export function LatticeApp() {
               <span className="surface-location">
                 <Icon
                   name={
-                    surface === "home" || surface === "dashboard"
+                    surface === "dashboard"
                       ? "home"
                       : surface === "pages"
                         ? "grid"
@@ -2976,12 +3027,44 @@ export function LatticeApp() {
             </div>
             {surface === "home" && (
               <div className="trusted-surface new-tab-surface">
+                <nav className="new-tab-page-actions" aria-label="New tab actions">
+                  <button type="button" onClick={() => void showBrowser()}>
+                    <Icon name="globe" />
+                    Browse
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={focusMode}
+                    title="Focus view (Ctrl+Shift+F)"
+                    onClick={toggleDistractionFree}
+                  >
+                    <Icon name="sparkle" />
+                    Focus view
+                  </button>
+                  <button
+                    type="button"
+                    className="new-tab-appearance"
+                    aria-label={`Change appearance. Current theme: ${
+                      settings.activeTheme === "custom"
+                        ? settings.customTheme.name
+                        : THEME_CATALOG.find((theme) => theme.id === settings.activeTheme)?.name
+                    }`}
+                    title="Change appearance"
+                    onClick={cycleTheme}
+                  >
+                    <Icon name="settings" />
+                  </button>
+                </nav>
                 <section className="new-tab-search-zone" aria-labelledby="new-tab-heading">
                   <header className="new-tab-heading">
                     <span className="new-tab-kicker">
                       <Icon name="sparkle" /> New tab
                     </span>
-                    <h1 id="new-tab-heading">Where would you like to go?</h1>
+                    <h1 id="new-tab-heading">
+                      Where would you
+                      <br />
+                      like to go?
+                    </h1>
                     <p>Search the web, open something nearby, or leave a thought for later.</p>
                   </header>
 
@@ -3003,7 +3086,6 @@ export function LatticeApp() {
                   <div className="new-tab-suggestions">
                     <div className="new-tab-suggestions-heading">
                       <span>{homeQuery.trim() ? "Matching your workspace" : "Quick open"}</span>
-                      <small>Apps · history · saved knowledge</small>
                     </div>
                     {newTabSuggestions.length > 0 ? (
                       <div className="new-tab-suggestion-grid">
@@ -3042,7 +3124,10 @@ export function LatticeApp() {
                               )}
                             </span>
                             <span>
-                              <strong>{suggestion.label}</strong>
+                              <strong>
+                                {suggestion.label.charAt(0).toUpperCase() +
+                                  suggestion.label.slice(1)}
+                              </strong>
                               <small>{suggestion.detail}</small>
                             </span>
                             <Icon name="arrow-right" />
@@ -3064,10 +3149,14 @@ export function LatticeApp() {
                 <form className="quick-note" onSubmit={captureQuickNote}>
                   <span className="quick-note-tape" aria-hidden="true" />
                   <header>
-                    <span className="quick-note-label">
-                      <Icon name="edit" /> Quick capture
+                    <span className="quick-note-accent" aria-hidden="true">
+                      <Icon name="edit" />
                     </span>
-                    <strong>Leave a note for later you.</strong>
+                    <strong>
+                      Leave a note
+                      <br />
+                      for later you.
+                    </strong>
                     <p>No organizing now. Every capture waits safely in your Inbox.</p>
                   </header>
                   <textarea
@@ -3084,18 +3173,21 @@ export function LatticeApp() {
                     aria-label="Quick capture note"
                   />
                   <div className="quick-note-actions">
-                    <small>Ctrl Enter</small>
-                    <button type="submit" disabled={!quickNote.trim()}>
-                      Capture note <Icon name="arrow-right" />
+                    <small>
+                      Press Ctrl+Enter
+                      <br />
+                      to capture
+                    </small>
+                    <button type="submit" disabled={!quickNote.trim() || capturingQuickNote}>
+                      {capturingQuickNote ? "Capturing…" : "Capture note"}
+                      {!capturingQuickNote && <Icon name="arrow-right" />}
                     </button>
                   </div>
                   <footer>
                     <button type="button" onClick={() => showRunnableApp("daily-flow", "inbox")}>
                       <Icon name="library" /> Open capture Inbox
                     </button>
-                    <span>
-                      {quickCaptureInboxCount} note{quickCaptureInboxCount === 1 ? "" : "s"} waiting
-                    </span>
+                    <span>{formatWaitingNotes(quickCaptureInboxCount)}</span>
                   </footer>
                 </form>
               </div>
@@ -3943,16 +4035,18 @@ export function LatticeApp() {
           <div className="vault-probe smoke-vault-boundary" aria-hidden="true" />
         </div>
 
-        <footer className="status-bar" aria-live="polite">
-          <span>
-            <i className={activeTab?.loading ? "status-pulse active" : "status-pulse"} />
-            {activeTab?.loading ? "Loading" : status}
-          </span>
-          <span>
-            <Icon name="lock" />
-            Remote Node access disabled
-          </span>
-        </footer>
+        {surface !== "home" && (
+          <footer className="status-bar" aria-live="polite">
+            <span>
+              <i className={activeTab?.loading ? "status-pulse active" : "status-pulse"} />
+              {activeTab?.loading ? "Loading" : status}
+            </span>
+            <span>
+              <Icon name="lock" />
+              Remote Node access disabled
+            </span>
+          </footer>
+        )}
       </section>
       {recoveryNotice && (
         <aside className="recovery-bar" role="status" aria-live="polite">
