@@ -1484,6 +1484,18 @@ kbd {
   background: #94c663;
 }
 
+.desktop-context-name {
+  overflow: hidden;
+  max-width: 180px;
+  text-overflow: ellipsis;
+}
+
+.desktop-context-count {
+  color: var(--subtle);
+  font-size: 8px;
+  font-weight: 500;
+}
+
 .tabs-viewport {
   display: flex;
   min-width: 0;

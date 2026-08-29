@@ -2951,7 +2951,8 @@ export function LatticeApp() {
         <header className="tab-strip">
           <button className="desktop-context" type="button" onClick={showDashboard}>
             <span className={`context-dot ${activeDesktop?.color ?? "violet"}`} />
-            {activeDesktop?.name ?? "Desk 1"}
+            <span className="desktop-context-name">{activeDesktop?.name ?? "Desk 1"}</span>
+            <span className="desktop-context-count">{desktopTabs.length}</span>
           </button>
           <div className="tabs-viewport">
             {desktopTabs.map((tab) => (
