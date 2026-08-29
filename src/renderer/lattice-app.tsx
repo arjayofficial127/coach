@@ -316,10 +316,6 @@ function colorLuminance(hex: string): number {
   return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
 
-// Temporary comparison switch: preserve the Council New Tab structure while using Coach's
-// established application scale. Flip to true to restore the larger Council sizing unchanged.
-const COUNCIL_NEW_TAB_SIZING_ENABLED = false;
-
 export function LatticeApp() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const workspaceHeadingRef = useRef<HTMLDivElement>(null);
@@ -2229,11 +2225,7 @@ export function LatticeApp() {
   return (
     <div
       className={`lattice-shell${focusMode ? " focus-mode" : ""}${
-        isNewTabSurface
-          ? COUNCIL_NEW_TAB_SIZING_ENABLED
-            ? " new-tab-shell"
-            : " new-tab-sizing-invalidated"
-          : ""
+        isNewTabSurface ? " new-tab-sizing-invalidated" : ""
       }${settings.activeTheme === "lattice-dark" ? "" : " theme-adaptive"}`}
       data-theme={settings.activeTheme}
       data-theme-name={
