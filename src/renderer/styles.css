@@ -1444,6 +1444,8 @@ kbd {
   display: flex;
   height: 35px;
   align-self: flex-end;
+  width: max-content;
+  min-width: 0;
   min-width: 84px;
   align-items: center;
   gap: 7px;
