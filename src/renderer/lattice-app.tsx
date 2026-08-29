@@ -2949,10 +2949,10 @@ export function LatticeApp() {
           .join(" ")}
       >
         <header className="tab-strip">
-          <div className="desktop-context">
+          <button className="desktop-context" type="button" onClick={showDashboard}>
             <span className={`context-dot ${activeDesktop?.color ?? "violet"}`} />
             {activeDesktop?.name ?? "Desk 1"}
-          </div>
+          </button>
           <div className="tabs-viewport">
             {desktopTabs.map((tab) => (
               <div

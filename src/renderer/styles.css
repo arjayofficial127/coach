@@ -1455,6 +1455,13 @@ kbd {
   color: #858391;
   font-size: 9px;
   font-weight: 650;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+}
+
+.desktop-context:hover {
+  color: var(--text);
 }
 
 .context-dot {
@@ -1484,11 +1491,17 @@ kbd {
   gap: 3px;
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--subtle) transparent;
 }
 
 .tabs-viewport::-webkit-scrollbar {
-  display: none;
+  height: 5px;
+}
+
+.tabs-viewport::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--subtle);
 }
 
 .browser-tab {
