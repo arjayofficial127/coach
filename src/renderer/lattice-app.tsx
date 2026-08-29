@@ -2992,15 +2992,15 @@ export function LatticeApp() {
                 )}
               </div>
             ))}
-            <button
-              className="new-tab-button"
-              type="button"
-              onClick={() => void createTab(workspace.activeDesktopId, "browser")}
-              aria-label="New tab"
-            >
-              <Icon name="plus" />
-            </button>
           </div>
+          <button
+            className="new-tab-button"
+            type="button"
+            onClick={() => void createTab(workspace.activeDesktopId, "browser")}
+            aria-label="New tab"
+          >
+            <Icon name="plus" />
+          </button>
           <div className="window-drag-space" />
         </header>
 
