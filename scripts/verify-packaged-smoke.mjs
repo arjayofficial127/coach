@@ -203,6 +203,9 @@ if (
   evidence.profiles?.activeProfileName !== "Personal" ||
   !evidence.profiles?.profileMenuVisible ||
   !evidence.profiles?.privacyExplanationVisible ||
+  !evidence.profiles?.loadingLabelAbsent ||
+  !evidence.profiles?.createActionEnabled ||
+  !evidence.profiles?.menuActionsLookEnabled ||
   !evidence.profiles?.nativeViewHiddenWhileMenuOpen
 ) {
   failures.push("trusted website-profile creation, switching, or menu isolation failed");

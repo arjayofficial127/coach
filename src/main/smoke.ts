@@ -81,6 +81,9 @@ export interface PhaseNineSmokeEvidence {
     activeProfileName: string;
     profileMenuVisible: boolean;
     privacyExplanationVisible: boolean;
+    loadingLabelAbsent: boolean;
+    createActionEnabled: boolean;
+    menuActionsLookEnabled: boolean;
     nativeViewHiddenWhileMenuOpen: boolean;
     firstCookieRetained: boolean;
     secondCookieInitiallyAbsent: boolean;
@@ -1868,13 +1871,25 @@ export async function runPhaseNineSmoke(
       if (ready) break;
       await delay(25);
     }
-    await window.webContents.executeJavaScript(`(() => {
+    const profileCreateActionDom = (await window.webContents.executeJavaScript(`(async () => {
       const input = document.querySelector("#profile-name");
       if (!(input instanceof HTMLInputElement)) throw new Error("Profile name field missing");
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
       setter?.call(input, "Work");
       input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.closest("form")?.requestSubmit();
+      await new Promise((resolve) => setTimeout(resolve, 75));
+      const submit = input.closest("form")?.querySelector('button[type="submit"]');
+      if (!(submit instanceof HTMLButtonElement)) throw new Error("Create profile action missing");
+      const style = getComputedStyle(submit);
+      return {
+        enabled: !submit.disabled,
+        solid: style.opacity === "1" && style.backgroundColor !== "rgba(0, 0, 0, 0)"
+      };
+    })()`)) as { enabled: boolean; solid: boolean };
+    await window.webContents.executeJavaScript(`(() => {
+      const form = document.querySelector("#profile-name")?.closest("form");
+      if (!(form instanceof HTMLFormElement)) throw new Error("Profile editor missing");
+      form.requestSubmit();
     })()`);
     const workProfileDeadline = Date.now() + 4_000;
     while (Date.now() < workProfileDeadline) {
@@ -1918,16 +1933,27 @@ export async function runPhaseNineSmoke(
     );
     const profileMenuDeadline = Date.now() + 2_000;
     while (Date.now() < profileMenuDeadline && runtime.isVisible()) await delay(25);
-    const profilesDom = (await window.webContents.executeJavaScript(`(() => ({
-      profileCount: document.querySelectorAll(".profile-list > button").length,
-      activeProfileName: document.querySelector(".profile-menu-header strong")?.textContent ?? "",
-      profileMenuVisible: Boolean(document.querySelector(".profile-menu")),
-      privacyExplanationVisible: document.querySelector(".profile-privacy-note")?.textContent?.includes("never stores your Google") ?? false
-    }))()`)) as {
+    const profilesDom = (await window.webContents.executeJavaScript(`(() => {
+      const actions = [...document.querySelectorAll(".profile-actions button, .profile-picture-actions > button")];
+      return {
+        profileCount: document.querySelectorAll(".profile-list > button").length,
+        activeProfileName: document.querySelector(".profile-menu-header strong")?.textContent ?? "",
+        profileMenuVisible: Boolean(document.querySelector(".profile-menu")),
+        privacyExplanationVisible: document.querySelector(".profile-privacy-note")?.textContent?.includes("never stores your Google") ?? false,
+        loadingLabelAbsent: !document.querySelector(".profile-menu-header")?.textContent?.includes("Loading profiles"),
+        menuActionsLookEnabled: actions.length === 3 && actions.every((action) => {
+          if (!(action instanceof HTMLButtonElement) || action.disabled) return false;
+          const style = getComputedStyle(action);
+          return style.opacity === "1" && style.backgroundColor !== "rgba(0, 0, 0, 0)";
+        })
+      };
+    })()`)) as {
       profileCount: number;
       activeProfileName: string;
       profileMenuVisible: boolean;
       privacyExplanationVisible: boolean;
+      loadingLabelAbsent: boolean;
+      menuActionsLookEnabled: boolean;
     };
     const nativeViewHiddenWhileProfileMenuOpen = !runtime.isVisible();
     window.setSkipTaskbar(true);
@@ -2055,6 +2081,7 @@ export async function runPhaseNineSmoke(
       },
       profiles: {
         ...profilesDom,
+        createActionEnabled: profileCreateActionDom.enabled && profileCreateActionDom.solid,
         nativeViewHiddenWhileMenuOpen: nativeViewHiddenWhileProfileMenuOpen,
         firstCookieRetained: profileIsolation.firstCookieRetained,
         secondCookieInitiallyAbsent: profileIsolation.secondCookieInitiallyAbsent,

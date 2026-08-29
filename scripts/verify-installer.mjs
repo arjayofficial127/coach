@@ -324,6 +324,9 @@ if (!smoke.privacy?.cookieCleared || !smoke.privacy?.localStorageCleared) {
 if (
   smoke.profiles?.profileCount !== 2 ||
   smoke.profiles?.activeProfileName !== "Personal" ||
+  !smoke.profiles?.loadingLabelAbsent ||
+  !smoke.profiles?.createActionEnabled ||
+  !smoke.profiles?.menuActionsLookEnabled ||
   !smoke.profiles?.nativeViewHiddenWhileMenuOpen ||
   !smoke.profiles?.firstCookieRetained ||
   !smoke.profiles?.secondCookieInitiallyAbsent ||

@@ -279,6 +279,7 @@ export function LatticeApp() {
   const [focusIntention, setFocusIntention] = useState("");
   const [runnableApps, setRunnableApps] = useState<RunnableAppsState>(DEFAULT_RUNNABLE_APPS_STATE);
   const [profileState, setProfileState] = useState<ProfileState | null>(null);
+  const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [profileEditor, setProfileEditor] = useState<"create" | "edit" | null>(null);
   const [profileName, setProfileName] = useState("");
@@ -628,6 +629,7 @@ export function LatticeApp() {
 
   useEffect(() => {
     let cancelled = false;
+    let profilesLoaded = false;
     const unsubscribe = window.lattice.browser.onState((state) => {
       setSnapshot((current) => {
         const exists = current.tabs.some((tab) => tab.id === state.id);
@@ -641,6 +643,11 @@ export function LatticeApp() {
     });
     void (async () => {
       const profiles = await window.lattice.profiles.state();
+      profilesLoaded = true;
+      if (!cancelled) {
+        setProfileState(profiles);
+        setProfileLoadError(null);
+      }
       const shell = loadProfileShellState(profiles, profiles.activeProfileId);
       const initial = await window.lattice.browser.snapshot();
       const restored = await restoreProfileBrowser(
@@ -676,6 +683,9 @@ export function LatticeApp() {
       })
       .catch(async (error) => {
         if (cancelled) return;
+        if (!profilesLoaded) {
+          setProfileLoadError(error instanceof Error ? error.message : "Profiles could not load");
+        }
         const fallback = await window.lattice.browser.snapshot();
         setSnapshot(fallback);
         setTabDesktops({ [fallback.activeTabId]: DEFAULT_WORKSPACE.activeDesktopId });
@@ -1823,7 +1833,12 @@ export function LatticeApp() {
               aria-label="Close profile menu"
               onClick={() => setProfileMenuOpen(false)}
             />
-            <section className="profile-menu" role="dialog" aria-label="Website profiles">
+            <section
+              className="profile-menu"
+              role="dialog"
+              aria-label="Website profiles"
+              aria-busy={!profileState && !profileLoadError}
+            >
               <header className="profile-menu-header">
                 <span className="profile-avatar large">
                   {activeProfile?.avatarDataUrl ? (
@@ -1834,7 +1849,10 @@ export function LatticeApp() {
                 </span>
                 <span className="profile-copy">
                   <small>Current website identity</small>
-                  <strong>{activeProfile?.name ?? "Loading profiles…"}</strong>
+                  <strong>
+                    {activeProfile?.name ??
+                      (profileLoadError ? "Profiles unavailable" : "Loading profiles…")}
+                  </strong>
                 </span>
               </header>
 
@@ -1854,7 +1872,11 @@ export function LatticeApp() {
                     placeholder={profileEditor === "create" ? "Work, Writing, Client…" : "Name"}
                   />
                   <div>
-                    <button type="submit" disabled={!profileName.trim() || profileBusy}>
+                    <button
+                      type="submit"
+                      className="primary"
+                      disabled={!profileName.trim() || profileBusy}
+                    >
                       {profileBusy
                         ? "Saving…"
                         : profileEditor === "create"
@@ -1873,7 +1895,7 @@ export function LatticeApp() {
                     </button>
                   </div>
                 </form>
-              ) : (
+              ) : profileState ? (
                 <>
                   <div className="profile-list">
                     {profileState?.profiles.map((profile) => (
@@ -1906,6 +1928,7 @@ export function LatticeApp() {
                   <div className="profile-actions">
                     <button
                       type="button"
+                      className="primary"
                       onClick={() => {
                         setProfileEditor("create");
                         setProfileName("");
@@ -1916,6 +1939,7 @@ export function LatticeApp() {
                     </button>
                     <button
                       type="button"
+                      className="secondary"
                       onClick={() => {
                         setProfileEditor("edit");
                         setProfileName(activeProfile?.name ?? "");
@@ -1928,6 +1952,7 @@ export function LatticeApp() {
                   <div className="profile-picture-actions">
                     <button
                       type="button"
+                      className="secondary"
                       onClick={() => void chooseProfileAvatar()}
                       disabled={!activeProfile || profileBusy}
                     >
@@ -1956,6 +1981,27 @@ export function LatticeApp() {
                     )}
                   </div>
                 </>
+              ) : (
+                <div className={`profile-load-state${profileLoadError ? " error" : ""}`}>
+                  <span className="profile-load-indicator" aria-hidden="true" />
+                  <span className="profile-copy" role="status" aria-live="polite">
+                    <strong>
+                      {profileLoadError ? "Profiles could not load" : "Preparing profiles"}
+                    </strong>
+                    <small>
+                      {profileLoadError ?? "Restoring your local website identities and sessions."}
+                    </small>
+                  </span>
+                  {profileLoadError && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => window.location.reload()}
+                    >
+                      Retry
+                    </button>
+                  )}
+                </div>
               )}
               <p className="profile-privacy-note">
                 Website sign-ins stay inside this profile’s Chromium storage. Lattice never stores
