@@ -37,6 +37,11 @@ import { captureJournalInboxNote, journalItemsForLane, localDayKey } from "./bul
 import { CanvasWorkspace } from "./canvas-workspace";
 import type { DailyFlowView } from "./daily-flow-surface";
 import {
+  type DashboardClosedTab,
+  type DashboardHistoryItem,
+  DashboardSurface,
+} from "./dashboard-surface";
+import {
   FOCUS_STORAGE_KEY,
   MAX_FOCUS_INTENTION_LENGTH,
   navigationShortcut,
@@ -359,6 +364,8 @@ export function LatticeApp() {
   const [vault, setVault] = useState<VaultInfo | null>(null);
   const [links, setLinks] = useState<SavedLinkRecord[]>([]);
   const [canvasPages, setCanvasPages] = useState<CanvasPageSummary[]>([]);
+  const [recentlyClosedTabs, setRecentlyClosedTabs] = useState<DashboardClosedTab[]>([]);
+  const [browserHistory, setBrowserHistory] = useState<DashboardHistoryItem[]>([]);
   const [referenceIndex, setReferenceIndex] = useState<VaultReferenceIndex>(emptyReferenceIndex);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [captureDescription, setCaptureDescription] = useState("");
@@ -564,6 +571,18 @@ export function LatticeApp() {
   const contextualTab =
     activeTab && tabDesktops[activeTab.id] === workspace.activeDesktopId ? activeTab : null;
   const resumableTab = contextualTab && contextualTab.url !== "about:blank" ? contextualTab : null;
+  useEffect(() => {
+    if (!activeTab || activeTab.url === "about:blank" || activeTab.loading) return;
+    const item: DashboardHistoryItem = {
+      id: `${activeTab.url}-${Date.now()}`,
+      title: displayTitle(activeTab),
+      url: activeTab.url,
+      visitedAt: new Date().toISOString(),
+    };
+    setBrowserHistory((current) =>
+      [item, ...current.filter((entry) => entry.url !== item.url)].slice(0, 100),
+    );
+  }, [activeTab]);
   const filteredLinks = useMemo(() => {
     const query = libraryQuery.trim().toLowerCase();
     return links.filter((link) => {
@@ -1161,6 +1180,14 @@ export function LatticeApp() {
       const closedTab = snapshot.tabs.find((tab) => tab.id === tabId);
       const closedDesktopId = tabDesktops[tabId] ?? workspace.activeDesktopId;
       const next = await window.lattice.browser.closeTab(tabId);
+      if (closedTab) {
+        const closedItem: DashboardClosedTab = {
+          tab: closedTab,
+          desktopId: closedDesktopId,
+          closedAt: new Date().toISOString(),
+        };
+        setRecentlyClosedTabs((current) => [closedItem, ...current].slice(0, 30));
+      }
       setSnapshot(next);
       const remaining = { ...tabDesktops };
       delete remaining[tabId];
@@ -3355,6 +3382,34 @@ export function LatticeApp() {
             )}
 
             {surface === "dashboard" && (
+              <DashboardSurface
+                greeting={greeting}
+                desktopName={activeDesktop?.name ?? "Workspace"}
+                openTabs={desktopTabs}
+                activeTabId={snapshot.activeTabId}
+                recentlyClosed={recentlyClosedTabs}
+                history={browserHistory}
+                savedLinks={visibleLinks}
+                canvasPages={canvasPages}
+                onOpenTab={(tab) => void switchTab(tab)}
+                onNewTab={() => void createTab(workspace.activeDesktopId, "browser")}
+                onRestoreClosed={(item) => {
+                  void restoreClosedTabs(
+                    [{ tab: item.tab, desktopId: item.desktopId }],
+                    item.tab.id,
+                  ).then(() =>
+                    setRecentlyClosedTabs((current) =>
+                      current.filter((entry) => entry.closedAt !== item.closedAt),
+                    ),
+                  );
+                }}
+                onOpenUrl={(url) => void openUrl(url, true)}
+                onOpenApp={(id) => showRunnableApp(id)}
+                onOpenCanvas={(id) => void showCanvasPages(id)}
+              />
+            )}
+
+            {false && (
               <div className="trusted-surface home-surface">
                 <div className="home-hero">
                   <span className="hero-kicker">
@@ -3385,7 +3440,9 @@ export function LatticeApp() {
                       data-home-card="recent-thread"
                       onClick={() => {
                         if (resumableTab) {
-                          void switchTab(resumableTab).then(() => setDistractionFree(true));
+                          void switchTab(resumableTab as BrowserState).then(() =>
+                            setDistractionFree(true),
+                          );
                         } else void createTab();
                       }}
                     >
@@ -3396,11 +3453,13 @@ export function LatticeApp() {
                         </span>
                         <span>
                           <strong>
-                            {resumableTab ? displayTitle(resumableTab) : "Start a focused search"}
+                            {resumableTab
+                              ? displayTitle(resumableTab as BrowserState)
+                              : "Start a focused search"}
                           </strong>
                           <small>
                             {resumableTab
-                              ? `${displayHost(resumableTab.url)} · ${activeDesktop?.name ?? "Workspace"}`
+                              ? `${displayHost(resumableTab?.url ?? "about:blank")} · ${activeDesktop?.name ?? "Workspace"}`
                               : "Your next useful thread begins here"}
                           </small>
                         </span>
@@ -3424,7 +3483,7 @@ export function LatticeApp() {
                           <strong>{recentCanvasPage?.title ?? "Create a connected canvas"}</strong>
                           <small>
                             {recentCanvasPage
-                              ? `${recentCanvasPage.nodeCount} objects · Edited ${relativeDate(recentCanvasPage.updatedAt)}`
+                              ? `${recentCanvasPage?.nodeCount ?? 0} objects · Edited ${relativeDate(recentCanvasPage?.updatedAt ?? "")}`
                               : "Websites, notes, files, and ideas on one page"}
                           </small>
                         </span>
