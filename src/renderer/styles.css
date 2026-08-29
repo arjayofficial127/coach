@@ -485,7 +485,7 @@ svg {
   grid-template-columns: minmax(0, 1fr) 16px;
   align-items: center;
   gap: 10px;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 11px;
   background: transparent;
   padding: 0 7px;
@@ -838,7 +838,8 @@ kbd {
 }
 
 .desktop-item.active {
-  background: transparent;
+  border-color: rgba(139, 124, 246, 0.13);
+  background: rgba(139, 124, 246, 0.09);
   color: var(--text);
 }
 
