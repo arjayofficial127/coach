@@ -4,6 +4,10 @@ export function profileStorageKey(baseKey: string, profileId: string): string {
   return `${baseKey}.profile.${profileId}`;
 }
 
+export function canPersistProfileShell(sessionReady: boolean, shellHydrated: boolean): boolean {
+  return sessionReady && shellHydrated;
+}
+
 export function readProfileStorage(
   storage: Pick<Storage, "getItem">,
   baseKey: string,

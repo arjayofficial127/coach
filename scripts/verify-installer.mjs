@@ -312,6 +312,7 @@ if (
     JSON.stringify(["saved-links", "runnable-apps", "settings"]) ||
   smoke.navigation?.readingPreviewCount < 1 ||
   smoke.navigation?.privacyPromise !== "Private by design. Always local." ||
+  !smoke.navigation?.focusBarThemed ||
   !smoke.navigation?.focusMode ||
   !smoke.navigation?.chromeHidden ||
   !smoke.navigation?.nativeViewHidden ||
@@ -438,7 +439,7 @@ if (
 }
 if (
   smoke.themes?.optionCount !== 3 ||
-  smoke.themes?.defaultTheme !== "lattice-dark" ||
+  smoke.themes?.defaultTheme !== "paper-felt" ||
   !smoke.themes?.feltApplied ||
   !smoke.themes?.feltTextureVisible ||
   !smoke.themes?.feltRecoveryThemed ||

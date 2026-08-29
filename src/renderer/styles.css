@@ -7015,7 +7015,7 @@ kbd {
 
 .lattice-shell.theme-adaptive
   :where(
-    .focus-session-banner,
+    .focus-session-bar,
     .hero-search,
     .folder-select,
     .queue-toggle,

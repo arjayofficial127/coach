@@ -37,7 +37,7 @@
       "height": 633
     },
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-9-shell.png",
-    "screenshotBytes": 326319,
+    "screenshotBytes": 326234,
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\installed-shell.png"
   },
   "remote": {
@@ -113,7 +113,7 @@
     "partitionsDistinct": true,
     "registryContainsNoCredentials": true,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-12-profiles.png",
-    "screenshotBytes": 281609,
+    "screenshotBytes": 280647,
     "artifactPath": "C:\\coach\\artifacts\\phase-12\\installed-website-profiles.png"
   },
   "navigation": {
@@ -132,6 +132,7 @@
     "todayTaskCount": 0,
     "readingPreviewCount": 1,
     "privacyPromise": "Private by design. Always local.",
+    "focusBarThemed": true,
     "intention": "Finish one meaningful thread",
     "focusMode": true,
     "chromeHidden": true,
@@ -148,13 +149,13 @@
     ],
     "browserRestoredAfterShortcuts": true,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-10-focus-navigation.png",
-    "screenshotBytes": 190639,
+    "screenshotBytes": 302784,
     "artifactPath": "C:\\coach\\artifacts\\phase-10\\installed-focus-navigation.png"
   },
   "runnableApps": {
     "heading": "Runnable apps",
     "appName": "Pomodoro",
-    "originalResult": "Original: Stopped at 0:02 · Aug 29, 3:29 PM",
+    "originalResult": "Original: Stopped at 0:02 · Aug 29, 4:16 PM",
     "correctedResult": "Corrected: Completed at 1h 00m",
     "overridden": true,
     "originalPreserved": true,
@@ -164,7 +165,7 @@
     "adaptiveLightSurface": true,
     "nativeViewHidden": true,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-13-runnable-apps.png",
-    "screenshotBytes": 345470,
+    "screenshotBytes": 345208,
     "artifactPath": "C:\\coach\\artifacts\\phase-13\\installed-runnable-apps.png"
   },
   "dailyFlow": {
@@ -190,7 +191,7 @@
     "adaptiveLightSurface": true,
     "nativeViewHidden": true,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-14-daily-flow.png",
-    "screenshotBytes": 340220,
+    "screenshotBytes": 340132,
     "artifactPath": "C:\\coach\\artifacts\\phase-14\\installed-daily-flow.png"
   },
   "wealthLab": {
@@ -219,7 +220,7 @@
     "adaptiveLightSurface": true,
     "nativeViewHidden": true,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-15-wealth-lab.png",
-    "screenshotBytes": 328170,
+    "screenshotBytes": 328074,
     "artifactPath": "C:\\coach\\artifacts\\phase-15\\installed-wealth-lab.png"
   },
   "desktopLifecycle": {
@@ -244,7 +245,7 @@
     "readingStatePreserved": true,
     "temporaryFilesRemaining": 0,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-9-metadata-editor.png",
-    "screenshotBytes": 214909,
+    "screenshotBytes": 325279,
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\installed-metadata-editor.png"
   },
   "obsidianHandoff": {
@@ -253,11 +254,11 @@
     "notePathNotRendered": true,
     "openInvocations": 1,
     "revealInvocations": 1,
-    "obsidianUri": "obsidian://open?path=C%3A%2FUsers%2Farvin%2FAppData%2FLocal%2FTemp%2Flattice-disposable-vaults%2Fvault-8b1a03a3-a13c-458f-91d0-7c0969fea38a%2FSaved%20Links%2FResearch%2F2026-08-29%20-%20Phase%208%20packaged%20smoke%20-%2003c4e15b.md",
+    "obsidianUri": "obsidian://open?path=C%3A%2FUsers%2Farvin%2FAppData%2FLocal%2FTemp%2Flattice-disposable-vaults%2Fvault-c0c9af29-41ba-4579-8c16-5dafcbef6569%2FSaved%20Links%2FResearch%2F2026-08-29%20-%20Phase%208%20packaged%20smoke%20-%200c8103c4.md",
     "decodedPathMatches": true,
     "revealedPathMatches": true,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-9-obsidian-handoff.png",
-    "screenshotBytes": 227457,
+    "screenshotBytes": 338233,
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\installed-obsidian-handoff.png"
   },
   "readingQueue": {
@@ -301,10 +302,10 @@
     "backlinkSourceVisible": true,
     "privateReferencePathHidden": true,
     "temporaryFilesRemaining": 0,
-    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-8b1a03a3-a13c-458f-91d0-7c0969fea38a\\Lattice Pages\\Projects\\Browser\\Phase 9 research canvas-328ff22e.canvas",
-    "sha256": "e9b3cea06e75ef97e8056f78a458c287c42b1e80d8eb83f85428180cabb7ae90",
+    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-c0c9af29-41ba-4579-8c16-5dafcbef6569\\Lattice Pages\\Projects\\Browser\\Phase 9 research canvas-5d666e45.canvas",
+    "sha256": "f4938c7defc613ef8a2b73844138d80dcc12a061a458e7a799fa1ddbe4f1439c",
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-9-canvas.png",
-    "screenshotBytes": 173932,
+    "screenshotBytes": 173843,
     "screenshotArtifactPath": "C:\\coach\\artifacts\\phase-9\\installed-canvas.png",
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\installed-smoke-canvas.canvas"
   },
@@ -330,7 +331,7 @@
   },
   "themes": {
     "optionCount": 3,
-    "defaultTheme": "lattice-dark",
+    "defaultTheme": "paper-felt",
     "feltApplied": true,
     "feltTextureVisible": true,
     "feltRecoveryThemed": true,
@@ -344,14 +345,14 @@
     "nativeTitleBarSynced": true
   },
   "note": {
-    "vaultPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-8b1a03a3-a13c-458f-91d0-7c0969fea38a",
+    "vaultPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-c0c9af29-41ba-4579-8c16-5dafcbef6569",
     "disposableVault": true,
     "obsidianDirectoryPresent": true,
-    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-8b1a03a3-a13c-458f-91d0-7c0969fea38a\\Saved Links\\Research\\2026-08-29 - Phase 8 packaged smoke - 03c4e15b.md",
-    "relativePath": "Saved Links\\Research\\2026-08-29 - Phase 8 packaged smoke - 03c4e15b.md",
+    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-c0c9af29-41ba-4579-8c16-5dafcbef6569\\Saved Links\\Research\\2026-08-29 - Phase 8 packaged smoke - 0c8103c4.md",
+    "relativePath": "Saved Links\\Research\\2026-08-29 - Phase 8 packaged smoke - 0c8103c4.md",
     "bytesWritten": 597,
     "bytesReadBack": 597,
-    "sha256": "14acbfb8170da2881d7e6a9bd37217b721a8d280ce97ae141d06819075b3242a",
+    "sha256": "cdd1da877fd1a4b9a33c97bd901e8b4e5a22aa38c25830bfe9e5d4aab977fe14",
     "temporaryFilesRemaining": 0,
     "libraryCount": 1,
     "libraryRoundTrip": true,
@@ -359,6 +360,6 @@
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\installed-smoke-note.md"
   },
   "evidencePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\packaged-smoke-evidence.json",
-  "installedExecutable": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine-install-56536\\Lattice.exe",
-  "installedExecutableSha256": "ea3a6f153c8076e015156943fd904077e9e4ad93be5ba2325c92bc4f69ee5a39"
+  "installedExecutable": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine-install-69372\\Lattice.exe",
+  "installedExecutableSha256": "9c374cb09466969fb9a8ec63a10a3345a1e4811903dccd60c34d313de5a3d9b9"
 }

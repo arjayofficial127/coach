@@ -34,7 +34,11 @@ import {
   surfaceDetails,
 } from "./focus-model";
 import { Icon, type IconName } from "./icon";
-import { profileStorageKey, readProfileStorage } from "./profile-shell-model";
+import {
+  canPersistProfileShell,
+  profileStorageKey,
+  readProfileStorage,
+} from "./profile-shell-model";
 import {
   DEFAULT_RUNNABLE_APPS_STATE,
   parseRunnableAppsState,
@@ -314,6 +318,7 @@ export function LatticeApp() {
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [sessionReady, setSessionReady] = useState(false);
+  const [profileShellHydrated, setProfileShellHydrated] = useState(false);
   const [updatingLinkId, setUpdatingLinkId] = useState<string | null>(null);
   const [handoffLinkId, setHandoffLinkId] = useState<string | null>(null);
   const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
@@ -561,15 +566,15 @@ export function LatticeApp() {
   ]);
 
   useEffect(() => {
-    if (!profileState || !sessionReady) return;
+    if (!profileState || !canPersistProfileShell(sessionReady, profileShellHydrated)) return;
     localStorage.setItem(
       profileStorageKey(WORKSPACE_STORAGE_KEY, profileState.activeProfileId),
       JSON.stringify(workspace),
     );
-  }, [profileState, sessionReady, workspace]);
+  }, [profileShellHydrated, profileState, sessionReady, workspace]);
 
   useEffect(() => {
-    if (!profileState || !sessionReady) return;
+    if (!profileState || !canPersistProfileShell(sessionReady, profileShellHydrated)) return;
     const profileId = profileState.activeProfileId;
     localStorage.setItem(
       profileStorageKey(SETTINGS_STORAGE_KEY, profileId),
@@ -578,7 +583,7 @@ export function LatticeApp() {
     if (!settings.restoreTabs) {
       localStorage.removeItem(profileStorageKey(SESSION_STORAGE_KEY, profileId));
     }
-  }, [profileState, sessionReady, settings]);
+  }, [profileShellHydrated, profileState, sessionReady, settings]);
 
   useEffect(() => {
     setCustomThemeDraft(settings.customTheme);
@@ -604,20 +609,20 @@ export function LatticeApp() {
   }, [settings.activeTheme, titleBarAppearance]);
 
   useEffect(() => {
-    if (!profileState || !sessionReady) return;
+    if (!profileState || !canPersistProfileShell(sessionReady, profileShellHydrated)) return;
     localStorage.setItem(
       profileStorageKey(FOCUS_STORAGE_KEY, profileState.activeProfileId),
       JSON.stringify({ version: 1, intention: normalizeFocusIntention(focusIntention) }),
     );
-  }, [focusIntention, profileState, sessionReady]);
+  }, [focusIntention, profileShellHydrated, profileState, sessionReady]);
 
   useEffect(() => {
-    if (!profileState || !sessionReady) return;
+    if (!profileState || !canPersistProfileShell(sessionReady, profileShellHydrated)) return;
     localStorage.setItem(
       profileStorageKey(RUNNABLE_APPS_STORAGE_KEY, profileState.activeProfileId),
       JSON.stringify(runnableApps),
     );
-  }, [profileState, runnableApps, sessionReady]);
+  }, [profileShellHydrated, profileState, runnableApps, sessionReady]);
 
   useEffect(() => {
     let cancelled = false;
@@ -662,6 +667,13 @@ export function LatticeApp() {
         setProfileLoadError(null);
       }
       const shell = loadProfileShellState(profiles, profiles.activeProfileId);
+      if (!cancelled) {
+        setWorkspace(shell.workspace);
+        setSettings(shell.settings);
+        setFocusIntention(shell.focusIntention);
+        setRunnableApps(shell.runnableApps);
+        setProfileShellHydrated(true);
+      }
       const initial = await window.lattice.browser.snapshot();
       const restored = await restoreProfileBrowser(
         initial,
@@ -670,15 +682,11 @@ export function LatticeApp() {
         profiles,
         profiles.activeProfileId,
       );
-      return { profiles, shell, restored };
+      return { profiles, restored };
     })()
-      .then(({ profiles, shell, restored }) => {
+      .then(({ profiles, restored }) => {
         if (cancelled) return;
         setProfileState(profiles);
-        setWorkspace(shell.workspace);
-        setSettings(shell.settings);
-        setFocusIntention(shell.focusIntention);
-        setRunnableApps(shell.runnableApps);
         setSnapshot(restored.snapshot);
         setTabDesktops(restored.assignments);
         const restoredActive = restored.restoredActive;
@@ -716,7 +724,12 @@ export function LatticeApp() {
   }, []);
 
   useEffect(() => {
-    if (!sessionReady || !settings.restoreTabs || !profileState) return;
+    if (
+      !profileState ||
+      !settings.restoreTabs ||
+      !canPersistProfileShell(sessionReady, profileShellHydrated)
+    )
+      return;
     const timeout = window.setTimeout(() => {
       const session = buildRestorableSession(snapshot, tabDesktops, workspace.activeDesktopId);
       localStorage.setItem(
@@ -727,6 +740,7 @@ export function LatticeApp() {
     return () => window.clearTimeout(timeout);
   }, [
     profileState,
+    profileShellHydrated,
     sessionReady,
     settings.restoreTabs,
     snapshot,
@@ -1397,6 +1411,7 @@ export function LatticeApp() {
     setProfileEditor(null);
     setProfileMenuOpen(false);
     setSessionReady(true);
+    setProfileShellHydrated(true);
     setPrivacy(await window.lattice.browser.privacySummary());
     setStatus(`${selected?.name ?? "Profile"} is ready`);
   };
@@ -1412,11 +1427,13 @@ export function LatticeApp() {
     setConfirmClearAvatar(false);
     setSessionReady(false);
     persistActiveProfileShell();
+    setProfileShellHydrated(false);
     try {
       await window.lattice.browser.setVisible(false);
       await applyProfileSwitch(await window.lattice.profiles.switch(profile.id));
     } catch (error) {
       setSessionReady(true);
+      setProfileShellHydrated(true);
       setStatus(error instanceof Error ? error.message : String(error));
     } finally {
       setProfileBusy(false);
@@ -1429,12 +1446,14 @@ export function LatticeApp() {
     setProfileBusy(true);
     setSessionReady(false);
     persistActiveProfileShell();
+    setProfileShellHydrated(false);
     try {
       await window.lattice.browser.setVisible(false);
       await applyProfileSwitch(await window.lattice.profiles.create({ name: profileName }));
       setProfileName("");
     } catch (error) {
       setSessionReady(true);
+      setProfileShellHydrated(true);
       setStatus(error instanceof Error ? error.message : String(error));
     } finally {
       setProfileBusy(false);

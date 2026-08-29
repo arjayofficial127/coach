@@ -31,11 +31,11 @@ async function createMainWindow(): Promise<void> {
     autoHideMenuBar: true,
     titleBarStyle: "hidden",
     titleBarOverlay: {
-      color: "#101017",
-      symbolColor: "#e9e9f2",
+      color: "#f3f3f0",
+      symbolColor: "#2b2d31",
       height: 43,
     },
-    backgroundColor: "#11151c",
+    backgroundColor: "#f2f2ef",
     webPreferences: {
       partition: "persist:lattice-shell",
       preload: path.join(__dirname, "preload.cjs"),

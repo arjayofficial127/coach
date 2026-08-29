@@ -101,6 +101,7 @@ export interface PhaseNineSmokeEvidence {
     todayTaskCount: number;
     readingPreviewCount: number;
     privacyPromise: string;
+    focusBarThemed: boolean;
     intention: string;
     focusMode: boolean;
     chromeHidden: boolean;
@@ -676,6 +677,18 @@ export async function runPhaseNineSmoke(
       if (!(focusView instanceof HTMLButtonElement)) throw new Error("Focus view action missing");
       focusView.click();
       await new Promise((resolve) => setTimeout(resolve, 75));
+      const focusBarColor = getComputedStyle(document.querySelector('.focus-session-bar')).backgroundColor;
+      const focusBarCanvas = document.createElement('canvas');
+      focusBarCanvas.width = 1;
+      focusBarCanvas.height = 1;
+      const focusBarContext = focusBarCanvas.getContext('2d', { willReadFrequently: true });
+      let focusBarThemed = false;
+      if (focusBarContext) {
+        focusBarContext.fillStyle = focusBarColor;
+        focusBarContext.fillRect(0, 0, 1, 1);
+        const [red, green, blue] = focusBarContext.getImageData(0, 0, 1, 1).data;
+        focusBarThemed = red > 200 && green > 200 && blue > 200;
+      }
       return {
         heading: document.querySelector('.home-hero h1')?.textContent?.trim() ?? "",
         dashboardCards: [...document.querySelectorAll('[data-home-card]')]
@@ -685,6 +698,7 @@ export async function runPhaseNineSmoke(
         todayTaskCount: document.querySelectorAll('.home-task-row').length,
         readingPreviewCount: document.querySelectorAll('.home-reading-row').length,
         privacyPromise: document.querySelector('.home-privacy-card strong')?.textContent?.trim() ?? "",
+        focusBarThemed,
         intention: document.querySelector('.focus-session-copy strong')?.textContent?.trim() ?? "",
         focusMode: document.querySelector('.lattice-shell')?.classList.contains('focus-mode') ?? false,
         chromeHidden: getComputedStyle(document.querySelector('.activity-rail')).display === 'none' &&
@@ -698,6 +712,7 @@ export async function runPhaseNineSmoke(
       todayTaskCount: number;
       readingPreviewCount: number;
       privacyPromise: string;
+      focusBarThemed: boolean;
       intention: string;
       focusMode: boolean;
       chromeHidden: boolean;
@@ -1492,8 +1507,18 @@ export async function runPhaseNineSmoke(
     const nativeViewHiddenForSettings = !runtime.isVisible();
 
     const feltTheme = (await window.webContents.executeJavaScript(`(async () => {
+      const darkButton = document.querySelector('[data-theme-option="lattice-dark"]');
       const button = document.querySelector('[data-theme-option="paper-felt"]');
+      if (!(darkButton instanceof HTMLButtonElement)) throw new Error("Lattice Dark theme missing");
       if (!(button instanceof HTMLButtonElement)) throw new Error("Felt White theme missing");
+      darkButton.click();
+      const darkDeadline = Date.now() + 2_000;
+      while (
+        Date.now() < darkDeadline &&
+        document.querySelector(".lattice-shell")?.getAttribute("data-titlebar-theme") !== "lattice-dark"
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
       button.click();
       const deadline = Date.now() + 2_000;
       while (

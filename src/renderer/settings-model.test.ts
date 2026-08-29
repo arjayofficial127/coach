@@ -11,11 +11,11 @@ describe("settings preferences", () => {
   it("repairs malformed and unsupported values", () => {
     expect(parseSettingsPreferences(null)).toEqual(DEFAULT_SETTINGS);
     expect(parseSettingsPreferences("not-json")).toEqual(DEFAULT_SETTINGS);
-    expect(parseSettingsPreferences('{"version":3,"restoreTabs":false}')).toEqual(DEFAULT_SETTINGS);
+    expect(parseSettingsPreferences('{"version":4,"restoreTabs":false}')).toEqual(DEFAULT_SETTINGS);
     expect(parseSettingsPreferences('{"version":2,"restoreTabs":"yes"}')).toEqual(DEFAULT_SETTINGS);
   });
 
-  it("migrates legacy restore-tabs preferences into Lattice Dark", () => {
+  it("migrates legacy restore-tabs preferences into Felt White", () => {
     expect(parseSettingsPreferences('{"version":1,"restoreTabs":false}')).toEqual({
       ...DEFAULT_SETTINGS,
       restoreTabs: false,
@@ -45,7 +45,7 @@ describe("settings preferences", () => {
         }),
       ),
     ).toEqual({
-      version: 2,
+      version: 3,
       restoreTabs: true,
       activeTheme: "custom",
       customTheme: {
@@ -63,7 +63,7 @@ describe("settings preferences", () => {
     expect(
       parseSettingsPreferences(
         JSON.stringify({
-          version: 2,
+          version: 3,
           restoreTabs: false,
           activeTheme: "missing-theme",
           customTheme: {
@@ -77,15 +77,33 @@ describe("settings preferences", () => {
         }),
       ),
     ).toEqual({
-      version: 2,
+      version: 3,
       restoreTabs: false,
-      activeTheme: "lattice-dark",
+      activeTheme: "paper-felt",
       customTheme: {
         ...DEFAULT_CUSTOM_THEME,
         surface: "#123456",
         muted: "#abcdef",
       },
     });
+  });
+
+  it("moves the former v2 dark default to Felt White without overriding later choices", () => {
+    const legacyDark = JSON.stringify({
+      version: 2,
+      restoreTabs: true,
+      activeTheme: "lattice-dark",
+      customTheme: DEFAULT_CUSTOM_THEME,
+    });
+    const currentDark = JSON.stringify({
+      version: 3,
+      restoreTabs: true,
+      activeTheme: "lattice-dark",
+      customTheme: DEFAULT_CUSTOM_THEME,
+    });
+
+    expect(parseSettingsPreferences(legacyDark).activeTheme).toBe("paper-felt");
+    expect(parseSettingsPreferences(currentDark).activeTheme).toBe("lattice-dark");
   });
 
   it("normalizes an absent custom palette into a fresh default value", () => {

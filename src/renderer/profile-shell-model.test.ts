@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ProfileState } from "../shared/contracts";
-import { profileStorageKey, readProfileStorage } from "./profile-shell-model";
+import {
+  canPersistProfileShell,
+  profileStorageKey,
+  readProfileStorage,
+} from "./profile-shell-model";
 
 const profiles: ProfileState = {
   activeProfileId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -27,6 +31,12 @@ const personalProfileId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const workProfileId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 describe("profile shell storage", () => {
+  it("does not persist defaults when browser restoration finishes before settings hydration", () => {
+    expect(canPersistProfileShell(true, false)).toBe(false);
+    expect(canPersistProfileShell(false, true)).toBe(false);
+    expect(canPersistProfileShell(true, true)).toBe(true);
+  });
+
   it("uses a profile-specific key", () => {
     expect(profileStorageKey("lattice.session.v1", profiles.activeProfileId)).toBe(
       "lattice.session.v1.profile.aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",

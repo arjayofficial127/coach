@@ -37,12 +37,12 @@
       "height": 633
     },
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-9-shell.png",
-    "screenshotBytes": 326225,
+    "screenshotBytes": 326181,
     "screenshotPixels": {
       "width": 1252,
       "height": 903
     },
-    "screenshotSha256": "6a911aa905947cf2a77671ca8af0acc6685d77eea5b1095ddda3cfb60ed77845",
+    "screenshotSha256": "6db5a9e38be4f2fb8ff4f42c7fac426e87756044d3f0c95cde681860c6dbb809",
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\phase-9-shell.png"
   },
   "remote": {
@@ -123,12 +123,12 @@
     "partitionsDistinct": true,
     "registryContainsNoCredentials": true,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-12-profiles.png",
-    "screenshotBytes": 280670,
+    "screenshotBytes": 280635,
     "screenshotPixels": {
       "width": 1252,
       "height": 903
     },
-    "screenshotSha256": "433d8ae7e1bc483d8c0cd76151e898330add4f3befc894457ece09903878d62b",
+    "screenshotSha256": "54d3d24bafcdb54bfe815857a007cc4a6fc771d4661ddf0cf4221ea3e218e964",
     "artifactPath": "C:\\coach\\artifacts\\phase-12\\website-profiles.png"
   },
   "navigation": {
@@ -147,6 +147,7 @@
     "todayTaskCount": 0,
     "readingPreviewCount": 1,
     "privacyPromise": "Private by design. Always local.",
+    "focusBarThemed": true,
     "intention": "Finish one meaningful thread",
     "focusMode": true,
     "chromeHidden": true,
@@ -163,18 +164,18 @@
     ],
     "browserRestoredAfterShortcuts": true,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-10-focus-navigation.png",
-    "screenshotBytes": 190639,
+    "screenshotBytes": 302784,
     "screenshotPixels": {
       "width": 1252,
       "height": 903
     },
-    "screenshotSha256": "898f690f1c7ce794903ff16b1bade6976ec4c2e7d93097ce20cd01d5cf19d27a",
+    "screenshotSha256": "811dcdf1add8d83a02508108de0c73839e021640806519e77c25f90b09abaf37",
     "artifactPath": "C:\\coach\\artifacts\\phase-10\\focus-navigation.png"
   },
   "runnableApps": {
     "heading": "Runnable apps",
     "appName": "Pomodoro",
-    "originalResult": "Original: Stopped at 0:02 · Aug 29, 3:28 PM",
+    "originalResult": "Original: Stopped at 0:02 · Aug 29, 4:14 PM",
     "correctedResult": "Corrected: Completed at 1h 00m",
     "overridden": true,
     "originalPreserved": true,
@@ -184,12 +185,12 @@
     "adaptiveLightSurface": true,
     "nativeViewHidden": true,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-13-runnable-apps.png",
-    "screenshotBytes": 345358,
+    "screenshotBytes": 345117,
     "screenshotPixels": {
       "width": 1252,
       "height": 903
     },
-    "screenshotSha256": "8ce4fc2f136dcabb34a802bc8f42c3b5ef28989657b23c746899930ca4838f2b",
+    "screenshotSha256": "8a92a3b9b6988676ce21e9ad9372f48ec2a4fd34e2db7771abc14fc03d04d744",
     "artifactPath": "C:\\coach\\artifacts\\phase-13\\runnable-apps.png"
   },
   "dailyFlow": {
@@ -215,12 +216,12 @@
     "adaptiveLightSurface": true,
     "nativeViewHidden": true,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-14-daily-flow.png",
-    "screenshotBytes": 340127,
+    "screenshotBytes": 340075,
     "screenshotPixels": {
       "width": 1252,
       "height": 903
     },
-    "screenshotSha256": "232ebacf7f12ee6c5222ac74cd8ec1a7d4a369d069729ccd1f071249d5d9cfa5",
+    "screenshotSha256": "417b1987842e7807a513ef9aae1ecabc156b0472de9c11de6bd4f54c3af765c2",
     "artifactPath": "C:\\coach\\artifacts\\phase-14\\daily-flow.png"
   },
   "wealthLab": {
@@ -249,12 +250,12 @@
     "adaptiveLightSurface": true,
     "nativeViewHidden": true,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-15-wealth-lab.png",
-    "screenshotBytes": 328067,
+    "screenshotBytes": 328019,
     "screenshotPixels": {
       "width": 1252,
       "height": 903
     },
-    "screenshotSha256": "2d9c891531b4b2afb31a18e8d805c58c55f713527769acd8bbc8b66d06de2ae5",
+    "screenshotSha256": "64fe3b67fe8ccd761fee36f7cb314ee6b0f98665a0d6b752918f3af8840ff527",
     "artifactPath": "C:\\coach\\artifacts\\phase-15\\wealth-lab.png"
   },
   "desktopLifecycle": {
@@ -279,12 +280,12 @@
     "readingStatePreserved": true,
     "temporaryFilesRemaining": 0,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-9-metadata-editor.png",
-    "screenshotBytes": 214822,
+    "screenshotBytes": 325199,
     "screenshotPixels": {
       "width": 1252,
       "height": 903
     },
-    "screenshotSha256": "2d022bf31db15e5082925a57b2f16a6225ebe8cb0d1d3ae02b9abb72f94d15c4",
+    "screenshotSha256": "d0c1837e72c3d95eb9769716163db248804589dd242b3c529797d1b8a2a53b74",
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\phase-9-metadata-editor.png"
   },
   "obsidianHandoff": {
@@ -293,16 +294,16 @@
     "notePathNotRendered": true,
     "openInvocations": 1,
     "revealInvocations": 1,
-    "obsidianUri": "obsidian://open?path=C%3A%2FUsers%2Farvin%2FAppData%2FLocal%2FTemp%2Flattice-disposable-vaults%2Fvault-97749ccb-eec0-48a3-98a1-7d0536c6441e%2FSaved%20Links%2FResearch%2F2026-08-29%20-%20Phase%208%20packaged%20smoke%20-%2023eb9706.md",
+    "obsidianUri": "obsidian://open?path=C%3A%2FUsers%2Farvin%2FAppData%2FLocal%2FTemp%2Flattice-disposable-vaults%2Fvault-0f561cbb-72f4-454f-864d-91ab790e7c1f%2FSaved%20Links%2FResearch%2F2026-08-29%20-%20Phase%208%20packaged%20smoke%20-%20906b67f8.md",
     "decodedPathMatches": true,
     "revealedPathMatches": true,
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-9-obsidian-handoff.png",
-    "screenshotBytes": 227362,
+    "screenshotBytes": 338173,
     "screenshotPixels": {
       "width": 1252,
       "height": 903
     },
-    "screenshotSha256": "7430633e829c3e4c79676aea11b408009824e6082a1353f991573ed98529d9b6",
+    "screenshotSha256": "daaa18410cc4ec750681cb31aaf26205c72ec697251990e768a03613c8cb1d80",
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\phase-9-obsidian-handoff.png"
   },
   "readingQueue": {
@@ -346,15 +347,15 @@
     "backlinkSourceVisible": true,
     "privateReferencePathHidden": true,
     "temporaryFilesRemaining": 0,
-    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-97749ccb-eec0-48a3-98a1-7d0536c6441e\\Lattice Pages\\Projects\\Browser\\Phase 9 research canvas-f1597fb0.canvas",
-    "sha256": "68603c31477e44f258397876afc811adef15cf690220929a33e091b9643791ce",
+    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-0f561cbb-72f4-454f-864d-91ab790e7c1f\\Lattice Pages\\Projects\\Browser\\Phase 9 research canvas-2882bc4b.canvas",
+    "sha256": "f11b6bda8a0e5508645bcd9a2efdde634c0ddf7dcfba85e398bae1dd98570c09",
     "screenshotPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\phase-9-canvas.png",
-    "screenshotBytes": 173837,
+    "screenshotBytes": 173782,
     "screenshotPixels": {
       "width": 1252,
       "height": 903
     },
-    "screenshotSha256": "ffd81efaf68a947a987c65aa7c45c7aedc3176b4995f3ae6d8ebe6f121557adc",
+    "screenshotSha256": "b8a9def9749410b902ba2eb6fd40e7cdc4e7a12ab0788114fc015b2caa5aca85",
     "screenshotArtifactPath": "C:\\coach\\artifacts\\phase-9\\phase-9-canvas.png",
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\packaged-smoke-canvas.canvas"
   },
@@ -380,7 +381,7 @@
   },
   "themes": {
     "optionCount": 3,
-    "defaultTheme": "lattice-dark",
+    "defaultTheme": "paper-felt",
     "feltApplied": true,
     "feltTextureVisible": true,
     "feltRecoveryThemed": true,
@@ -394,14 +395,14 @@
     "nativeTitleBarSynced": true
   },
   "note": {
-    "vaultPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-97749ccb-eec0-48a3-98a1-7d0536c6441e",
+    "vaultPath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-0f561cbb-72f4-454f-864d-91ab790e7c1f",
     "disposableVault": true,
     "obsidianDirectoryPresent": true,
-    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-97749ccb-eec0-48a3-98a1-7d0536c6441e\\Saved Links\\Research\\2026-08-29 - Phase 8 packaged smoke - 23eb9706.md",
-    "relativePath": "Saved Links\\Research\\2026-08-29 - Phase 8 packaged smoke - 23eb9706.md",
+    "absolutePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-disposable-vaults\\vault-0f561cbb-72f4-454f-864d-91ab790e7c1f\\Saved Links\\Research\\2026-08-29 - Phase 8 packaged smoke - 906b67f8.md",
+    "relativePath": "Saved Links\\Research\\2026-08-29 - Phase 8 packaged smoke - 906b67f8.md",
     "bytesWritten": 597,
     "bytesReadBack": 597,
-    "sha256": "7112cbb77f5d931cf63da4fc190f8332d11d3388c6dca976ec3bbace39e494a2",
+    "sha256": "ce765ac2935f11b62e02252f0ebe0396bbfd4e6d6100b7079b7e969e7d41c49a",
     "temporaryFilesRemaining": 0,
     "libraryCount": 1,
     "libraryRoundTrip": true,
@@ -409,17 +410,17 @@
     "artifactPath": "C:\\coach\\artifacts\\phase-9\\packaged-smoke-note.md"
   },
   "evidencePath": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine\\packaged-smoke-evidence.json",
-  "verifiedAt": "2026-08-29T07:29:02.787Z",
+  "verifiedAt": "2026-08-29T08:15:25.856Z",
   "package": {
     "executable": "C:\\coach\\out\\Lattice-win32-x64\\Lattice.exe",
     "appAsar": "C:\\coach\\out\\Lattice-win32-x64\\resources\\app.asar",
     "sourceManifestPath": "C:\\coach\\out\\Lattice-win32-x64\\resources\\source-manifest.json",
-    "sourceManifestSha256": "8c5c83e35daa728d89be5efd415faeae1881857eed1673a5d5685a6e8bed9f49",
+    "sourceManifestSha256": "68ccfb0f61d6e2772a04611adedf7630debe7899f12cf8897ad7246f6329fed9",
     "sourceManifestFiles": 82,
     "bytes": 244440576,
-    "sha256": "ea3a6f153c8076e015156943fd904077e9e4ad93be5ba2325c92bc4f69ee5a39",
-    "asarBytes": 1205399,
-    "asarSha256": "0509284d44a826ff42c533485666b341b4f401c5f61cccbb8e5e0535fca45300",
+    "sha256": "9c374cb09466969fb9a8ec63a10a3345a1e4811903dccd60c34d313de5a3d9b9",
+    "asarBytes": 1206808,
+    "asarSha256": "64da653402b9ffe63de6f333f3db07979d3e1c6206a6b148c00338c0f8ec4c34",
     "authenticodeStatus": "NotSigned",
     "signed": false,
     "fuses": {

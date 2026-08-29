@@ -18,7 +18,7 @@ export interface ThemeCatalogEntry {
 }
 
 export interface SettingsPreferences {
-  version: 2;
+  version: 3;
   restoreTabs: boolean;
   activeTheme: ThemeId;
   customTheme: CustomThemePreferences;
@@ -54,9 +54,9 @@ export const DEFAULT_CUSTOM_THEME: CustomThemePreferences = {
 };
 
 export const DEFAULT_SETTINGS: SettingsPreferences = {
-  version: 2,
+  version: 3,
   restoreTabs: true,
-  activeTheme: "lattice-dark",
+  activeTheme: "paper-felt",
   customTheme: DEFAULT_CUSTOM_THEME,
 };
 
@@ -103,11 +103,17 @@ export function parseSettingsPreferences(serialized: string | null): SettingsPre
       return { ...DEFAULT_SETTINGS, restoreTabs: candidate.restoreTabs };
     }
 
-    if (candidate.version !== 2) return DEFAULT_SETTINGS;
+    if (candidate.version !== 2 && candidate.version !== 3) return DEFAULT_SETTINGS;
+    const storedTheme = isThemeId(candidate.activeTheme)
+      ? candidate.activeTheme
+      : DEFAULT_SETTINGS.activeTheme;
     return {
-      version: 2,
+      version: 3,
       restoreTabs: candidate.restoreTabs,
-      activeTheme: isThemeId(candidate.activeTheme) ? candidate.activeTheme : "lattice-dark",
+      activeTheme:
+        candidate.version === 2 && storedTheme === "lattice-dark"
+          ? DEFAULT_SETTINGS.activeTheme
+          : storedTheme,
       customTheme: normalizeCustomTheme(candidate.customTheme),
     };
   } catch {

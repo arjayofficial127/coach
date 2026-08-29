@@ -230,6 +230,7 @@ if (
     JSON.stringify(["saved-links", "runnable-apps", "settings"]) ||
   evidence.navigation?.readingPreviewCount < 1 ||
   evidence.navigation?.privacyPromise !== "Private by design. Always local." ||
+  !evidence.navigation?.focusBarThemed ||
   evidence.navigation?.intention !== "Finish one meaningful thread"
 ) {
   failures.push("focus home did not expose the intended real-data dashboard model");
@@ -467,7 +468,7 @@ if (!evidence.privacy.nativeViewHidden) {
 }
 if (
   evidence.themes?.optionCount !== 3 ||
-  evidence.themes?.defaultTheme !== "lattice-dark" ||
+  evidence.themes?.defaultTheme !== "paper-felt" ||
   !evidence.themes?.feltApplied ||
   !evidence.themes?.feltTextureVisible ||
   !evidence.themes?.feltRecoveryThemed ||
