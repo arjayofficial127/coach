@@ -7320,19 +7320,8 @@ kbd {
 }
 
 .lattice-shell.new-tab-sizing-invalidated:not(.focus-mode) {
-  grid-template-columns: var(--coach-sidebar-width) minmax(0, 1fr);
+  grid-template-columns: 58px 258px minmax(0, 1fr);
   overflow: hidden;
-}
-
-.lattice-shell.new-tab-sizing-invalidated:not(.focus-mode) > .activity-rail {
-  position: fixed;
-  top: 0;
-  left: -10000px;
-  width: 1px;
-  height: 1px;
-  overflow: visible;
-  border: 0;
-  padding: 0;
 }
 
 .lattice-shell.new-tab-sizing-invalidated .new-tab-content {
