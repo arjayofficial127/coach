@@ -260,6 +260,7 @@ export interface PhaseNineSmokeEvidence {
     defaultTheme: string;
     feltApplied: boolean;
     feltTextureVisible: boolean;
+    feltRecoveryThemed: boolean;
     customName: string;
     customApplied: boolean;
     customPersisted: boolean;
@@ -1491,12 +1492,39 @@ export async function runPhaseNineSmoke(
       }
       const shell = document.querySelector(".lattice-shell");
       const surface = document.querySelector(".trusted-surface");
+      const recovery = document.querySelector(".recovery-bar");
+      const recoveryAction = recovery?.querySelector("button:not(.recovery-dismiss)");
+      const recoveryDismiss = recovery?.querySelector(".recovery-dismiss");
+      const canvas = document.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 1;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      let recoveryIsLight = false;
+      if (recovery instanceof HTMLElement && context) {
+        context.fillStyle = getComputedStyle(recovery).backgroundColor;
+        context.fillRect(0, 0, 1, 1);
+        const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
+        recoveryIsLight = red > 220 && green > 220 && blue > 220;
+      }
       return {
         applied: shell?.getAttribute("data-theme") === "paper-felt",
         textureVisible: surface instanceof HTMLElement && getComputedStyle(surface).backgroundImage.includes("radial-gradient"),
+        recoveryThemed: recoveryIsLight
+          && recovery instanceof HTMLElement
+          && getComputedStyle(recovery).backgroundImage.includes("radial-gradient")
+          && recoveryAction instanceof HTMLButtonElement
+          && !recoveryAction.disabled
+          && getComputedStyle(recoveryAction).backgroundColor !== "rgba(0, 0, 0, 0)"
+          && recoveryDismiss instanceof HTMLButtonElement
+          && getComputedStyle(recoveryDismiss).backgroundColor === "rgba(0, 0, 0, 0)",
         nativeTitleBarSynced: shell?.getAttribute("data-titlebar-theme") === "paper-felt"
       };
-    })()`)) as { applied: boolean; textureVisible: boolean; nativeTitleBarSynced: boolean };
+    })()`)) as {
+      applied: boolean;
+      textureVisible: boolean;
+      recoveryThemed: boolean;
+      nativeTitleBarSynced: boolean;
+    };
 
     // Chromium only exposes composed surfaces while the owning window is shown. Keep
     // the smoke window out of the taskbar and avoid taking focus.
@@ -2222,6 +2250,7 @@ export async function runPhaseNineSmoke(
         defaultTheme: settingsDom.activeTheme,
         feltApplied: feltTheme.applied,
         feltTextureVisible: feltTheme.textureVisible,
+        feltRecoveryThemed: feltTheme.recoveryThemed,
         ...themeSmoke,
         nativeTitleBarSynced: feltTheme.nativeTitleBarSynced && themeSmoke.nativeTitleBarSynced,
       },

@@ -435,6 +435,7 @@ if (
   smoke.themes?.defaultTheme !== "lattice-dark" ||
   !smoke.themes?.feltApplied ||
   !smoke.themes?.feltTextureVisible ||
+  !smoke.themes?.feltRecoveryThemed ||
   smoke.themes?.customName !== "Smoke Aubergine" ||
   !smoke.themes?.customApplied ||
   !smoke.themes?.customPersisted ||

@@ -464,6 +464,7 @@ if (
   evidence.themes?.defaultTheme !== "lattice-dark" ||
   !evidence.themes?.feltApplied ||
   !evidence.themes?.feltTextureVisible ||
+  !evidence.themes?.feltRecoveryThemed ||
   evidence.themes?.customName !== "Smoke Aubergine" ||
   !evidence.themes?.customApplied ||
   !evidence.themes?.customPersisted ||
