@@ -2653,9 +2653,18 @@ export function LatticeApp() {
                 >
                   <button
                     type="button"
-                    className="desktop-select"
+                    className="desktop-open-surface"
                     aria-label={`Open ${desktop.name}`}
                     onClick={() => void selectDesktop(desktop.id)}
+                  />
+                  <button
+                    type="button"
+                    className="desktop-select"
+                    aria-label={`Open ${desktop.name}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void selectDesktop(desktop.id);
+                    }}
                   >
                     <span className={`desktop-glyph ${desktop.color}`}>
                       <Icon name="desktop" />
@@ -2667,7 +2676,10 @@ export function LatticeApp() {
                       className="desktop-name-button"
                       aria-label={`Rename ${desktop.name}`}
                       title={`Rename ${desktop.name}`}
-                      onClick={() => beginRenameDesktop(desktop.id)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        beginRenameDesktop(desktop.id);
+                      }}
                     >
                       <strong>{desktop.name}</strong>
                       <Icon name="edit" />
@@ -2676,7 +2688,10 @@ export function LatticeApp() {
                       type="button"
                       className="desktop-summary-button"
                       aria-label={`Open ${desktop.name}`}
-                      onClick={() => void selectDesktop(desktop.id)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void selectDesktop(desktop.id);
+                      }}
                     >
                       <small>
                         {formatCount(tabCount, "tab")} · {linkCount} saved
@@ -2689,7 +2704,10 @@ export function LatticeApp() {
                     data-delete-desktop={desktop.id}
                     aria-label={`Archive ${desktop.name}`}
                     title={`Archive ${desktop.name}`}
-                    onClick={() => showDesktopArchiveActions(desktop.id)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      showDesktopArchiveActions(desktop.id);
+                    }}
                   >
                     <Icon name="close" />
                   </button>
