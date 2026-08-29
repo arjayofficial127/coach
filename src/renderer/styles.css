@@ -1442,7 +1442,8 @@ kbd {
 
 .desktop-context {
   display: flex;
-  height: 42px;
+  height: 35px;
+  align-self: flex-end;
   min-width: 114px;
   align-items: center;
   gap: 7px;
