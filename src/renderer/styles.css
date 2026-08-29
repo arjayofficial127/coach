@@ -7466,7 +7466,7 @@ kbd {
   gap: 3px;
 }
 
-.lattice-shell.new-tab-sizing-invalidated .desktop-item {
+.lattice-shell.new-tab-sizing-invalidated .desktop-item:not(.desktop-rename-row) {
   min-height: 48px;
   grid-template-columns: 34px minmax(0, 1fr) 24px;
   gap: 7px;
