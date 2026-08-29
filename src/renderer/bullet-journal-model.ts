@@ -308,6 +308,43 @@ export function captureJournalItem(
   };
 }
 
+export function captureJournalInboxNote(
+  journal: BulletJournalState,
+  text: string,
+  day = localDayKey(),
+  now = new Date().toISOString(),
+  id: string = crypto.randomUUID(),
+  eventId: string = crypto.randomUUID(),
+): BulletJournalState {
+  const captured = captureJournalItem(journal, { text, kind: "note", day }, now, id);
+  return appendActivity(captured, id, {
+    id: eventId,
+    recordedAt: now,
+    type: "organized",
+    lane: "inbox",
+  });
+}
+
+export function fileJournalNote(
+  journal: BulletJournalState,
+  itemId: string,
+  now = new Date().toISOString(),
+  eventId: string = crypto.randomUUID(),
+): BulletJournalState {
+  const item = journal.items.find((candidate) => candidate.id === itemId);
+  if (!item) throw new Error("The journal item no longer exists.");
+  const effective = effectiveJournalItem(item);
+  if (effective.kind !== "note" || effective.lifecycle !== "open" || effective.lane !== "inbox") {
+    throw new Error("Only an open Inbox note can be filed.");
+  }
+  return appendActivity(journal, itemId, {
+    id: eventId,
+    recordedAt: now,
+    type: "organized",
+    lane: "reference",
+  });
+}
+
 function openTask(journal: BulletJournalState, itemId: string): EffectiveJournalItem {
   const item = journal.items.find((candidate) => candidate.id === itemId);
   if (!item) throw new Error("The journal item no longer exists.");

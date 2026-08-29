@@ -24,6 +24,7 @@ const phaseTwelveEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-12
 const phaseThirteenEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-13");
 const phaseFourteenEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-14");
 const phaseFifteenEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-15");
+const phaseSixteenEvidenceRoot = path.join(repositoryRoot, "artifacts", "phase-16");
 const lifecycleEvidencePath = path.join(evidenceRoot, "installer-lifecycle-evidence.json");
 const installedSmokeTarget = path.join(evidenceRoot, "installed-smoke-evidence.json");
 const shellScreenshotTarget = path.join(evidenceRoot, "installed-shell.png");
@@ -44,6 +45,7 @@ const runnableAppsScreenshotTarget = path.join(
 );
 const dailyFlowScreenshotTarget = path.join(phaseFourteenEvidenceRoot, "installed-daily-flow.png");
 const wealthLabScreenshotTarget = path.join(phaseFifteenEvidenceRoot, "installed-wealth-lab.png");
+const newTabScreenshotTarget = path.join(phaseSixteenEvidenceRoot, "installed-new-tab.png");
 const remoteScreenshotTarget = path.join(evidenceRoot, "installed-remote-example-com.png");
 const noteTarget = path.join(evidenceRoot, "installed-smoke-note.md");
 const canvasTarget = path.join(evidenceRoot, "installed-smoke-canvas.canvas");
@@ -213,6 +215,7 @@ await Promise.all(
     runnableAppsScreenshotTarget,
     dailyFlowScreenshotTarget,
     wealthLabScreenshotTarget,
+    newTabScreenshotTarget,
     remoteScreenshotTarget,
     noteTarget,
     canvasTarget,
@@ -308,8 +311,6 @@ if (
   smoke.navigation?.heading !== "Let's focus on what matters." ||
   JSON.stringify(smoke.navigation?.dashboardCards) !==
     JSON.stringify(["recent-thread", "canvas", "today-focus", "reading-queue"]) ||
-  JSON.stringify(smoke.navigation?.quickRoutes) !==
-    JSON.stringify(["saved-links", "runnable-apps", "settings"]) ||
   smoke.navigation?.readingPreviewCount < 1 ||
   smoke.navigation?.privacyPromise !== "Private by design. Always local." ||
   !smoke.navigation?.focusBarThemed ||
@@ -317,7 +318,12 @@ if (
   !smoke.navigation?.chromeHidden ||
   !smoke.navigation?.nativeViewHidden ||
   !smoke.navigation?.escapeRestoredNavigation ||
-  !smoke.navigation?.browserRestoredAfterShortcuts
+  !smoke.navigation?.browserRestoredAfterShortcuts ||
+  smoke.navigation?.newTabHeading !== "Where would you like to go?" ||
+  !smoke.navigation?.newTabSuggestionKinds?.includes("app") ||
+  !smoke.navigation?.quickCaptureVisible ||
+  smoke.navigation?.capturedInboxCount < 1 ||
+  !smoke.navigation?.capturedNoteVisibleInInbox
 ) {
   smokeFailures.push("installed focus-first navigation workflow failed");
 }
@@ -463,6 +469,8 @@ await copyFile(smoke.metadataEditing.screenshotPath, metadataScreenshotTarget);
 await copyFile(smoke.obsidianHandoff.screenshotPath, handoffScreenshotTarget);
 await copyFile(smoke.canvas.screenshotPath, canvasScreenshotTarget);
 await copyFile(smoke.navigation.screenshotPath, focusNavigationScreenshotTarget);
+await mkdir(phaseSixteenEvidenceRoot, { recursive: true });
+await copyFile(smoke.navigation.newTabScreenshotPath, newTabScreenshotTarget);
 await mkdir(phaseTwelveEvidenceRoot, { recursive: true });
 await copyFile(smoke.profiles.screenshotPath, profileScreenshotTarget);
 await mkdir(phaseThirteenEvidenceRoot, { recursive: true });
@@ -480,6 +488,7 @@ smoke.obsidianHandoff.artifactPath = handoffScreenshotTarget;
 smoke.canvas.screenshotArtifactPath = canvasScreenshotTarget;
 smoke.canvas.artifactPath = canvasTarget;
 smoke.navigation.artifactPath = focusNavigationScreenshotTarget;
+smoke.navigation.newTabArtifactPath = newTabScreenshotTarget;
 smoke.profiles.artifactPath = profileScreenshotTarget;
 smoke.runnableApps.artifactPath = runnableAppsScreenshotTarget;
 smoke.dailyFlow.artifactPath = dailyFlowScreenshotTarget;

@@ -1,4 +1,12 @@
-export type Surface = "home" | "browser" | "library" | "queue" | "pages" | "apps" | "settings";
+export type Surface =
+  | "home"
+  | "dashboard"
+  | "browser"
+  | "library"
+  | "queue"
+  | "pages"
+  | "apps"
+  | "settings";
 
 export interface FocusPreferences {
   version: 1;
@@ -19,7 +27,7 @@ export const DEFAULT_FOCUS_PREFERENCES: FocusPreferences = {
 };
 
 const surfaceShortcutMap: Record<string, Surface> = {
-  "1": "home",
+  "1": "dashboard",
   "2": "browser",
   "3": "pages",
   "4": "library",
@@ -33,8 +41,13 @@ export const surfaceDetails: Record<
   { label: string; description: string; shortcut: string }
 > = {
   home: {
-    label: "Focus",
-    description: "Choose one meaningful next step",
+    label: "New tab",
+    description: "Search, open, or capture without distraction",
+    shortcut: "Ctrl T",
+  },
+  dashboard: {
+    label: "Dashboard",
+    description: "Review what matters across your workspace",
     shortcut: "Alt 1",
   },
   browser: {

@@ -7,6 +7,7 @@ import {
   correctJournalText,
   type EffectiveJournalItem,
   effectiveJournalItem,
+  fileJournalNote,
   type JournalKind,
   journalCarryover,
   journalItemsForLane,
@@ -19,10 +20,11 @@ import {
 } from "./bullet-journal-model";
 import { Icon } from "./icon";
 
-type DailyFlowView = "today" | "inbox" | "next" | "waiting" | "someday" | "log";
+export type DailyFlowView = "today" | "inbox" | "next" | "waiting" | "someday" | "log";
 
 interface DailyFlowSurfaceProps {
   journal: BulletJournalState;
+  initialView?: DailyFlowView;
   onChange: (journal: BulletJournalState) => void;
   onFocusTask: (item: EffectiveJournalItem) => void;
   timerActive: boolean;
@@ -62,6 +64,7 @@ function laneLabel(item: EffectiveJournalItem): string {
 
 export function DailyFlowSurface({
   journal,
+  initialView = "today",
   onChange,
   onFocusTask,
   timerActive,
@@ -69,7 +72,7 @@ export function DailyFlowSurface({
   offerRecovery,
 }: DailyFlowSurfaceProps) {
   const today = localDayKey();
-  const [view, setView] = useState<DailyFlowView>("today");
+  const [view, setView] = useState<DailyFlowView>(initialView);
   const [captureText, setCaptureText] = useState("");
   const [captureKind, setCaptureKind] = useState<JournalKind>("task");
   const [clarifyingId, setClarifyingId] = useState<string | null>(null);
@@ -175,6 +178,10 @@ export function DailyFlowSurface({
       () => organizeJournalTask(journal, { itemId, lane, day: today }),
       `Task moved to ${lane === "today" ? "Today" : lane}`,
     );
+  };
+
+  const fileNote = (itemId: string) => {
+    apply(() => fileJournalNote(journal, itemId), "Note filed in the journal");
   };
 
   return (
@@ -329,7 +336,7 @@ export function DailyFlowSurface({
             {view === "today"
               ? `${todayItems.length} of 3 chosen`
               : view === "inbox"
-                ? "Decide what each task means"
+                ? "Decide what each capture means"
                 : `${visibleItems.length} item${visibleItems.length === 1 ? "" : "s"}`}
           </p>
         </header>
@@ -432,6 +439,11 @@ export function DailyFlowSurface({
                       }
                     >
                       Reopen
+                    </button>
+                  )}
+                  {item.kind === "note" && item.lifecycle === "open" && item.lane === "inbox" && (
+                    <button type="button" className="primary" onClick={() => fileNote(item.id)}>
+                      File note
                     </button>
                   )}
                   <button type="button" onClick={() => startCorrection(item)}>

@@ -22,8 +22,9 @@ import type {
   VaultReferenceIndex,
 } from "../shared/contracts";
 import latticeLogoUrl from "./assets/lattice-logo.svg";
-import { journalItemsForLane, localDayKey } from "./bullet-journal-model";
+import { captureJournalInboxNote, journalItemsForLane, localDayKey } from "./bullet-journal-model";
 import { CanvasWorkspace } from "./canvas-workspace";
+import type { DailyFlowView } from "./daily-flow-surface";
 import {
   FOCUS_STORAGE_KEY,
   MAX_FOCUS_INTENTION_LENGTH,
@@ -122,8 +123,21 @@ interface PendingRecovery extends RecoveryNotice {
   run: () => void | Promise<void>;
 }
 
+type NewTabSuggestion =
+  | {
+      kind: "app";
+      id: string;
+      label: string;
+      detail: string;
+      appId: RunnableAppId;
+    }
+  | { kind: "tab"; id: string; label: string; detail: string; tab: BrowserState }
+  | { kind: "link"; id: string; label: string; detail: string; link: SavedLinkRecord }
+  | { kind: "canvas"; id: string; label: string; detail: string; pageId: string }
+  | { kind: "file"; id: string; label: string; detail: string; pageId: string };
+
 const railItems: Array<{ id: Surface; label: string; icon: IconName }> = [
-  { id: "home", label: "Focus", icon: "home" },
+  { id: "dashboard", label: "Dashboard", icon: "home" },
   { id: "browser", label: "Browse", icon: "globe" },
   { id: "pages", label: "Canvas pages", icon: "grid" },
   { id: "apps", label: "Runnable apps", icon: "timer" },
@@ -282,8 +296,10 @@ export function LatticeApp() {
   const [customThemeDraft, setCustomThemeDraft] =
     useState<CustomThemePreferences>(DEFAULT_CUSTOM_THEME);
   const [focusIntention, setFocusIntention] = useState("");
+  const [quickNote, setQuickNote] = useState("");
   const [runnableApps, setRunnableApps] = useState<RunnableAppsState>(DEFAULT_RUNNABLE_APPS_STATE);
   const [runnableAppTarget, setRunnableAppTarget] = useState<RunnableAppId>("pomodoro");
+  const [dailyFlowTargetView, setDailyFlowTargetView] = useState<DailyFlowView>("today");
   const [profileState, setProfileState] = useState<ProfileState | null>(null);
   const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -461,6 +477,9 @@ export function LatticeApp() {
   const visibleLinks = surface === "queue" ? queuedLinks : filteredLinks;
   const queueCount = links.filter((link) => link.readingStatus === "queued").length;
   const dailyFlowInboxCount = journalItemsForLane(runnableApps.bulletJournal, "inbox").length;
+  const quickCaptureInboxCount = journalItemsForLane(runnableApps.bulletJournal, "inbox").filter(
+    (item) => item.kind === "note",
+  ).length;
   const todayFocusItems = useMemo(
     () => journalItemsForLane(runnableApps.bulletJournal, "today", localDayKey()).slice(0, 3),
     [runnableApps.bulletJournal],
@@ -479,6 +498,96 @@ export function LatticeApp() {
       null,
     [canvasPages],
   );
+  const newTabSuggestions = useMemo<NewTabSuggestion[]>(() => {
+    const appSuggestions: NewTabSuggestion[] = [
+      {
+        kind: "app",
+        id: "new-tab-app-daily-flow",
+        label: "Daily Flow",
+        detail: `${dailyFlowInboxCount} capture${dailyFlowInboxCount === 1 ? "" : "s"} in Inbox`,
+        appId: "daily-flow",
+      },
+      {
+        kind: "app",
+        id: "new-tab-app-pomodoro",
+        label: "Pomodoro",
+        detail: runnableApps.pomodoro.activeRun
+          ? `Running · ${runnableApps.pomodoro.activeRun.task}`
+          : "Start one focused timer",
+        appId: "pomodoro",
+      },
+      {
+        kind: "app",
+        id: "new-tab-app-wealth-lab",
+        label: "Wealth Lab",
+        detail: "Money, earning ideas, and investments",
+        appId: "wealth-lab",
+      },
+    ];
+    const tabSuggestions: NewTabSuggestion[] = desktopTabs
+      .filter((tab) => tab.url !== "about:blank")
+      .slice(0, 3)
+      .map((tab) => ({
+        kind: "tab",
+        id: `new-tab-history-${tab.id}`,
+        label: displayTitle(tab),
+        detail: `Recent tab · ${displayHost(tab.url)}`,
+        tab,
+      }));
+    const linkSuggestions: NewTabSuggestion[] = links.slice(0, 3).map((link) => ({
+      kind: "link",
+      id: `new-tab-link-${link.id}`,
+      label: link.title,
+      detail: `Saved link · ${displayHost(link.url)}`,
+      link,
+    }));
+    const fileSuggestions: NewTabSuggestion[] = referenceIndex.entries
+      .filter(
+        (entry) =>
+          entry.status === "resolved" &&
+          entry.source.kind === "page" &&
+          ["document", "image", "file"].includes(entry.kind),
+      )
+      .slice(0, 2)
+      .map((entry) => ({
+        kind: "file",
+        id: `new-tab-file-${entry.id}`,
+        label: entry.targetLabel,
+        detail: `File · in ${entry.source.title}`,
+        pageId: entry.source.id,
+      }));
+    const canvasSuggestions: NewTabSuggestion[] = recentCanvasPage
+      ? [
+          {
+            kind: "canvas",
+            id: `new-tab-canvas-${recentCanvasPage.id}`,
+            label: recentCanvasPage.title,
+            detail: `Canvas · ${recentCanvasPage.nodeCount} objects`,
+            pageId: recentCanvasPage.id,
+          },
+        ]
+      : [];
+    const candidates = [
+      ...appSuggestions,
+      ...tabSuggestions,
+      ...linkSuggestions,
+      ...fileSuggestions,
+      ...canvasSuggestions,
+    ];
+    const query = homeQuery.trim().toLowerCase();
+    if (!query) return candidates.slice(0, 6);
+    return candidates
+      .filter((candidate) => `${candidate.label} ${candidate.detail}`.toLowerCase().includes(query))
+      .slice(0, 6);
+  }, [
+    dailyFlowInboxCount,
+    desktopTabs,
+    homeQuery,
+    links,
+    recentCanvasPage,
+    referenceIndex.entries,
+    runnableApps.pomodoro.activeRun,
+  ]);
   const commandItems = useMemo(() => {
     const query = commandQuery.trim();
     const normalizedQuery = query.toLowerCase();
@@ -787,6 +896,14 @@ export function LatticeApp() {
     if (!commandOpen) return;
     commandInputRef.current?.focus();
   }, [commandOpen]);
+
+  useEffect(() => {
+    if (surface !== "home") return;
+    const frame = window.requestAnimationFrame(() => {
+      omniboxRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [surface]);
 
   useEffect(() => {
     if (surface !== "browser") webStageRef.current?.scrollTo({ top: 0 });
@@ -1218,18 +1335,19 @@ export function LatticeApp() {
     setBrowserMenuOpen(false);
   };
 
-  const showRunnableApp = (appId: RunnableAppId) => {
+  const showRunnableApp = (appId: RunnableAppId, dailyFlowView: DailyFlowView = "today") => {
     if (!confirmCanvasLeave()) return;
     setRunnableAppTarget(appId);
+    setDailyFlowTargetView(dailyFlowView);
     setSurface("apps");
     setCaptureOpen(false);
     setCommandOpen(false);
     setBrowserMenuOpen(false);
   };
 
-  const showFocusHome = () => {
+  const showDashboard = () => {
     if (!confirmCanvasLeave()) return;
-    setSurface("home");
+    setSurface("dashboard");
     setCaptureOpen(false);
     setBrowserMenuOpen(false);
     setCommandOpen(false);
@@ -1257,13 +1375,43 @@ export function LatticeApp() {
   };
 
   const showSurface = async (target: Surface) => {
-    if (target === "home") showFocusHome();
+    if (target === "home") await createTab();
+    else if (target === "dashboard") showDashboard();
     else if (target === "browser") await showBrowser();
     else if (target === "library") await showLibrary();
     else if (target === "queue") await showReadingQueue();
     else if (target === "pages") await showCanvasPages();
     else if (target === "apps") showRunnableApps();
     else await showSettings();
+  };
+
+  const captureQuickNote = (event: FormEvent) => {
+    event.preventDefault();
+    const previous = runnableApps;
+    try {
+      const next = {
+        ...runnableApps,
+        bulletJournal: captureJournalInboxNote(runnableApps.bulletJournal, quickNote),
+      };
+      setRunnableApps(next);
+      setQuickNote("");
+      setStatus("Quick note captured to Inbox");
+      offerRecovery("Quick note captured to Inbox", () => setRunnableApps(previous));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const activateNewTabSuggestion = async (suggestion: NewTabSuggestion) => {
+    if (suggestion.kind === "app") {
+      showRunnableApp(suggestion.appId);
+    } else if (suggestion.kind === "tab") {
+      await switchTab(suggestion.tab);
+    } else if (suggestion.kind === "link") {
+      await openUrl(suggestion.link.url);
+    } else {
+      await showCanvasPages(suggestion.pageId);
+    }
   };
 
   const setDistractionFree = (enabled: boolean) => {
@@ -1730,7 +1878,7 @@ export function LatticeApp() {
       return;
     }
     const destination: Partial<Record<ShellCommand, Surface>> = {
-      "show-focus": "home",
+      "show-focus": "dashboard",
       "show-browser": "browser",
       "show-pages": "pages",
       "show-library": "library",
@@ -1774,7 +1922,7 @@ export function LatticeApp() {
         commandHandlerRef.current(
           focusShortcut.kind === "toggle-focus"
             ? "toggle-focus"
-            : focusShortcut.surface === "home"
+            : focusShortcut.surface === "dashboard"
               ? "show-focus"
               : (`show-${focusShortcut.surface}` as ShellCommand),
         );
@@ -1826,8 +1974,8 @@ export function LatticeApp() {
         <button
           className="brand-mark"
           type="button"
-          onClick={showFocusHome}
-          aria-label="Open Focus"
+          onClick={showDashboard}
+          aria-label="Open Dashboard"
         >
           <img src={latticeLogoUrl} alt="" />
         </button>
@@ -2112,16 +2260,16 @@ export function LatticeApp() {
         <div className="focus-navigation">
           <button
             type="button"
-            className={surface === "home" ? "navigation-row active" : "navigation-row"}
-            aria-current={surface === "home" ? "page" : undefined}
-            onClick={showFocusHome}
+            className={surface === "dashboard" ? "navigation-row active" : "navigation-row"}
+            aria-current={surface === "dashboard" ? "page" : undefined}
+            onClick={showDashboard}
           >
             <span className="navigation-row-icon violet">
               <Icon name="home" />
             </span>
             <span>
-              <strong>Focus</strong>
-              <small>Choose one next step</small>
+              <strong>Dashboard</strong>
+              <small>Review what matters</small>
             </span>
             <kbd>1</kbd>
           </button>
@@ -2466,16 +2614,16 @@ export function LatticeApp() {
         {surface !== "browser" && (
           <header className="surface-toolbar">
             <div className="surface-toolbar-context">
-              {surface !== "home" && (
-                <button type="button" className="surface-back" onClick={showFocusHome}>
+              {surface !== "home" && surface !== "dashboard" && (
+                <button type="button" className="surface-back" onClick={showDashboard}>
                   <Icon name="arrow-left" />
-                  Focus
+                  Dashboard
                 </button>
               )}
               <span className="surface-location">
                 <Icon
                   name={
-                    surface === "home"
+                    surface === "home" || surface === "dashboard"
                       ? "home"
                       : surface === "pages"
                         ? "grid"
@@ -2550,6 +2698,133 @@ export function LatticeApp() {
               Native WebContentsView surface
             </div>
             {surface === "home" && (
+              <div className="trusted-surface new-tab-surface">
+                <section className="new-tab-search-zone" aria-labelledby="new-tab-heading">
+                  <header className="new-tab-heading">
+                    <span className="new-tab-kicker">
+                      <Icon name="sparkle" /> New tab
+                    </span>
+                    <h1 id="new-tab-heading">Where would you like to go?</h1>
+                    <p>Search the web, open something nearby, or leave a thought for later.</p>
+                  </header>
+
+                  <form className="new-tab-search" onSubmit={navigateFromFocus}>
+                    <Icon name="search" />
+                    <input
+                      ref={omniboxRef}
+                      value={homeQuery}
+                      onChange={(event) => setHomeQuery(event.target.value)}
+                      placeholder="Search the web or enter a URL"
+                      aria-label="Search the web or enter a URL"
+                      autoComplete="off"
+                    />
+                    <button type="submit">
+                      Search <Icon name="arrow-right" />
+                    </button>
+                  </form>
+
+                  <div className="new-tab-suggestions">
+                    <div className="new-tab-suggestions-heading">
+                      <span>{homeQuery.trim() ? "Matching your workspace" : "Quick open"}</span>
+                      <small>Apps · history · saved knowledge</small>
+                    </div>
+                    {newTabSuggestions.length > 0 ? (
+                      <div className="new-tab-suggestion-grid">
+                        {newTabSuggestions.map((suggestion) => (
+                          <button
+                            type="button"
+                            key={suggestion.id}
+                            data-new-tab-suggestion={suggestion.kind}
+                            onClick={() => void activateNewTabSuggestion(suggestion)}
+                          >
+                            <span
+                              className={`new-tab-app-icon ${suggestion.kind}${
+                                suggestion.kind === "app" ? ` ${suggestion.appId}` : ""
+                              }`}
+                            >
+                              {suggestion.kind === "app" ? (
+                                suggestion.appId === "pomodoro" ? (
+                                  <Icon name="timer" />
+                                ) : suggestion.appId === "daily-flow" ? (
+                                  <Icon name="sparkle" />
+                                ) : (
+                                  <b>₱</b>
+                                )
+                              ) : (
+                                <Icon
+                                  name={
+                                    suggestion.kind === "tab"
+                                      ? "globe"
+                                      : suggestion.kind === "link"
+                                        ? "bookmark"
+                                        : suggestion.kind === "canvas"
+                                          ? "grid"
+                                          : "folder"
+                                  }
+                                />
+                              )}
+                            </span>
+                            <span>
+                              <strong>{suggestion.label}</strong>
+                              <small>{suggestion.detail}</small>
+                            </span>
+                            <Icon name="arrow-right" />
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="new-tab-no-match">
+                        <Icon name="search" />
+                        <span>
+                          <strong>Search the web for “{homeQuery.trim().slice(0, 70)}”</strong>
+                          <small>Press Search or Enter to continue</small>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <form className="quick-note" onSubmit={captureQuickNote}>
+                  <span className="quick-note-tape" aria-hidden="true" />
+                  <header>
+                    <span className="quick-note-label">
+                      <Icon name="edit" /> Quick capture
+                    </span>
+                    <strong>Leave a note for later you.</strong>
+                    <p>No organizing now. Every capture waits safely in your Inbox.</p>
+                  </header>
+                  <textarea
+                    value={quickNote}
+                    onChange={(event) => setQuickNote(event.target.value)}
+                    onKeyDown={(event) => {
+                      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+                        event.preventDefault();
+                        event.currentTarget.form?.requestSubmit();
+                      }
+                    }}
+                    maxLength={2000}
+                    placeholder="Write the thought before it disappears…"
+                    aria-label="Quick capture note"
+                  />
+                  <div className="quick-note-actions">
+                    <small>Ctrl Enter</small>
+                    <button type="submit" disabled={!quickNote.trim()}>
+                      Capture note <Icon name="arrow-right" />
+                    </button>
+                  </div>
+                  <footer>
+                    <button type="button" onClick={() => showRunnableApp("daily-flow", "inbox")}>
+                      <Icon name="library" /> Open capture Inbox
+                    </button>
+                    <span>
+                      {quickCaptureInboxCount} note{quickCaptureInboxCount === 1 ? "" : "s"} waiting
+                    </span>
+                  </footer>
+                </form>
+              </div>
+            )}
+
+            {surface === "dashboard" && (
               <div className="trusted-surface home-surface">
                 <div className="home-hero">
                   <span className="hero-kicker">
@@ -2570,19 +2845,6 @@ export function LatticeApp() {
                     />
                     <small>Kept only on this computer</small>
                   </label>
-                  <form className="hero-search" onSubmit={navigateFromFocus}>
-                    <Icon name="search" />
-                    <input
-                      ref={omniboxRef}
-                      value={homeQuery}
-                      onChange={(event) => setHomeQuery(event.target.value)}
-                      placeholder="Search, command, or paste a link"
-                    />
-                    <kbd>Ctrl K</kbd>
-                    <button type="submit">
-                      Go <span>↗</span>
-                    </button>
-                  </form>
                 </div>
 
                 <section className="home-dashboard" aria-label="Your focus dashboard">
@@ -2594,9 +2856,7 @@ export function LatticeApp() {
                       onClick={() => {
                         if (resumableTab) {
                           void switchTab(resumableTab).then(() => setDistractionFree(true));
-                        } else {
-                          omniboxRef.current?.focus();
-                        }
+                        } else void createTab();
                       }}
                     >
                       <span className="home-card-label">Resume recent thread</span>
@@ -2743,47 +3003,6 @@ export function LatticeApp() {
                     </footer>
                   </article>
                 </section>
-
-                <nav className="home-quick-routes" aria-label="All destinations">
-                  <button
-                    type="button"
-                    data-home-route="saved-links"
-                    onClick={() => void showLibrary()}
-                  >
-                    <span className="home-card-icon violet">
-                      <Icon name="bookmark" />
-                    </span>
-                    <span>
-                      <small>Saved links</small>
-                      <strong>Articles, docs, and resources</strong>
-                    </span>
-                    <b>{links.length}</b>
-                  </button>
-                  <button type="button" data-home-route="runnable-apps" onClick={showRunnableApps}>
-                    <span className="home-card-icon green">
-                      <Icon name="timer" />
-                    </span>
-                    <span>
-                      <small>Runnable apps</small>
-                      <strong>Tools that run locally</strong>
-                    </span>
-                    <b>3</b>
-                  </button>
-                  <button
-                    type="button"
-                    data-home-route="settings"
-                    onClick={() => void showSettings()}
-                  >
-                    <span className="home-card-icon neutral">
-                      <Icon name="settings" />
-                    </span>
-                    <span>
-                      <small>Settings</small>
-                      <strong>Preferences, shortcuts, and privacy</strong>
-                    </span>
-                    <Icon name="arrow-right" />
-                  </button>
-                </nav>
 
                 <div className="home-privacy-card">
                   <span className="home-card-icon violet">
@@ -3039,9 +3258,10 @@ export function LatticeApp() {
 
             {surface === "apps" && (
               <RunnableAppsSurface
-                key={`${activeProfile?.id ?? "profile-loading"}-${runnableAppTarget}`}
+                key={`${activeProfile?.id ?? "profile-loading"}-${runnableAppTarget}-${dailyFlowTargetView}`}
                 state={runnableApps}
                 initialApp={runnableAppTarget}
+                initialDailyFlowView={dailyFlowTargetView}
                 onChange={setRunnableApps}
                 reportStatus={setStatus}
                 offerRecovery={offerRecovery}

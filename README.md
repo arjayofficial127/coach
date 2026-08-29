@@ -1,4 +1,4 @@
-# Lattice — Phase 15
+# Lattice — Phase 16
 
 **Status: PASS (2026-08-29).** Lattice is an installable, focus-first personal research browser with
 secure native website tabs, restart-safe desktops, Obsidian-compatible saved links, and local
@@ -7,12 +7,24 @@ index now shows backlinks and broken-reference diagnostics without exposing vaul
 website profiles keep personal, work, or client sign-ins and focus context separate. Local runnable
 apps now turn focused work into durable activity records. Pomodoro provides an honest timer, Daily
 Flow combines bullet-journal capture with a bounded GTD funnel, and Wealth Lab tracks private money
-decisions and earning experiments without gaining financial-account authority.
+decisions and earning experiments without gaining financial-account authority. New tabs now stay
+quiet: one URL/search action, useful local suggestions, and a paper-note capture whose original
+waits in a deliberate Inbox. The former home overview is now an explicit Dashboard.
 
-![Phase 15 Wealth Lab app](artifacts/phase-15/wealth-lab.png)
+![Phase 16 minimal New Tab](artifacts/phase-16/new-tab.png)
 
 ## What works
 
+- **New Tab** has one URL/search field and one Search action, followed only by bounded suggestions
+  from local apps, recent tabs, saved links, canvas pages, and resolved vault-file references.
+- A washed-out yellow paper note captures a thought without forcing organization. The immutable
+  original enters Daily Flow's Inbox, remains profile-scoped, supports Undo, and can be deliberately
+  filed into Reference later.
+- **Dashboard** is now a stable `Alt+1` destination in the left navigation. It owns the richer
+  review view—intention, recent thread, current canvas, Today, and reading queue—without duplicating
+  the left navigation's saved-links, apps, and settings routes.
+- New Tab and Runnable apps use dimensional, destination-specific app tiles with consistent
+  silhouettes, color families, gloss, and depth instead of generic boxes.
 - The supplied cap artwork is now Lattice's shared in-app logo, SVG/PNG favicon set, portable-app
   icon, Start-menu shortcut icon, and NSIS installer/uninstaller icon.
 - Appearance is profile-scoped: **Lattice Dark** preserves the original shell, **Felt White** adds a
@@ -43,7 +55,7 @@ decisions and earning experiments without gaining financial-account authority.
 - Every stopped or completed timer creates an immutable original result. Corrections are appended as
   visible overrides—such as **Originally stopped at 12m; corrected completed at 1h**—without
   rewriting what was first recorded.
-- Focus is a calm return point with one optional local intention and one-action resume choices for
+- Dashboard is a calm return point with one optional local intention and one-action resume choices for
   the active website, next reading item, and latest canvas page.
 - Seven labeled destinations remain stable across the rail, workspace panel, internal toolbars, and
   `Alt+1` through `Alt+7` shortcuts—even when a native website has keyboard focus.
@@ -117,12 +129,12 @@ pnpm run package
 pnpm run smoke:packaged
 pnpm run installer
 pnpm run smoke:installer
-pnpm run verify:phase15
+pnpm run verify:phase16
 ```
 
 The unsigned Windows x64 portable app is generated at
 `out/Lattice-win32-x64/Lattice.exe`. The assisted installer is generated at
-`release/Lattice-Setup-0.15.0.exe`. Windows reputation warnings are expected until a later release
+`release/Lattice-Setup-0.16.0.exe`. Windows reputation warnings are expected until a later release
 phase adds a protected signing identity. The installer and updater are intentionally not presented
 as production distribution yet.
 
@@ -130,7 +142,10 @@ as production distribution yet.
 
 - [Cap brand-mark decision](docs/decisions/0021-cap-brand-mark.md)
 - [Extensible theme-system decision](docs/decisions/0022-extensible-profile-themes.md)
+- [New Tab and capture decision](docs/decisions/0023-minimal-new-tab-and-capture-inbox.md)
 - [Logo preview](artifacts/brand/lattice-logo-preview.png)
+- [Phase 16 report](docs/phase-16-report.md)
+- [Minimal New Tab screenshot](artifacts/phase-16/new-tab.png)
 - [Phase 15 report](docs/phase-15-report.md)
 - [Wealth Lab screenshot](artifacts/phase-15/wealth-lab.png)
 - [Phase 14 report](docs/phase-14-report.md)
@@ -175,10 +190,13 @@ and verifies the profile-scoped version-2 record and screenshot in both portable
 The Phase 15 gate sets money targets, records and corrects cash-flow entries, separates investment
 contributions, advances an earning experiment, records a net-worth snapshot, explicitly stops its
 linked Pomodoro, and verifies the profile-scoped version-3 record and financial safety boundary.
+The Phase 16 gate then opens the minimal New Tab, verifies app/history/saved/file suggestions,
+captures a real immutable note, opens it from Daily Flow's Inbox, and publishes screenshots from
+both the portable and installed apps.
 
 ## Current phase boundary
 
-Phase 15 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
+Phase 16 intentionally does not add downloads, OAuth popups, browser extensions, site permissions,
 automatic updates, code signing, full history/scroll restoration, or Chrome-equivalent Safe
 Browsing. It also does not claim full compatibility with every third-party JSON Canvas extension or
 automatic reference repair. Profile deletion, incognito, Chrome-profile import, provider-account
@@ -187,4 +205,6 @@ timer sync, or editable/deletable timer history remain outside this phase. Daily
 contexts, recurrence, calendars, reminders, weekly-review automation, Obsidian export, and sync also
 remain outside this phase. Wealth Lab also excludes account aggregation, transaction import,
 multi-currency conversion, market prices, trade execution, tax calculations, return forecasts, and
-investment recommendations. See the risk register before selecting Phase 16.
+investment recommendations. Quick Capture also remains profile-local rather than automatically
+writing every transient thought into the connected Obsidian vault. See the risk register before
+selecting Phase 17.

@@ -97,7 +97,6 @@ export interface PhaseNineSmokeEvidence {
   navigation: {
     heading: string;
     dashboardCards: string[];
-    quickRoutes: string[];
     todayTaskCount: number;
     readingPreviewCount: number;
     privacyPromise: string;
@@ -109,6 +108,13 @@ export interface PhaseNineSmokeEvidence {
     escapeRestoredNavigation: boolean;
     shortcutRouteSequence: string[];
     browserRestoredAfterShortcuts: boolean;
+    newTabHeading: string;
+    newTabSuggestionKinds: string[];
+    quickCaptureVisible: boolean;
+    capturedInboxCount: number;
+    capturedNoteVisibleInInbox: boolean;
+    newTabScreenshotPath: string;
+    newTabScreenshotBytes: number;
     screenshotPath: string;
     screenshotBytes: number;
   };
@@ -659,13 +665,13 @@ export async function runPhaseNineSmoke(
       `document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`,
     );
 
-    // Phase 10 adds a calm return point and a reversible distraction-free view.
+    // Phase 10 adds a calm dashboard and a reversible distraction-free view.
     // Exercise it through the same trusted renderer used by the packaged app, then
     // restore Browse before continuing the long-running Phase 9 regression.
     const navigationDom = (await window.webContents.executeJavaScript(`(async () => {
-      const focus = document.querySelector('button[aria-label="Focus"]');
-      if (!(focus instanceof HTMLButtonElement)) throw new Error("Focus destination missing");
-      focus.click();
+      const dashboard = document.querySelector('button[aria-label="Dashboard"]');
+      if (!(dashboard instanceof HTMLButtonElement)) throw new Error("Dashboard destination missing");
+      dashboard.click();
       await new Promise((resolve) => setTimeout(resolve, 75));
       const intention = document.querySelector('.focus-intention input');
       if (!(intention instanceof HTMLInputElement)) throw new Error("Focus intention missing");
@@ -693,8 +699,6 @@ export async function runPhaseNineSmoke(
         heading: document.querySelector('.home-hero h1')?.textContent?.trim() ?? "",
         dashboardCards: [...document.querySelectorAll('[data-home-card]')]
           .map((card) => card.getAttribute('data-home-card') ?? ""),
-        quickRoutes: [...document.querySelectorAll('[data-home-route]')]
-          .map((route) => route.getAttribute('data-home-route') ?? ""),
         todayTaskCount: document.querySelectorAll('.home-task-row').length,
         readingPreviewCount: document.querySelectorAll('.home-reading-row').length,
         privacyPromise: document.querySelector('.home-privacy-card strong')?.textContent?.trim() ?? "",
@@ -708,7 +712,6 @@ export async function runPhaseNineSmoke(
     })()`)) as {
       heading: string;
       dashboardCards: string[];
-      quickRoutes: string[];
       todayTaskCount: number;
       readingPreviewCount: number;
       privacyPromise: string;
@@ -751,6 +754,74 @@ export async function runPhaseNineSmoke(
     const browserRestoreDeadline = Date.now() + 2_000;
     while (Date.now() < browserRestoreDeadline && !runtime.isVisible()) await delay(25);
     const browserRestoredAfterShortcuts = runtime.isVisible();
+
+    // The New Tab is intentionally sparse: a URL/search action, contextual suggestions,
+    // and a durable quick-capture note that can be opened in Daily Flow's Inbox.
+    await window.webContents.executeJavaScript(
+      `document.dispatchEvent(new KeyboardEvent("keydown", { key: "t", ctrlKey: true, bubbles: true }))`,
+    );
+    await delay(100);
+    const newTabDom = (await window.webContents.executeJavaScript(`(async () => {
+      const deadline = Date.now() + 2000;
+      while (!document.querySelector('.new-tab-surface') && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      const note = document.querySelector('.quick-note textarea');
+      if (!(note instanceof HTMLTextAreaElement)) throw new Error("Quick capture note missing");
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+      setter?.call(note, "Review the browser inbox architecture");
+      note.dispatchEvent(new Event("input", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      const capture = document.querySelector('.quick-note-actions button');
+      if (!(capture instanceof HTMLButtonElement) || capture.disabled) {
+        throw new Error("Quick capture action unavailable");
+      }
+      capture.click();
+      await new Promise((resolve) => setTimeout(resolve, 75));
+      const waiting = document.querySelector('.quick-note footer span')?.textContent ?? "";
+      return {
+        newTabHeading: document.querySelector('.new-tab-heading h1')?.textContent?.trim() ?? "",
+        newTabSuggestionKinds: [...document.querySelectorAll('[data-new-tab-suggestion]')]
+          .map((item) => item.getAttribute('data-new-tab-suggestion') ?? ""),
+        quickCaptureVisible: Boolean(document.querySelector('.quick-note')),
+        capturedInboxCount: Number.parseInt(waiting, 10) || 0
+      };
+    })()`)) as {
+      newTabHeading: string;
+      newTabSuggestionKinds: string[];
+      quickCaptureVisible: boolean;
+      capturedInboxCount: number;
+    };
+
+    window.setSkipTaskbar(true);
+    window.showInactive();
+    await delay(100);
+    const newTabImage = await window.webContents.capturePage();
+    if (newTabImage.isEmpty()) throw new Error("Electron returned an empty New Tab capture.");
+    const newTabScreenshot = newTabImage.toPNG();
+    const newTabScreenshotPath = path.join(smokeRoot, "phase-16-new-tab.png");
+    await writeFile(newTabScreenshotPath, newTabScreenshot);
+    window.hide();
+
+    const capturedNoteVisibleInInbox = (await window.webContents.executeJavaScript(`(async () => {
+      const openInbox = [...document.querySelectorAll('.quick-note footer button')].find((button) =>
+        button.textContent?.includes('Open capture Inbox')
+      );
+      if (!(openInbox instanceof HTMLButtonElement)) throw new Error("Capture Inbox action missing");
+      openInbox.click();
+      const deadline = Date.now() + 2000;
+      while (!document.querySelector('.journal-items') && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      return [...document.querySelectorAll('[data-journal-item]')].some((item) =>
+        item.textContent?.includes('Review the browser inbox architecture')
+      );
+    })()`)) as boolean;
+
+    await window.webContents.executeJavaScript(
+      `document.dispatchEvent(new KeyboardEvent("keydown", { key: "w", ctrlKey: true, bubbles: true }))`,
+    );
+    await delay(100);
 
     await window.webContents.executeJavaScript(
       `document.dispatchEvent(new KeyboardEvent("keydown", { key: "7", altKey: true, bubbles: true }))`,
@@ -2193,6 +2264,10 @@ export async function runPhaseNineSmoke(
         escapeRestoredNavigation,
         shortcutRouteSequence,
         browserRestoredAfterShortcuts,
+        ...newTabDom,
+        capturedNoteVisibleInInbox,
+        newTabScreenshotPath,
+        newTabScreenshotBytes: newTabScreenshot.byteLength,
         screenshotPath: focusNavigationScreenshotPath,
         screenshotBytes: focusNavigationScreenshot.byteLength,
       },

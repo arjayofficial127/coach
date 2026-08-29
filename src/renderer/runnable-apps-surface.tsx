@@ -1,6 +1,6 @@
 import { type CSSProperties, type FormEvent, useEffect, useMemo, useState } from "react";
 import type { EffectiveJournalItem } from "./bullet-journal-model";
-import { DailyFlowSurface } from "./daily-flow-surface";
+import { DailyFlowSurface, type DailyFlowView } from "./daily-flow-surface";
 import { Icon } from "./icon";
 import {
   activeElapsedMilliseconds,
@@ -21,6 +21,7 @@ import { WealthLabSurface } from "./wealth-lab-surface";
 interface RunnableAppsSurfaceProps {
   state: RunnableAppsState;
   initialApp?: RunnableAppId;
+  initialDailyFlowView?: DailyFlowView;
   onChange: (state: RunnableAppsState) => void;
   reportStatus: (status: string) => void;
   offerRecovery: (message: string, run: () => void | Promise<void>, actionLabel?: string) => void;
@@ -44,6 +45,7 @@ function historyTimestamp(value: string): string {
 export function RunnableAppsSurface({
   state,
   initialApp = "pomodoro",
+  initialDailyFlowView = "today",
   onChange,
   reportStatus,
   offerRecovery,
@@ -208,11 +210,13 @@ export function RunnableAppsSurface({
               data-runnable-app={app.id}
               onClick={() => setSelectedApp(app.id)}
             >
-              <span className="app-catalog-icon">
+              <span className={`app-catalog-icon ${app.id}`}>
                 {app.id === "pomodoro" ? (
                   <Icon name="timer" />
+                ) : app.id === "daily-flow" ? (
+                  <Icon name="sparkle" />
                 ) : (
-                  <b>{app.id === "wealth-lab" ? "₱" : "•"}</b>
+                  <b>₱</b>
                 )}
               </span>
               <span>
@@ -235,6 +239,7 @@ export function RunnableAppsSurface({
       {selectedApp === "daily-flow" ? (
         <DailyFlowSurface
           journal={state.bulletJournal}
+          initialView={initialDailyFlowView}
           onChange={(bulletJournal) => onChange({ ...state, bulletJournal })}
           onFocusTask={focusJournalTask}
           timerActive={Boolean(activeRun)}

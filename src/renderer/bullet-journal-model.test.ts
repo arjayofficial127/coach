@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   cancelJournalItem,
+  captureJournalInboxNote,
   captureJournalItem,
   completeJournalTask,
   correctJournalText,
   DEFAULT_BULLET_JOURNAL_STATE,
   effectiveJournalItem,
+  fileJournalNote,
   journalCarryover,
   journalItemsForLane,
   migrateJournalTask,
@@ -43,6 +45,26 @@ describe("Daily Flow journal model", () => {
     const note = journal.items[1];
     if (!note) throw new Error("Expected the captured note");
     expect(effectiveJournalItem(note).lane).toBe("reference");
+  });
+
+  it("keeps quick notes in Inbox until they are deliberately filed", () => {
+    const inbox = captureJournalInboxNote(
+      DEFAULT_BULLET_JOURNAL_STATE,
+      "  Remember   the council idea ",
+      day,
+      now,
+      "note-inbox",
+      "organized-inbox",
+    );
+    expect(journalItemsForLane(inbox, "inbox").map((item) => item.text)).toEqual([
+      "Remember the council idea",
+    ]);
+    expect(firstItem(inbox).original.kind).toBe("note");
+
+    const filed = fileJournalNote(inbox, "note-inbox", now, "file-note");
+    expect(journalItemsForLane(filed, "inbox")).toHaveLength(0);
+    expect(effectiveJournalItem(firstItem(filed)).lane).toBe("reference");
+    expect(firstItem(filed).original.text).toBe("Remember the council idea");
   });
 
   it("clarifies tasks and requires a waiting party", () => {

@@ -1,36 +1,36 @@
 {
-  "verifiedAt": "2026-08-29T08:17:23.041Z",
-  "version": "0.15.0",
+  "verifiedAt": "2026-08-29T09:49:16.933Z",
+  "version": "0.16.0",
   "installer": {
-    "path": "C:\\coach\\release\\Lattice-Setup-0.15.0.exe",
-    "bytes": 110971967,
-    "sha256": "6b5fe76926940bfc62adbf1cec3493e2be06a86dea3a3740f5edf47b717bd79f",
+    "path": "C:\\coach\\release\\Lattice-Setup-0.16.0.exe",
+    "bytes": 110975021,
+    "sha256": "e71497189e7f1e2cf7fb74d6213fb0328678d9b0f1c12f7039eb05c9e7165aef",
     "authenticodeStatus": "NotSigned",
     "signed": false
   },
   "installation": {
     "mode": "current-user",
     "silent": true,
-    "isolatedTestDirectory": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine-install-69372",
+    "isolatedTestDirectory": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine-install-50052",
     "uninstallRecordCreated": true,
     "uninstallRecord": {
       "PSChildName": "a580a7fa-68d5-53ac-9906-76801e868ef9",
       "DisplayName": "Lattice",
-      "DisplayVersion": "0.15.0",
+      "DisplayVersion": "0.16.0",
       "InstallLocation": null,
-      "UninstallString": "\"C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine-install-69372\\Uninstall Lattice.exe\" /currentuser"
+      "UninstallString": "\"C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine-install-50052\\Uninstall Lattice.exe\" /currentuser"
     },
     "startMenuShortcutCreated": true,
     "desktopShortcutConfigured": false,
     "portableHashes": {
-      "executable": "9c374cb09466969fb9a8ec63a10a3345a1e4811903dccd60c34d313de5a3d9b9",
-      "appAsar": "64da653402b9ffe63de6f333f3db07979d3e1c6206a6b148c00338c0f8ec4c34",
-      "sourceManifest": "8074dafa8af47d0322c32cb0500ec47c0bf1145c42e9905d467dd708cc0d00ba"
+      "executable": "c86dc59d85d7b679899d7d16f063623bc369cc2dde4106a5c964d44ace880462",
+      "appAsar": "4b5dd91d8a40041a6a080bbaaa5d718e7b1ef82b092dcdd6044087493a09e74a",
+      "sourceManifest": "86afbbc74c208090c62d68339367f36d88be3619b7dec08905d02be4dfdc4b2c"
     },
     "installedHashes": {
-      "executable": "9c374cb09466969fb9a8ec63a10a3345a1e4811903dccd60c34d313de5a3d9b9",
-      "appAsar": "64da653402b9ffe63de6f333f3db07979d3e1c6206a6b148c00338c0f8ec4c34",
-      "sourceManifest": "8074dafa8af47d0322c32cb0500ec47c0bf1145c42e9905d467dd708cc0d00ba"
+      "executable": "c86dc59d85d7b679899d7d16f063623bc369cc2dde4106a5c964d44ace880462",
+      "appAsar": "4b5dd91d8a40041a6a080bbaaa5d718e7b1ef82b092dcdd6044087493a09e74a",
+      "sourceManifest": "86afbbc74c208090c62d68339367f36d88be3619b7dec08905d02be4dfdc4b2c"
     },
     "hardenedPackagePreserved": true,
     "authenticodeStatus": "NotSigned",

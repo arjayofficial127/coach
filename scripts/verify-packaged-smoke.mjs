@@ -21,6 +21,7 @@ const phaseTwelveEvidenceDirectory = path.resolve("artifacts", "phase-12");
 const phaseThirteenEvidenceDirectory = path.resolve("artifacts", "phase-13");
 const phaseFourteenEvidenceDirectory = path.resolve("artifacts", "phase-14");
 const phaseFifteenEvidenceDirectory = path.resolve("artifacts", "phase-15");
+const phaseSixteenEvidenceDirectory = path.resolve("artifacts", "phase-16");
 const evidenceTarget = path.join(evidenceDirectory, "packaged-smoke-evidence.json");
 const screenshotTarget = path.join(evidenceDirectory, "remote-example-com.png");
 const shellScreenshotTarget = path.join(evidenceDirectory, "phase-9-shell.png");
@@ -35,6 +36,7 @@ const profileScreenshotTarget = path.join(phaseTwelveEvidenceDirectory, "website
 const runnableAppsScreenshotTarget = path.join(phaseThirteenEvidenceDirectory, "runnable-apps.png");
 const dailyFlowScreenshotTarget = path.join(phaseFourteenEvidenceDirectory, "daily-flow.png");
 const wealthLabScreenshotTarget = path.join(phaseFifteenEvidenceDirectory, "wealth-lab.png");
+const newTabScreenshotTarget = path.join(phaseSixteenEvidenceDirectory, "new-tab.png");
 const canvasTarget = path.join(evidenceDirectory, "packaged-smoke-canvas.canvas");
 const noteTarget = path.join(evidenceDirectory, "packaged-smoke-note.md");
 
@@ -47,6 +49,7 @@ await mkdir(phaseTwelveEvidenceDirectory, { recursive: true });
 await mkdir(phaseThirteenEvidenceDirectory, { recursive: true });
 await mkdir(phaseFourteenEvidenceDirectory, { recursive: true });
 await mkdir(phaseFifteenEvidenceDirectory, { recursive: true });
+await mkdir(phaseSixteenEvidenceDirectory, { recursive: true });
 await rm(evidenceSource, { force: true });
 await Promise.all(
   [
@@ -61,6 +64,7 @@ await Promise.all(
     runnableAppsScreenshotTarget,
     dailyFlowScreenshotTarget,
     wealthLabScreenshotTarget,
+    newTabScreenshotTarget,
     canvasTarget,
     noteTarget,
   ].map((target) => rm(target, { force: true })),
@@ -226,8 +230,6 @@ if (
   evidence.navigation?.heading !== "Let's focus on what matters." ||
   JSON.stringify(evidence.navigation?.dashboardCards) !==
     JSON.stringify(["recent-thread", "canvas", "today-focus", "reading-queue"]) ||
-  JSON.stringify(evidence.navigation?.quickRoutes) !==
-    JSON.stringify(["saved-links", "runnable-apps", "settings"]) ||
   evidence.navigation?.readingPreviewCount < 1 ||
   evidence.navigation?.privacyPromise !== "Private by design. Always local." ||
   !evidence.navigation?.focusBarThemed ||
@@ -251,12 +253,21 @@ if (
       "Reading queue",
       "Settings",
       "Runnable apps",
-      "Focus",
+      "Dashboard",
       "Browse",
     ]) ||
   !evidence.navigation?.browserRestoredAfterShortcuts
 ) {
   failures.push("focus navigation shortcuts did not route through every stable destination");
+}
+if (
+  evidence.navigation?.newTabHeading !== "Where would you like to go?" ||
+  !evidence.navigation?.newTabSuggestionKinds?.includes("app") ||
+  !evidence.navigation?.quickCaptureVisible ||
+  evidence.navigation?.capturedInboxCount < 1 ||
+  !evidence.navigation?.capturedNoteVisibleInInbox
+) {
+  failures.push("minimal New Tab search, suggestions, or durable capture Inbox failed");
 }
 if (
   evidence.runnableApps?.heading !== "Runnable apps" ||
@@ -539,6 +550,7 @@ const metadataScreenshotBytes = await readFile(evidence.metadataEditing.screensh
 const handoffScreenshotBytes = await readFile(evidence.obsidianHandoff.screenshotPath);
 const canvasScreenshotBytes = await readFile(evidence.canvas.screenshotPath);
 const focusNavigationScreenshotBytes = await readFile(evidence.navigation.screenshotPath);
+const newTabScreenshotBytes = await readFile(evidence.navigation.newTabScreenshotPath);
 const profileScreenshotBytes = await readFile(evidence.profiles.screenshotPath);
 const runnableAppsScreenshotBytes = await readFile(evidence.runnableApps.screenshotPath);
 const dailyFlowScreenshotBytes = await readFile(evidence.dailyFlow.screenshotPath);
@@ -636,6 +648,23 @@ if (focusNavigationPixels.width < 900 || focusNavigationPixels.height < 620) {
 evidence.navigation.screenshotPixels = focusNavigationPixels;
 evidence.navigation.screenshotSha256 = createHash("sha256")
   .update(focusNavigationScreenshotBytes)
+  .digest("hex");
+if (!newTabScreenshotBytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) {
+  throw new Error("Phase 16 New Tab screenshot is not a PNG file.");
+}
+if (newTabScreenshotBytes.byteLength !== evidence.navigation.newTabScreenshotBytes) {
+  throw new Error("Phase 16 New Tab screenshot byte count changed before collection.");
+}
+const newTabScreenshotPixels = {
+  width: newTabScreenshotBytes.readUInt32BE(16),
+  height: newTabScreenshotBytes.readUInt32BE(20),
+};
+if (newTabScreenshotPixels.width < 900 || newTabScreenshotPixels.height < 620) {
+  throw new Error("Phase 16 New Tab screenshot dimensions were not usable.");
+}
+evidence.navigation.newTabScreenshotPixels = newTabScreenshotPixels;
+evidence.navigation.newTabScreenshotSha256 = createHash("sha256")
+  .update(newTabScreenshotBytes)
   .digest("hex");
 if (!profileScreenshotBytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) {
   throw new Error("Phase 12 profile screenshot is not a PNG file.");
@@ -825,6 +854,7 @@ await copyFile(evidence.metadataEditing.screenshotPath, metadataScreenshotTarget
 await copyFile(evidence.obsidianHandoff.screenshotPath, handoffScreenshotTarget);
 await copyFile(evidence.canvas.screenshotPath, canvasScreenshotTarget);
 await copyFile(evidence.navigation.screenshotPath, focusNavigationScreenshotTarget);
+await copyFile(evidence.navigation.newTabScreenshotPath, newTabScreenshotTarget);
 await copyFile(evidence.profiles.screenshotPath, profileScreenshotTarget);
 await copyFile(evidence.runnableApps.screenshotPath, runnableAppsScreenshotTarget);
 await copyFile(evidence.dailyFlow.screenshotPath, dailyFlowScreenshotTarget);
@@ -837,6 +867,7 @@ const copiedMetadataScreenshotBytes = await readFile(metadataScreenshotTarget);
 const copiedHandoffScreenshotBytes = await readFile(handoffScreenshotTarget);
 const copiedCanvasScreenshotBytes = await readFile(canvasScreenshotTarget);
 const copiedFocusNavigationScreenshotBytes = await readFile(focusNavigationScreenshotTarget);
+const copiedNewTabScreenshotBytes = await readFile(newTabScreenshotTarget);
 const copiedProfileScreenshotBytes = await readFile(profileScreenshotTarget);
 const copiedRunnableAppsScreenshotBytes = await readFile(runnableAppsScreenshotTarget);
 const copiedDailyFlowScreenshotBytes = await readFile(dailyFlowScreenshotTarget);
@@ -909,6 +940,12 @@ if (
 ) {
   throw new Error("Collected Wealth Lab screenshot hash changed while publishing evidence.");
 }
+if (
+  createHash("sha256").update(copiedNewTabScreenshotBytes).digest("hex") !==
+  evidence.navigation.newTabScreenshotSha256
+) {
+  throw new Error("Collected New Tab screenshot hash changed while publishing evidence.");
+}
 evidence.remote.artifactPath = screenshotTarget;
 evidence.shell.artifactPath = shellScreenshotTarget;
 evidence.metadataEditing.artifactPath = metadataScreenshotTarget;
@@ -916,6 +953,7 @@ evidence.obsidianHandoff.artifactPath = handoffScreenshotTarget;
 evidence.canvas.screenshotArtifactPath = canvasScreenshotTarget;
 evidence.canvas.artifactPath = canvasTarget;
 evidence.navigation.artifactPath = focusNavigationScreenshotTarget;
+evidence.navigation.newTabArtifactPath = newTabScreenshotTarget;
 evidence.profiles.artifactPath = profileScreenshotTarget;
 evidence.runnableApps.artifactPath = runnableAppsScreenshotTarget;
 evidence.dailyFlow.artifactPath = dailyFlowScreenshotTarget;

@@ -1,10 +1,10 @@
-# Phase 15 unresolved risks
+# Phase 16 unresolved risks
 
-Phase 15 is an installable personal prototype, not a production general-purpose browser. The original
+Phase 16 is an installable personal prototype, not a production general-purpose browser. The original
 deny-by-default security posture remains; new capabilities must be accepted and designed
 deliberately rather than enabled as compatibility shortcuts.
 
-| Priority | Risk | Current Phase 15 position | Exit criterion |
+| Priority | Risk | Current Phase 16 position | Exit criterion |
 | --- | --- | --- | --- |
 | Critical | Arbitrary-site browser security | Electron is hardened, but Lattice does not claim Chrome-equivalent site isolation, anti-exploitation, Safe Browsing, extension review, or patch response. | Threat model, Electron upgrade SLA, security regression suite, incident/update process, and explicit product-claim boundary. |
 | Critical | Unsigned distribution | The assisted current-user installer and installed executable are intentionally `NotSigned`; there is no updater or public release channel. | Protected signing identity, signed installer and update metadata, rollback/recovery, and release-channel design. |
@@ -27,6 +27,7 @@ deliberately rather than enabled as compatibility shortcuts.
 | Medium | Trusted-shell stored data | Profile names/pictures, profile-scoped desktop/settings/focus preferences, and the vault display path persist locally; tab restore can be disabled and vault authority disconnected. Packaged CSP blocks network egress, but there is no unified shell-data reset. | Add a reviewed full shell/profile reset and export flow, preserve CSP, and threat-review every shell network capability. |
 | Medium | Runnable-app history and clock integrity | Pomodoro state and append-only corrections are profile-scoped in shell local storage. Elapsed time uses the local wall clock; device clock changes, sleep behavior, crashes between storage writes, export, backup, history retention, and deliberate local tampering are not hardened. | Define monotonic/wall-clock reconciliation, crash journal, retention/export/reset policy, optional Obsidian handoff, and adversarial clock/restart tests before using records as formal evidence. |
 | Medium | Daily Flow retention and planning depth | Bullet-journal captures, GTD lanes, carryover, and append-only activity are bounded and profile-local. There is no archive/export/recovery policy, search, project model, recurrence, calendar, weekly review, conflict handling, or formal tamper resistance. | Choose the intended planning depth; define export/backup/reset and schema migration policy; test high-volume, clock-change, corruption, recovery, and profile-lifecycle behavior. |
+| Medium | Quick-capture retention and discovery | New Tab notes retain immutable originals in the active profile's Inbox and can be filed into Reference. They are not automatically written to Obsidian, encrypted, synced, archived, or exposed to full-text search, and local shell storage can be edited or lost. | Choose capture retention, review, search, Obsidian export, backup, reset, and high-volume behavior; test crash/restart, corruption, profile deletion, and migration before treating Inbox as a durable knowledge archive. |
 | High | Personal financial data and decision limits | Wealth Lab stores manually entered PHP cash flow, targets, earning ideas, and net-worth snapshots in profile-local shell storage. It has no encryption-at-rest promise, reconciliation, backup, bank/broker authority, market data, tax logic, suitability assessment, or investment advice. Local storage can be edited or lost. | Threat-model financial data; choose encrypted backup/reset/export and retention policy; define accounting/reconciliation and multi-currency semantics; complete privacy, recovery, and financial-claims review before adding accounts, prices, forecasts, or recommendations. |
 | Medium | Runtime preference observability | Electron exposes no public getter for fully resolved view preferences. The gate proves constructor intent and effective isolation behavior instead. | Retain behavioral probes, use upstream introspection if added, and require review for preference construction changes. |
 | Medium | Supply chain | Versions and lockfile are pinned and the package source manifest is verified, but there is no CI audit, SBOM, signed provenance, or update bot. | CI audit/SBOM/provenance checks and dependency-update ownership. |
@@ -34,5 +35,5 @@ deliberately rather than enabled as compatibility shortcuts.
 | Low | Theme contrast and expansion | Dark, Felt White, and one named Custom palette per profile pass the packaged workflow, including synchronized Windows caption colors. Custom colors are intentionally user-directed; arbitrary combinations may reduce contrast, and the full accessibility matrix is not yet automated. | Add contrast guidance and repair, screen-reader/high-contrast/200% zoom gates, theme import/export, and a migrated collection schema before supporting multiple custom presets or third-party themes. |
 | Low | Product quality attributes | Focus navigation has keyboard routes, explicit current-page state, reduced-motion handling, and 1280/920 px visual checks. Screen-reader journeys, 200% zoom, localization, large-tab performance, memory pressure, battery use, telemetry, backup, and recovery are not characterized. | Define measurable NFRs and test them before beta. |
 
-Phase 16 must preserve the trusted-shell/remote-site separation and treat each relaxation of a
+Phase 17 must preserve the trusted-shell/remote-site separation and treat each relaxation of a
 denied browser capability as a separate security and product decision.
