@@ -322,6 +322,7 @@ const COUNCIL_NEW_TAB_SIZING_ENABLED = false;
 
 export function LatticeApp() {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const workspaceHeadingRef = useRef<HTMLDivElement>(null);
   const webStageRef = useRef<HTMLElement>(null);
   const omniboxRef = useRef<HTMLInputElement>(null);
   const commandInputRef = useRef<HTMLInputElement>(null);
@@ -504,6 +505,18 @@ export function LatticeApp() {
   zoomHandlerRef.current = (command) => {
     applyShellZoom(nextZoomPercent(zoomPercentRef.current, command));
   };
+
+  useEffect(() => {
+    if (!workspaceMenuOpen) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && !workspaceHeadingRef.current?.contains(target)) {
+        setWorkspaceMenuOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+  }, [workspaceMenuOpen]);
 
   useEffect(() => {
     let active = true;
@@ -2464,7 +2477,7 @@ export function LatticeApp() {
       </nav>
 
       <aside className="workspace-panel">
-        <div className="workspace-heading">
+        <div className="workspace-heading" ref={workspaceHeadingRef}>
           <button
             className="workspace-selector"
             type="button"
