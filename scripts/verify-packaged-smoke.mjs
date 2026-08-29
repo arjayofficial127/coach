@@ -340,8 +340,8 @@ if (
 ) {
   failures.push("Wealth Lab money, earning experiment, net worth, or safety workflow failed");
 }
-if (!evidence.desktopLifecycle.guardedDeleteBlockedForOpenTab) {
-  failures.push("occupied desktop deletion was not blocked");
+if (!evidence.desktopLifecycle.occupiedArchiveOptionsVisible) {
+  failures.push("occupied desktop archive choices did not render");
 }
 if (!evidence.desktopLifecycle.menuVisible) {
   failures.push("tab-move browser menu did not render");
@@ -357,11 +357,17 @@ if (
   failures.push("live tab did not move between desktops without closing");
 }
 if (
-  !evidence.desktopLifecycle.deletionConfirmationVisible ||
-  !evidence.desktopLifecycle.deletedEmptyDesktop ||
+  !evidence.desktopLifecycle.archivePopoverVisible ||
+  !evidence.desktopLifecycle.archivedEmptyDesktop ||
   !evidence.desktopLifecycle.adjacentDesktopActivated
 ) {
-  failures.push("confirmed empty-desktop deletion did not select the adjacent desktop");
+  failures.push("empty-desktop archive did not select the adjacent desktop");
+}
+if (
+  !evidence.desktopLifecycle.restoredArchivedDesktop ||
+  !evidence.desktopLifecycle.hardDeleteAvailableOnlyInArchive
+) {
+  failures.push("archived desktop restore or archive-only permanent removal was unavailable");
 }
 if (!evidence.desktopLifecycle.savedResearchDesktopPreserved) {
   failures.push("desktop lifecycle changed the saved first desktop");

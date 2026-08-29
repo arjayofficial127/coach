@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  archiveDesktop,
   DEFAULT_WORKSPACE,
-  deleteDesktop,
   moveTabToDesktop,
   parseWorkspacePreferences,
+  permanentlyDeleteArchivedDesktop,
   renameDesktop,
+  restoreArchivedDesktop,
 } from "./workspace-model";
 
 describe("workspace preferences", () => {
@@ -21,9 +23,10 @@ describe("workspace preferences", () => {
       }),
     );
     expect(result).toEqual({
-      version: 2,
+      version: 3,
       activeDesktopId: "desk",
       desktops: [{ id: "desk", name: "Focus", color: "cyan" }],
+      archivedDesktops: [],
     });
   });
 
@@ -44,24 +47,25 @@ describe("workspace preferences", () => {
     expect(moveTabToDesktop(assignments, DEFAULT_WORKSPACE, "tab1", "missing")).toBe(assignments);
   });
 
-  it("deletes only an unused desktop and selects the adjacent survivor", () => {
-    expect(
-      deleteDesktop(DEFAULT_WORKSPACE, "build", { openTabCount: 1, savedLinkCount: 0 }),
-    ).toEqual({ deleted: false, reason: "has-open-tabs" });
-    expect(
-      deleteDesktop(DEFAULT_WORKSPACE, "build", { openTabCount: 0, savedLinkCount: 1 }),
-    ).toEqual({ deleted: false, reason: "has-saved-links" });
-
-    const result = deleteDesktop({ ...DEFAULT_WORKSPACE, activeDesktopId: "build" }, "build", {
-      openTabCount: 0,
-      savedLinkCount: 0,
-    });
+  it("archives a desktop and selects the adjacent survivor", () => {
+    const result = archiveDesktop(
+      { ...DEFAULT_WORKSPACE, activeDesktopId: "build" },
+      "build",
+      "2026-08-29T10:00:00.000Z",
+    );
     expect(result).toEqual({
-      deleted: true,
+      archived: true,
       workspace: {
         ...DEFAULT_WORKSPACE,
         activeDesktopId: "inspiration",
         desktops: [DEFAULT_WORKSPACE.desktops[0], DEFAULT_WORKSPACE.desktops[2]],
+        archivedDesktops: [
+          {
+            ...DEFAULT_WORKSPACE.desktops[1],
+            archivedAt: "2026-08-29T10:00:00.000Z",
+            previousIndex: 1,
+          },
+        ],
       },
     });
   });
@@ -74,9 +78,28 @@ describe("workspace preferences", () => {
       activeDesktopId: "research",
       desktops: [researchDesktop],
     };
-    expect(deleteDesktop(single, "research", { openTabCount: 0, savedLinkCount: 0 })).toEqual({
-      deleted: false,
+    expect(archiveDesktop(single, "research")).toEqual({
+      archived: false,
       reason: "last-desktop",
+    });
+  });
+
+  it("restores archived desktops in their previous position and only hard-deletes from archive", () => {
+    const archived = archiveDesktop(
+      { ...DEFAULT_WORKSPACE, activeDesktopId: "build" },
+      "build",
+      "2026-08-29T10:00:00.000Z",
+    );
+    if (!archived.archived) throw new Error("Expected the desktop to be archived");
+
+    const restored = restoreArchivedDesktop(archived.workspace, "build");
+    expect(restored).toEqual({
+      restored: true,
+      workspace: { ...DEFAULT_WORKSPACE, activeDesktopId: "build" },
+    });
+    expect(permanentlyDeleteArchivedDesktop(archived.workspace, "build")).toEqual({
+      ...archived.workspace,
+      archivedDesktops: [],
     });
   });
 
@@ -93,7 +116,8 @@ describe("workspace preferences", () => {
       }),
     );
 
-    expect(result.version).toBe(2);
+    expect(result.version).toBe(3);
     expect(result.desktops.map((desktop) => desktop.name)).toEqual(["Desk 1", "My work", "Desk 3"]);
+    expect(result.archivedDesktops).toEqual([]);
   });
 });

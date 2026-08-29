@@ -4,23 +4,28 @@ export interface DesktopDefinition {
   color: "violet" | "cyan" | "amber" | "rose" | "lime";
 }
 
+export interface ArchivedDesktopDefinition extends DesktopDefinition {
+  archivedAt: string;
+  previousIndex: number;
+}
+
 export interface WorkspacePreferences {
-  version: 2;
+  version: 3;
   activeDesktopId: string;
   desktops: DesktopDefinition[];
+  archivedDesktops: ArchivedDesktopDefinition[];
 }
 
-export interface DesktopUsage {
-  openTabCount: number;
-  savedLinkCount: number;
-}
-
-export type DeleteDesktopResult =
-  | { deleted: true; workspace: WorkspacePreferences }
+export type ArchiveDesktopResult =
+  | { archived: true; workspace: WorkspacePreferences }
   | {
-      deleted: false;
-      reason: "not-found" | "last-desktop" | "has-open-tabs" | "has-saved-links";
+      archived: false;
+      reason: "not-found" | "last-desktop";
     };
+
+export type RestoreDesktopResult =
+  | { restored: true; workspace: WorkspacePreferences }
+  | { restored: false; reason: "not-found" | "duplicate-id" };
 
 export const DEFAULT_DESKTOPS: DesktopDefinition[] = [
   { id: "research", name: "Desk 1", color: "violet" },
@@ -29,9 +34,10 @@ export const DEFAULT_DESKTOPS: DesktopDefinition[] = [
 ];
 
 export const DEFAULT_WORKSPACE: WorkspacePreferences = {
-  version: 2,
+  version: 3,
   activeDesktopId: DEFAULT_DESKTOPS[0]?.id ?? "research",
   desktops: DEFAULT_DESKTOPS,
+  archivedDesktops: [],
 };
 
 const VALID_COLORS = new Set<DesktopDefinition["color"]>([
@@ -49,8 +55,9 @@ export function parseWorkspacePreferences(serialized: string | null): WorkspaceP
       version?: number;
       activeDesktopId?: unknown;
       desktops?: Array<Partial<DesktopDefinition> | null>;
+      archivedDesktops?: Array<Partial<ArchivedDesktopDefinition> | null>;
     };
-    if (![1, 2].includes(candidate.version ?? 0) || !Array.isArray(candidate.desktops)) {
+    if (![1, 2, 3].includes(candidate.version ?? 0) || !Array.isArray(candidate.desktops)) {
       return DEFAULT_WORKSPACE;
     }
     const legacyDefaultNames: Record<string, string> = {
@@ -86,7 +93,42 @@ export function parseWorkspacePreferences(serialized: string | null): WorkspaceP
     const activeDesktopId = desktops.some((desktop) => desktop.id === candidate.activeDesktopId)
       ? (candidate.activeDesktopId as string)
       : (desktops[0]?.id ?? DEFAULT_WORKSPACE.activeDesktopId);
-    return { version: 2, activeDesktopId, desktops };
+    const activeIds = new Set(desktops.map((desktop) => desktop.id));
+    const archivedIds = new Set<string>();
+    const archivedDesktops = (candidate.archivedDesktops ?? [])
+      .map((desktop) => {
+        if (!desktop || typeof desktop.id !== "string" || typeof desktop.name !== "string") {
+          return null;
+        }
+        const id = desktop.id.trim();
+        const name = desktop.name.trim().replace(/\s+/g, " ").slice(0, 40);
+        const color = desktop.color;
+        if (
+          !id ||
+          !name ||
+          !VALID_COLORS.has(color as DesktopDefinition["color"]) ||
+          activeIds.has(id) ||
+          archivedIds.has(id)
+        ) {
+          return null;
+        }
+        archivedIds.add(id);
+        return {
+          id,
+          name,
+          color: color as DesktopDefinition["color"],
+          archivedAt:
+            typeof desktop.archivedAt === "string" && desktop.archivedAt
+              ? desktop.archivedAt
+              : new Date(0).toISOString(),
+          previousIndex:
+            typeof desktop.previousIndex === "number" && Number.isInteger(desktop.previousIndex)
+              ? Math.max(0, desktop.previousIndex)
+              : desktops.length,
+        };
+      })
+      .filter((desktop): desktop is ArchivedDesktopDefinition => desktop !== null);
+    return { version: 3, activeDesktopId, desktops, archivedDesktops };
   } catch {
     return DEFAULT_WORKSPACE;
   }
@@ -136,21 +178,21 @@ export function moveTabToDesktop(
   return { ...assignments, [tabId]: desktopId };
 }
 
-export function deleteDesktop(
+export function archiveDesktop(
   workspace: WorkspacePreferences,
   desktopId: string,
-  usage: DesktopUsage,
-): DeleteDesktopResult {
+  archivedAt = new Date().toISOString(),
+): ArchiveDesktopResult {
   const desktopIndex = workspace.desktops.findIndex((desktop) => desktop.id === desktopId);
-  if (desktopIndex < 0) return { deleted: false, reason: "not-found" };
-  if (workspace.desktops.length <= 1) return { deleted: false, reason: "last-desktop" };
-  if (usage.openTabCount > 0) return { deleted: false, reason: "has-open-tabs" };
-  if (usage.savedLinkCount > 0) return { deleted: false, reason: "has-saved-links" };
+  if (desktopIndex < 0) return { archived: false, reason: "not-found" };
+  if (workspace.desktops.length <= 1) return { archived: false, reason: "last-desktop" };
 
+  const desktop = workspace.desktops[desktopIndex];
+  if (!desktop) return { archived: false, reason: "not-found" };
   const desktops = workspace.desktops.filter((desktop) => desktop.id !== desktopId);
   const fallbackDesktop = desktops[Math.min(desktopIndex, desktops.length - 1)] ?? desktops[0];
   return {
-    deleted: true,
+    archived: true,
     workspace: {
       ...workspace,
       activeDesktopId:
@@ -158,6 +200,47 @@ export function deleteDesktop(
           ? (fallbackDesktop?.id ?? workspace.activeDesktopId)
           : workspace.activeDesktopId,
       desktops,
+      archivedDesktops: [
+        ...workspace.archivedDesktops.filter((candidate) => candidate.id !== desktopId),
+        { ...desktop, archivedAt, previousIndex: desktopIndex },
+      ],
     },
+  };
+}
+
+export function restoreArchivedDesktop(
+  workspace: WorkspacePreferences,
+  desktopId: string,
+): RestoreDesktopResult {
+  const archived = workspace.archivedDesktops.find((desktop) => desktop.id === desktopId);
+  if (!archived) return { restored: false, reason: "not-found" };
+  if (workspace.desktops.some((desktop) => desktop.id === desktopId)) {
+    return { restored: false, reason: "duplicate-id" };
+  }
+  const desktops = [...workspace.desktops];
+  desktops.splice(Math.min(archived.previousIndex, desktops.length), 0, {
+    id: archived.id,
+    name: archived.name,
+    color: archived.color,
+  });
+  return {
+    restored: true,
+    workspace: {
+      ...workspace,
+      activeDesktopId: archived.id,
+      desktops,
+      archivedDesktops: workspace.archivedDesktops.filter((desktop) => desktop.id !== desktopId),
+    },
+  };
+}
+
+export function permanentlyDeleteArchivedDesktop(
+  workspace: WorkspacePreferences,
+  desktopId: string,
+): WorkspacePreferences {
+  if (!workspace.archivedDesktops.some((desktop) => desktop.id === desktopId)) return workspace;
+  return {
+    ...workspace,
+    archivedDesktops: workspace.archivedDesktops.filter((desktop) => desktop.id !== desktopId),
   };
 }

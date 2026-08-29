@@ -410,9 +410,11 @@ if (
   smokeFailures.push("installed Wealth Lab workflow failed");
 }
 if (
-  !smoke.desktopLifecycle?.guardedDeleteBlockedForOpenTab ||
+  !smoke.desktopLifecycle?.occupiedArchiveOptionsVisible ||
   !smoke.desktopLifecycle?.movedTabRetained ||
-  !smoke.desktopLifecycle?.deletedEmptyDesktop ||
+  !smoke.desktopLifecycle?.archivedEmptyDesktop ||
+  !smoke.desktopLifecycle?.restoredArchivedDesktop ||
+  !smoke.desktopLifecycle?.hardDeleteAvailableOnlyInArchive ||
   !smoke.desktopLifecycle?.savedResearchDesktopPreserved
 ) {
   smokeFailures.push("installed desktop lifecycle workflow failed");

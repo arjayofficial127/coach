@@ -185,15 +185,17 @@ export interface PhaseNineSmokeEvidence {
     screenshotBytes: number;
   };
   desktopLifecycle: {
-    guardedDeleteBlockedForOpenTab: boolean;
+    occupiedArchiveOptionsVisible: boolean;
     menuVisible: boolean;
     nativeViewHiddenWhileMenuOpen: boolean;
     movedToDesktop: string;
     movedTabRetained: boolean;
     emptiedSourceDesktop: boolean;
-    deletionConfirmationVisible: boolean;
-    deletedEmptyDesktop: boolean;
+    archivePopoverVisible: boolean;
+    archivedEmptyDesktop: boolean;
     adjacentDesktopActivated: boolean;
+    restoredArchivedDesktop: boolean;
+    hardDeleteAvailableOnlyInArchive: boolean;
     savedResearchDesktopPreserved: boolean;
   };
   metadataEditing: {
@@ -371,7 +373,10 @@ function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function waitForRendererBounds(runtime: ProfileRuntime): Promise<BrowserBounds> {
+async function waitForRendererBounds(
+  runtime: ProfileRuntime,
+  window: BrowserWindow,
+): Promise<BrowserBounds> {
   const deadline = Date.now() + 5_000;
   let previousBounds: BrowserBounds | null = null;
   let stableSamples = 0;
@@ -388,7 +393,25 @@ async function waitForRendererBounds(runtime: ProfileRuntime): Promise<BrowserBo
     }
     await delay(25);
   }
-  throw new Error("The packaged React renderer did not report stable native-view bounds.");
+  const diagnostics = (await window.webContents.executeJavaScript(`(() => {
+    const viewport = document.querySelector(".browser-viewport");
+    const bounds = viewport?.getBoundingClientRect();
+    return {
+      readyState: document.readyState,
+      bodyText: document.body?.textContent?.trim().slice(0, 180) ?? "",
+      bridgeVisible: Boolean(window.lattice),
+      viewportPresent: Boolean(viewport),
+      viewportBounds: bounds
+        ? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+        : null
+    };
+  })()`)) as unknown;
+  throw new Error(
+    `The packaged React renderer did not report stable native-view bounds: ${JSON.stringify({
+      runtimeBounds: runtime.getBounds(),
+      diagnostics,
+    })}`,
+  );
 }
 
 export async function runPhaseNineSmoke(
@@ -455,10 +478,21 @@ export async function runPhaseNineSmoke(
   };
 
   try {
+    window.webContents.on("console-message", (details) => {
+      if (details.level === "error") console.error(`[renderer] ${details.message}`);
+    });
+    window.webContents.on(
+      "did-fail-load",
+      (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+        if (isMainFrame) {
+          console.error(`[renderer-load] ${errorCode} ${errorDescription} ${validatedURL}`);
+        }
+      },
+    );
     await window.loadURL("lattice://app/index.html");
     const shellUrl = window.webContents.getURL();
     const shellTitle = window.webContents.getTitle();
-    let rendererReportedBounds = await waitForRendererBounds(runtime);
+    let rendererReportedBounds = await waitForRendererBounds(runtime, window);
     const shellResponse = await window.webContents.session.fetch("lattice://app/index.html");
     const contentSecurityPolicy = shellResponse.headers.get("content-security-policy");
 
@@ -579,7 +613,7 @@ export async function runPhaseNineSmoke(
     // probe. Re-sample the IPC-published native slot after that work so the evidence
     // compares two values from the same stable layout generation.
     await delay(100);
-    rendererReportedBounds = await waitForRendererBounds(runtime);
+    rendererReportedBounds = await waitForRendererBounds(runtime, window);
     const [windowContentWidth = 1, windowContentHeight = 1] = window.getContentSize();
 
     const initialNoteBytes = await readFile(shellProbe.note.absolutePath);
@@ -1316,14 +1350,9 @@ export async function runPhaseNineSmoke(
     const browserAfterAppsDeadline = Date.now() + 2_000;
     while (Date.now() < browserAfterAppsDeadline && !runtime.isVisible()) await delay(25);
 
-    // An occupied desktop cannot be deleted. Move its live native tab to the next
-    // desktop, then prove the now-empty desktop needs confirmation and can be
-    // removed without disturbing the first desktop's saved Markdown.
-    await window.webContents.executeJavaScript(`(() => {
-      const menu = document.querySelector('button[aria-label="Workspace menu"]');
-      if (!(menu instanceof HTMLButtonElement)) throw new Error("Workspace menu missing");
-      menu.click();
-    })()`);
+    // Occupied desktops now offer a recoverable archive decision. Prove that the
+    // compact action exposes move/close choices before continuing to exercise the
+    // standalone tab-move menu.
     const occupiedDeleteDeadline = Date.now() + 2_000;
     let occupiedDeleteVisible = false;
     while (Date.now() < occupiedDeleteDeadline) {
@@ -1337,22 +1366,22 @@ export async function runPhaseNineSmoke(
     await window.webContents.executeJavaScript(
       `document.querySelector('[data-delete-desktop="build"]').click()`,
     );
-    let guardedDeleteBlockedForOpenTab = false;
+    let occupiedArchiveOptionsVisible = false;
     const guardDeadline = Date.now() + 2_000;
     while (Date.now() < guardDeadline) {
-      guardedDeleteBlockedForOpenTab = (await window.webContents.executeJavaScript(`(() => {
-        const status = document.querySelector(".status-bar span")?.textContent ?? "";
-        const buildPresent = [...document.querySelectorAll(".desktop-item strong")]
-          .some((item) => item.textContent?.trim() === "Desk 2");
-        return buildPresent && status.includes("Move or close this desktop's tabs first");
+      occupiedArchiveOptionsVisible = (await window.webContents.executeJavaScript(`(() => {
+        const panel = document.querySelector('[data-archive-panel="build"]');
+        return Boolean(panel?.textContent?.includes("open tab") &&
+          panel.querySelector('[data-archive-move-target="build"]') &&
+          panel.querySelector('[data-close-and-archive-desktop="build"]'));
       })()`)) as boolean;
-      if (guardedDeleteBlockedForOpenTab) break;
+      if (occupiedArchiveOptionsVisible) break;
       await delay(25);
     }
     await window.webContents.executeJavaScript(`(() => {
-      const menu = document.querySelector('button[aria-label="Workspace menu"]');
-      if (!(menu instanceof HTMLButtonElement)) throw new Error("Workspace menu missing");
-      menu.click();
+      const cancel = document.querySelector('button[aria-label="Cancel desktop archive"]');
+      if (!(cancel instanceof HTMLButtonElement)) throw new Error("Desktop archive cancel missing");
+      cancel.click();
       const actions = document.querySelector('button[aria-label="More browser actions"]');
       if (!(actions instanceof HTMLButtonElement)) throw new Error("Browser actions missing");
       actions.click();
@@ -1408,11 +1437,6 @@ export async function runPhaseNineSmoke(
       if (emptiedSourceDesktop) break;
       await delay(25);
     }
-    await window.webContents.executeJavaScript(`(() => {
-      const menu = document.querySelector('button[aria-label="Workspace menu"]');
-      if (!(menu instanceof HTMLButtonElement)) throw new Error("Workspace menu missing");
-      menu.click();
-    })()`);
     const emptyDeleteDeadline = Date.now() + 2_000;
     let emptyDeleteVisible = false;
     while (Date.now() < emptyDeleteDeadline) {
@@ -1427,19 +1451,18 @@ export async function runPhaseNineSmoke(
       `document.querySelector('[data-delete-desktop="build"]').click()`,
     );
     const confirmationDeadline = Date.now() + 2_000;
-    let deletionConfirmationVisible = false;
+    let archivePopoverVisible = false;
     while (Date.now() < confirmationDeadline) {
-      deletionConfirmationVisible = (await window.webContents.executeJavaScript(`(() => {
-        const remove = document.querySelector('[data-delete-desktop="build"]');
-        return remove?.textContent?.includes("Confirm delete empty desktop") ?? false;
-      })()`)) as boolean;
-      if (deletionConfirmationVisible) break;
+      archivePopoverVisible = (await window.webContents.executeJavaScript(
+        `Boolean(document.querySelector('[data-archive-panel="build"]'))`,
+      )) as boolean;
+      if (archivePopoverVisible) break;
       await delay(25);
     }
     await window.webContents.executeJavaScript(`(() => {
-      const remove = document.querySelector('[data-delete-desktop="build"]');
-      if (!(remove instanceof HTMLButtonElement)) throw new Error("Desktop confirmation missing");
-      remove.click();
+      const archive = document.querySelector('[data-archive-desktop="build"]');
+      if (!(archive instanceof HTMLButtonElement)) throw new Error("Desktop archive action missing");
+      archive.click();
     })()`);
     const deleteDeadline = Date.now() + 2_000;
     let deletedDom: DesktopLifecycleDomResult | null = null;
@@ -1458,6 +1481,50 @@ export async function runPhaseNineSmoke(
       await delay(25);
     }
     if (!deletedDom) throw new Error("The Phase 8 desktop delete UI did not become ready.");
+
+    await window.webContents.executeJavaScript(`(() => {
+      const menu = document.querySelector('button[aria-label="Workspace menu"]');
+      if (!(menu instanceof HTMLButtonElement)) throw new Error("Workspace menu missing");
+      menu.click();
+    })()`);
+    const archivedActionDeadline = Date.now() + 2_000;
+    let archivedActionVisible = false;
+    while (Date.now() < archivedActionDeadline) {
+      archivedActionVisible = (await window.webContents.executeJavaScript(`(() =>
+        [...document.querySelectorAll(".workspace-menu button")]
+          .some((button) => button.textContent?.includes("Archived desktops")))()`)) as boolean;
+      if (archivedActionVisible) break;
+      await delay(25);
+    }
+    await window.webContents.executeJavaScript(`(() => {
+      const archived = [...document.querySelectorAll(".workspace-menu button")]
+        .find((button) => button.textContent?.includes("Archived desktops"));
+      if (!(archived instanceof HTMLButtonElement)) throw new Error("Archived desktops action missing");
+      archived.click();
+    })()`);
+    const archivePanelDeadline = Date.now() + 2_000;
+    let hardDeleteAvailableOnlyInArchive = false;
+    while (Date.now() < archivePanelDeadline) {
+      hardDeleteAvailableOnlyInArchive = (await window.webContents.executeJavaScript(
+        `Boolean(document.querySelector('[data-archived-desktops] [data-hard-delete-desktop="build"]'))`,
+      )) as boolean;
+      if (hardDeleteAvailableOnlyInArchive) break;
+      await delay(25);
+    }
+    await window.webContents.executeJavaScript(`(() => {
+      const restore = document.querySelector('[data-restore-desktop="build"]');
+      if (!(restore instanceof HTMLButtonElement)) throw new Error("Archived desktop restore missing");
+      restore.click();
+    })()`);
+    const archiveRestoreDeadline = Date.now() + 2_000;
+    let restoredArchivedDesktop = false;
+    while (Date.now() < archiveRestoreDeadline) {
+      restoredArchivedDesktop = (await window.webContents.executeJavaScript(`(() =>
+        [...document.querySelectorAll(".desktop-item strong")]
+          .some((item) => item.textContent?.trim() === "Desk 2"))()`)) as boolean;
+      if (restoredArchivedDesktop) break;
+      await delay(25);
+    }
 
     await window.webContents.executeJavaScript(`(() => {
       const button = [...document.querySelectorAll("button.library-row")]
@@ -2339,15 +2406,17 @@ export async function runPhaseNineSmoke(
         screenshotBytes: wealthLabScreenshot.byteLength,
       },
       desktopLifecycle: {
-        guardedDeleteBlockedForOpenTab,
+        occupiedArchiveOptionsVisible,
         menuVisible: browserMenuVisible,
         nativeViewHiddenWhileMenuOpen,
         movedToDesktop: movedDom.activeDesktop,
         movedTabRetained,
         emptiedSourceDesktop,
-        deletionConfirmationVisible,
-        deletedEmptyDesktop: !deletedDom.buildPresent,
+        archivePopoverVisible,
+        archivedEmptyDesktop: !deletedDom.buildPresent,
         adjacentDesktopActivated: deletedDom.activeDesktop === "Desk 3",
+        restoredArchivedDesktop,
+        hardDeleteAvailableOnlyInArchive,
         savedResearchDesktopPreserved: deletedDom.researchSummary.includes("1 saved"),
       },
       metadataEditing: {

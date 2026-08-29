@@ -66,12 +66,14 @@ import {
   type ThemeId,
 } from "./settings-model";
 import {
+  archiveDesktop,
   createDesktop,
   DEFAULT_WORKSPACE,
-  deleteDesktop,
   moveTabToDesktop,
   parseWorkspacePreferences,
+  permanentlyDeleteArchivedDesktop,
   renameDesktop,
+  restoreArchivedDesktop,
   type WorkspacePreferences,
 } from "./workspace-model";
 
@@ -332,7 +334,10 @@ export function LatticeApp() {
   const [editingDesktopName, setEditingDesktopName] = useState("");
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [browserMenuOpen, setBrowserMenuOpen] = useState(false);
-  const [confirmDeleteDesktopId, setConfirmDeleteDesktopId] = useState<string | null>(null);
+  const [archiveDesktopId, setArchiveDesktopId] = useState<string | null>(null);
+  const [archiveMoveTargetId, setArchiveMoveTargetId] = useState("");
+  const [archivedDesktopsOpen, setArchivedDesktopsOpen] = useState(false);
+  const [confirmHardDeleteDesktopId, setConfirmHardDeleteDesktopId] = useState<string | null>(null);
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [sessionReady, setSessionReady] = useState(false);
@@ -1173,60 +1178,141 @@ export function LatticeApp() {
     });
   };
 
-  const requestDeleteActiveDesktop = async () => {
-    if (!activeDesktop) return;
-    const openTabCount = snapshot.tabs.filter(
-      (tab) => tabDesktops[tab.id] === activeDesktop.id,
-    ).length;
-    const savedLinkCount = links.filter((link) =>
-      link.desktopId ? link.desktopId === activeDesktop.id : link.folder === activeDesktop.name,
-    ).length;
-    const result = deleteDesktop(workspace, activeDesktop.id, { openTabCount, savedLinkCount });
-
-    if (!result.deleted) {
-      const messages = {
-        "not-found": "Desktop no longer exists",
-        "last-desktop": "Keep at least one desktop",
-        "has-open-tabs": "Move or close this desktop's tabs first",
-        "has-saved-links": "This desktop has saved links; its Obsidian folder was left untouched",
-      };
-      setConfirmDeleteDesktopId(null);
-      setStatus(messages[result.reason]);
+  const showDesktopArchiveActions = (desktopId: string) => {
+    if (workspace.desktops.length <= 1) {
+      setStatus("Keep at least one active desktop");
       return;
     }
-
-    if (confirmDeleteDesktopId !== activeDesktop.id) {
-      setConfirmDeleteDesktopId(activeDesktop.id);
-      setStatus("Delete this empty desktop? Press delete again to confirm");
-      return;
-    }
-
-    const nextDesktopId = result.workspace.activeDesktopId;
-    const deletedDesktop = activeDesktop;
-    const deletedIndex = workspace.desktops.findIndex((desktop) => desktop.id === activeDesktop.id);
-    setWorkspace(result.workspace);
-    setConfirmDeleteDesktopId(null);
+    const fallback = workspace.desktops.find((desktop) => desktop.id !== desktopId);
+    setArchiveDesktopId((current) => (current === desktopId ? null : desktopId));
+    setArchiveMoveTargetId(fallback?.id ?? "");
     setWorkspaceMenuOpen(false);
-    setCaptureOpen(false);
+  };
 
-    const firstTab = snapshot.tabs.find((tab) => tabDesktops[tab.id] === nextDesktopId);
-    if (firstTab) {
-      setSnapshot(await window.lattice.browser.switchTab(firstTab.id));
-      setSurface(firstTab.url === "about:blank" ? "home" : "browser");
-    } else {
-      setAddress("");
-      setSurface("home");
+  const archiveSelectedDesktop = async (tabAction: "move" | "close") => {
+    if (!archiveDesktopId) return;
+    const desktop = workspace.desktops.find((candidate) => candidate.id === archiveDesktopId);
+    const selectedTarget = workspace.desktops.find(
+      (candidate) => candidate.id === archiveMoveTargetId && candidate.id !== archiveDesktopId,
+    );
+    if (!desktop) {
+      setStatus("Desktop no longer exists");
+      return;
     }
-    setStatus("Deleted empty desktop; Obsidian folders were untouched");
-    offerRecovery(`Deleted ${deletedDesktop.name}`, () => {
-      setWorkspace((current) => {
-        if (current.desktops.some((desktop) => desktop.id === deletedDesktop.id)) return current;
-        const desktops = [...current.desktops];
-        desktops.splice(Math.min(deletedIndex, desktops.length), 0, deletedDesktop);
-        return { ...current, desktops, activeDesktopId: deletedDesktop.id };
+    const sourceTabs = snapshot.tabs.filter((tab) => tabDesktops[tab.id] === desktop.id);
+    if (sourceTabs.length > 0 && !selectedTarget) {
+      setStatus("Choose another desktop before archiving");
+      return;
+    }
+    const result = archiveDesktop(workspace, desktop.id);
+    if (!result.archived) {
+      setStatus(
+        result.reason === "last-desktop"
+          ? "Keep at least one active desktop"
+          : "Desktop no longer exists",
+      );
+      return;
+    }
+
+    const target =
+      (sourceTabs.length > 0 ? selectedTarget : null) ??
+      workspace.desktops.find((candidate) => candidate.id === result.workspace.activeDesktopId);
+    if (!target) {
+      setStatus("Choose another desktop before archiving");
+      return;
+    }
+    const sourceTabIds = new Set(sourceTabs.map((tab) => tab.id));
+    const activeClosedId = snapshot.activeTabId;
+    let nextSnapshot = snapshot;
+    const nextAssignments = { ...tabDesktops };
+
+    try {
+      if (tabAction === "close") {
+        for (const tab of sourceTabs) nextSnapshot = await window.lattice.browser.closeTab(tab.id);
+        for (const tab of sourceTabs) delete nextAssignments[tab.id];
+        if (nextSnapshot.activeTabId && !nextAssignments[nextSnapshot.activeTabId]) {
+          nextAssignments[nextSnapshot.activeTabId] = target.id;
+        }
+      } else {
+        for (const tab of sourceTabs) nextAssignments[tab.id] = target.id;
+      }
+
+      const archivedWorkspace = { ...result.workspace, activeDesktopId: target.id };
+      setWorkspace(archivedWorkspace);
+      setSnapshot(nextSnapshot);
+      setTabDesktops(nextAssignments);
+      setArchiveDesktopId(null);
+      setArchiveMoveTargetId("");
+      setCaptureOpen(false);
+
+      const visibleTab = nextSnapshot.tabs.find((tab) => nextAssignments[tab.id] === target.id);
+      if (visibleTab && visibleTab.id !== nextSnapshot.activeTabId) {
+        nextSnapshot = await window.lattice.browser.switchTab(visibleTab.id);
+        setSnapshot(nextSnapshot);
+      }
+      const activeVisibleTab = nextSnapshot.tabs.find(
+        (tab) => tab.id === nextSnapshot.activeTabId && nextAssignments[tab.id] === target.id,
+      );
+      setSurface(
+        activeVisibleTab?.url && activeVisibleTab.url !== "about:blank" ? "browser" : "home",
+      );
+      if (!activeVisibleTab) setAddress("");
+      setStatus(`Archived ${desktop.name}; saved files remain untouched`);
+
+      offerRecovery(`Archived ${desktop.name}`, async () => {
+        setWorkspace((current) => {
+          const restored = restoreArchivedDesktop(current, desktop.id);
+          return restored.restored ? restored.workspace : current;
+        });
+        if (tabAction === "close" && sourceTabs.length > 0) {
+          await restoreClosedTabs(
+            sourceTabs.map((tab) => ({ tab, desktopId: desktop.id })),
+            activeClosedId,
+            nextSnapshot.tabs.length === 1 && nextSnapshot.tabs[0]?.url === "about:blank"
+              ? nextSnapshot.activeTabId
+              : undefined,
+          );
+        } else {
+          setTabDesktops((current) => {
+            const restored = { ...current };
+            for (const tabId of sourceTabIds) {
+              if (snapshot.tabs.some((tab) => tab.id === tabId)) restored[tabId] = desktop.id;
+            }
+            return restored;
+          });
+          setWorkspace((current) => ({ ...current, activeDesktopId: desktop.id }));
+          setSurface("home");
+        }
       });
-      setSurface("home");
-    });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const restoreDesktopFromArchive = (desktopId: string) => {
+    const result = restoreArchivedDesktop(workspace, desktopId);
+    if (!result.restored) {
+      setStatus("That archived desktop is no longer available");
+      return;
+    }
+    setWorkspace(result.workspace);
+    setArchivedDesktopsOpen(false);
+    setWorkspaceMenuOpen(false);
+    setSurface("home");
+    setStatus("Desktop restored");
+  };
+
+  const hardDeleteDesktopFromArchive = (desktopId: string) => {
+    if (confirmHardDeleteDesktopId !== desktopId) {
+      setConfirmHardDeleteDesktopId(desktopId);
+      return;
+    }
+    const desktop = workspace.archivedDesktops.find((candidate) => candidate.id === desktopId);
+    setWorkspace((current) => permanentlyDeleteArchivedDesktop(current, desktopId));
+    setConfirmHardDeleteDesktopId(null);
+    setStatus(
+      `Permanently removed ${desktop?.name ?? "archived desktop"}; vault files were untouched`,
+    );
   };
 
   const connectVault = async (disposable = false) => {
@@ -2230,7 +2316,7 @@ export function LatticeApp() {
             aria-label="Workspace menu"
             aria-expanded={workspaceMenuOpen}
             onClick={() => {
-              setConfirmDeleteDesktopId(null);
+              setConfirmHardDeleteDesktopId(null);
               setWorkspaceMenuOpen((open) => !open);
             }}
           >
@@ -2238,32 +2324,77 @@ export function LatticeApp() {
           </button>
           {workspaceMenuOpen && (
             <div className="workspace-menu">
-              <button
-                type="button"
-                onClick={() => activeDesktop && beginRenameDesktop(activeDesktop.id)}
-              >
-                <Icon name="desktop" />
-                Rename {activeDesktop?.name}
-              </button>
               <button type="button" onClick={() => void closeAllTabs()}>
                 <Icon name="close" />
                 Close all tabs
               </button>
               <button
                 type="button"
-                className="danger-action"
-                data-delete-desktop={activeDesktop?.id}
-                onClick={() => void requestDeleteActiveDesktop()}
+                onClick={() => {
+                  setArchivedDesktopsOpen((open) => !open);
+                  setWorkspaceMenuOpen(false);
+                }}
               >
-                <Icon name="close" />
-                {confirmDeleteDesktopId === activeDesktop?.id
-                  ? "Confirm delete empty desktop"
-                  : `Delete ${activeDesktop?.name ?? "desktop"}`}
+                <Icon name="folder" />
+                Archived desktops ({workspace.archivedDesktops.length})
               </button>
-              <span>Markdown folders are never deleted</span>
+              <span>Desktop names can be edited beside each name</span>
             </div>
           )}
         </div>
+
+        {archivedDesktopsOpen && (
+          <section className="archived-desktops-panel" data-archived-desktops>
+            <header>
+              <div>
+                <strong>Archived desktops</strong>
+                <small>Recover one or remove its record permanently.</small>
+              </div>
+              <button
+                type="button"
+                aria-label="Close archived desktops"
+                onClick={() => setArchivedDesktopsOpen(false)}
+              >
+                <Icon name="close" />
+              </button>
+            </header>
+            {workspace.archivedDesktops.length === 0 ? (
+              <p>No archived desktops yet.</p>
+            ) : (
+              <div className="archived-desktop-list">
+                {workspace.archivedDesktops.map((desktop) => (
+                  <div className="archived-desktop-item" key={desktop.id}>
+                    <span className={`desktop-glyph ${desktop.color}`}>
+                      <Icon name="desktop" />
+                    </span>
+                    <span>
+                      <strong>{desktop.name}</strong>
+                      <small>Files and saved data remain in place</small>
+                    </span>
+                    <button
+                      type="button"
+                      data-restore-desktop={desktop.id}
+                      onClick={() => restoreDesktopFromArchive(desktop.id)}
+                    >
+                      Restore
+                    </button>
+                    <button
+                      type="button"
+                      className="archived-hard-delete"
+                      data-hard-delete-desktop={desktop.id}
+                      onClick={() => hardDeleteDesktopFromArchive(desktop.id)}
+                    >
+                      {confirmHardDeleteDesktopId === desktop.id
+                        ? "Confirm remove"
+                        : "Delete permanently"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p>Permanent removal forgets the desktop record. Vault files are never erased here.</p>
+          </section>
+        )}
 
         <div className="section-label desktop-section-label">
           <span>Desktops</span>
@@ -2282,79 +2413,171 @@ export function LatticeApp() {
             const active = desktop.id === workspace.activeDesktopId;
             if (editingDesktopId === desktop.id) {
               return (
-                <form
-                  key={desktop.id}
-                  className={
-                    active
-                      ? "desktop-item desktop-rename-row active"
-                      : "desktop-item desktop-rename-row"
-                  }
-                  data-desktop-id={desktop.id}
-                  onSubmit={submitDesktopRename}
-                >
-                  <span className={`desktop-glyph ${desktop.color}`}>
-                    <Icon name="desktop" />
-                  </span>
-                  <input
-                    ref={desktopRenameInputRef}
-                    value={editingDesktopName}
-                    onChange={(event) => setEditingDesktopName(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Escape") {
-                        event.preventDefault();
-                        setEditingDesktopId(null);
-                      }
-                    }}
-                    placeholder="Desktop name"
-                    maxLength={40}
-                    aria-label={`Rename ${desktop.name}`}
-                  />
-                  <button type="submit" aria-label="Save desktop name">
-                    <Icon name="check" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Cancel rename"
-                    onClick={() => setEditingDesktopId(null)}
+                <div className="desktop-item-shell" key={desktop.id}>
+                  <form
+                    className={
+                      active
+                        ? "desktop-item desktop-rename-row active"
+                        : "desktop-item desktop-rename-row"
+                    }
+                    data-desktop-id={desktop.id}
+                    onSubmit={submitDesktopRename}
                   >
-                    <Icon name="close" />
-                  </button>
-                </form>
+                    <span className={`desktop-glyph ${desktop.color}`}>
+                      <Icon name="desktop" />
+                    </span>
+                    <input
+                      ref={desktopRenameInputRef}
+                      value={editingDesktopName}
+                      onChange={(event) => setEditingDesktopName(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") {
+                          event.preventDefault();
+                          setEditingDesktopId(null);
+                        }
+                      }}
+                      placeholder="Desktop name"
+                      maxLength={40}
+                      aria-label={`Rename ${desktop.name}`}
+                    />
+                    <button type="submit" aria-label="Save desktop name">
+                      <Icon name="check" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Cancel rename"
+                      onClick={() => setEditingDesktopId(null)}
+                    >
+                      <Icon name="close" />
+                    </button>
+                  </form>
+                </div>
               );
             }
             return (
-              <div
-                key={desktop.id}
-                className={active ? "desktop-item active" : "desktop-item"}
-                data-desktop-id={desktop.id}
-              >
-                <button
-                  type="button"
-                  className="desktop-select"
-                  aria-label={`Open ${desktop.name}`}
-                  onClick={() => void selectDesktop(desktop.id)}
-                  onDoubleClick={() => beginRenameDesktop(desktop.id)}
+              <div className="desktop-item-shell" key={desktop.id}>
+                <div
+                  className={active ? "desktop-item active" : "desktop-item"}
+                  data-desktop-id={desktop.id}
                 >
-                  <span className={`desktop-glyph ${desktop.color}`}>
-                    <Icon name="desktop" />
-                  </span>
+                  <button
+                    type="button"
+                    className="desktop-select"
+                    aria-label={`Open ${desktop.name}`}
+                    onClick={() => void selectDesktop(desktop.id)}
+                  >
+                    <span className={`desktop-glyph ${desktop.color}`}>
+                      <Icon name="desktop" />
+                    </span>
+                  </button>
                   <span className="desktop-copy">
-                    <strong>{desktop.name}</strong>
-                    <small>
-                      {tabCount} tabs · {linkCount} saved
-                    </small>
+                    <button
+                      type="button"
+                      className="desktop-name-button"
+                      aria-label={`Rename ${desktop.name}`}
+                      title={`Rename ${desktop.name}`}
+                      onClick={() => beginRenameDesktop(desktop.id)}
+                    >
+                      <strong>{desktop.name}</strong>
+                      <Icon name="edit" />
+                    </button>
+                    <button
+                      type="button"
+                      className="desktop-summary-button"
+                      aria-label={`Open ${desktop.name}`}
+                      onClick={() => void selectDesktop(desktop.id)}
+                    >
+                      <small>
+                        {tabCount} tabs · {linkCount} saved
+                      </small>
+                    </button>
                   </span>
-                </button>
-                <button
-                  type="button"
-                  className="desktop-rename-button"
-                  aria-label={`Rename ${desktop.name}`}
-                  title={`Rename ${desktop.name}`}
-                  onClick={() => beginRenameDesktop(desktop.id)}
-                >
-                  <Icon name="edit" />
-                </button>
-                {active ? <span className="active-dot" /> : <span className="desktop-dot-spacer" />}
+                  <button
+                    type="button"
+                    className="desktop-archive-trigger"
+                    data-delete-desktop={desktop.id}
+                    aria-label={`Archive ${desktop.name}`}
+                    title={`Archive ${desktop.name}`}
+                    onClick={() => showDesktopArchiveActions(desktop.id)}
+                  >
+                    <Icon name="close" />
+                  </button>
+                  {active ? (
+                    <span className="active-dot" />
+                  ) : (
+                    <span className="desktop-dot-spacer" />
+                  )}
+                </div>
+                {archiveDesktopId === desktop.id && (
+                  <aside className="desktop-archive-popover" data-archive-panel={desktop.id}>
+                    <header>
+                      <span>
+                        <strong>Archive {desktop.name}?</strong>
+                        <small>This can be restored later.</small>
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Cancel desktop archive"
+                        onClick={() => setArchiveDesktopId(null)}
+                      >
+                        <Icon name="close" />
+                      </button>
+                    </header>
+                    {tabCount + linkCount > 0 ? (
+                      <p>
+                        This desktop still contains {tabCount} open tab{tabCount === 1 ? "" : "s"}
+                        {linkCount > 0
+                          ? ` and ${linkCount} saved link${linkCount === 1 ? "" : "s"}`
+                          : ""}
+                        .
+                      </p>
+                    ) : (
+                      <p>This desktop has no open tabs or saved links.</p>
+                    )}
+                    {tabCount > 0 && (
+                      <label>
+                        <span>Move open tabs to</span>
+                        <select
+                          value={archiveMoveTargetId}
+                          data-archive-move-target={desktop.id}
+                          onChange={(event) => setArchiveMoveTargetId(event.target.value)}
+                        >
+                          {workspace.desktops
+                            .filter((candidate) => candidate.id !== desktop.id)
+                            .map((candidate) => (
+                              <option key={candidate.id} value={candidate.id}>
+                                {candidate.name}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                    )}
+                    {linkCount > 0 && (
+                      <small className="desktop-archive-data-note">
+                        Saved links stay attached and return when this desktop is restored.
+                      </small>
+                    )}
+                    <div className="desktop-archive-actions">
+                      <button
+                        type="button"
+                        className="primary"
+                        data-archive-desktop={desktop.id}
+                        onClick={() => void archiveSelectedDesktop("move")}
+                      >
+                        Archive desktop
+                      </button>
+                      {tabCount > 0 && (
+                        <button
+                          type="button"
+                          data-close-and-archive-desktop={desktop.id}
+                          onClick={() => void archiveSelectedDesktop("close")}
+                        >
+                          Close open tabs &amp; archive
+                        </button>
+                      )}
+                    </div>
+                  </aside>
+                )}
               </div>
             );
           })}
