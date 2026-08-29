@@ -16,6 +16,7 @@ import type {
   ProfileSummary,
   ProfileSwitchResult,
   SavedLinkRecord,
+  ShellAppearance,
   ShellCommand,
   VaultInfo,
   VaultReferenceIndex,
@@ -323,6 +324,7 @@ export function LatticeApp() {
   const [clearingData, setClearingData] = useState(false);
   const [confirmClearAvatar, setConfirmClearAvatar] = useState(false);
   const [recoveryNotice, setRecoveryNotice] = useState<RecoveryNotice | null>(null);
+  const [nativeAppearanceTheme, setNativeAppearanceTheme] = useState<ThemeId | null>(null);
 
   const customThemeDirty = useMemo(
     () => JSON.stringify(customThemeDraft) !== JSON.stringify(settings.customTheme),
@@ -339,6 +341,18 @@ export function LatticeApp() {
     "--custom-muted": previewCustomTheme.muted,
     "--custom-accent": previewCustomTheme.accent,
   } as CSSProperties;
+  const titleBarAppearance = useMemo<ShellAppearance>(() => {
+    if (settings.activeTheme === "paper-felt") {
+      return { backgroundColor: "#f3f3f0", symbolColor: "#2b2d31" };
+    }
+    if (settings.activeTheme === "custom") {
+      return {
+        backgroundColor: previewCustomTheme.surface,
+        symbolColor: previewCustomTheme.text,
+      };
+    }
+    return { backgroundColor: "#101017", symbolColor: "#e9e9f2" };
+  }, [previewCustomTheme.surface, previewCustomTheme.text, settings.activeTheme]);
 
   const clearRecovery = () => {
     if (recoveryTimerRef.current !== null) window.clearTimeout(recoveryTimerRef.current);
@@ -555,6 +569,25 @@ export function LatticeApp() {
   useEffect(() => {
     setCustomThemeDraft(settings.customTheme);
   }, [settings.customTheme]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setNativeAppearanceTheme(null);
+    const timeout = window.setTimeout(() => {
+      void window.lattice.shell
+        .setAppearance(titleBarAppearance)
+        .then(() => {
+          if (!cancelled) setNativeAppearanceTheme(settings.activeTheme);
+        })
+        .catch(() => {
+          if (!cancelled) setNativeAppearanceTheme(null);
+        });
+    }, 30);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [settings.activeTheme, titleBarAppearance]);
 
   useEffect(() => {
     if (!profileState || !sessionReady) return;
@@ -1734,6 +1767,7 @@ export function LatticeApp() {
           ? previewCustomTheme.name
           : THEME_CATALOG.find((theme) => theme.id === settings.activeTheme)?.name
       }
+      data-titlebar-theme={nativeAppearanceTheme ?? "syncing"}
       style={shellThemeStyle}
     >
       <nav className="activity-rail" aria-label="Primary navigation">

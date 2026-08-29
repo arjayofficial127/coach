@@ -132,6 +132,7 @@ function updateActive(url: string): void {
 export function installBrowserPreviewBridge(): void {
   const api: LatticeApi = {
     shell: {
+      setAppearance: async (input) => input,
       onCommand: () => () => undefined,
     },
     browser: {

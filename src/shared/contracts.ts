@@ -1,4 +1,5 @@
 export const IPC = {
+  shellSetAppearance: "shell:set-appearance",
   browserSetBounds: "browser:set-bounds",
   browserNavigate: "browser:navigate",
   browserBack: "browser:back",
@@ -53,6 +54,11 @@ export type ShellCommand =
   | "show-queue"
   | "show-apps"
   | "show-settings";
+
+export interface ShellAppearance {
+  backgroundColor: string;
+  symbolColor: string;
+}
 
 export interface BrowserBounds {
   x: number;
@@ -297,6 +303,7 @@ export interface VaultReferenceIndex {
 export interface LatticeApi {
   shell: {
     onCommand(listener: (command: ShellCommand) => void): () => void;
+    setAppearance(input: ShellAppearance): Promise<ShellAppearance>;
   };
   browser: {
     setBounds(bounds: BrowserBounds): Promise<void>;

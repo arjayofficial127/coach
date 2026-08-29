@@ -34,8 +34,8 @@ export const THEME_CATALOG: readonly ThemeCatalogEntry[] = [
   },
   {
     id: "paper-felt",
-    name: "Paper Felt",
-    description: "Warm paper, soft fibers, and comfortable daylight contrast.",
+    name: "Felt White",
+    description: "Soft off-white, fine speckles, and comfortable daylight contrast.",
   },
   {
     id: "custom",

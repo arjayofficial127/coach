@@ -258,6 +258,7 @@ if (
   !evidence.runnableApps?.persisted ||
   !evidence.runnableApps?.activeRunCleared ||
   !evidence.runnableApps?.profileScoped ||
+  !evidence.runnableApps?.adaptiveLightSurface ||
   !evidence.runnableApps?.nativeViewHidden
 ) {
   failures.push("runnable Pomodoro workflow did not preserve its original and corrected results");
@@ -279,6 +280,7 @@ if (
   !evidence.dailyFlow?.persisted ||
   !evidence.dailyFlow?.profileScoped ||
   !evidence.dailyFlow?.activeRunCleared ||
+  !evidence.dailyFlow?.adaptiveLightSurface ||
   !evidence.dailyFlow?.nativeViewHidden
 ) {
   failures.push(
@@ -308,6 +310,7 @@ if (
   !evidence.wealthLab?.persisted ||
   !evidence.wealthLab?.profileScoped ||
   !evidence.wealthLab?.activeRunCleared ||
+  !evidence.wealthLab?.adaptiveLightSurface ||
   !evidence.wealthLab?.nativeViewHidden
 ) {
   failures.push("Wealth Lab money, earning experiment, net worth, or safety workflow failed");
@@ -463,9 +466,10 @@ if (
   !evidence.themes?.customPersisted ||
   !evidence.themes?.customProfileScoped ||
   !evidence.themes?.undoRestored ||
-  !evidence.themes?.returnedToDark
+  !evidence.themes?.returnedToDark ||
+  !evidence.themes?.nativeTitleBarSynced
 ) {
-  failures.push("profile-scoped Dark, Paper Felt, or named Custom theme workflow failed");
+  failures.push("profile-scoped Dark, Felt White, or named Custom theme workflow failed");
 }
 if (!evidence.note.disposableVault) failures.push("note was not written to a disposable vault");
 if (!evidence.note.obsidianDirectoryPresent)

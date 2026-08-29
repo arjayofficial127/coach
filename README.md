@@ -15,9 +15,10 @@ decisions and earning experiments without gaining financial-account authority.
 
 - The supplied cap artwork is now Lattice's shared in-app logo, SVG/PNG favicon set, portable-app
   icon, Start-menu shortcut icon, and NSIS installer/uninstaller icon.
-- Appearance is profile-scoped: **Lattice Dark** preserves the original shell, **Paper Felt** adds a
-  warm light palette with CSS-rendered fiber/noise texture, and **Custom** saves one named five-color
-  palette per website profile. Changes preview live and can be undone.
+- Appearance is profile-scoped: **Lattice Dark** preserves the original shell, **Felt White** adds a
+  neutral off-white palette with fine CSS-rendered speckle noise, and **Custom** saves one named
+  five-color palette per website profile. Changes preview live and can be undone, and Windows caption
+  controls follow the active palette.
 - Real HTTPS websites render in isolated native `WebContentsView` tabs.
 - Up to eight named website profiles can be created and switched from the rail. Each owns distinct
   Chromium cookies, origin storage, cache, tabs, desktops, settings, and focus intention.

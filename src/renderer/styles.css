@@ -2300,13 +2300,15 @@ kbd {
 }
 
 .theme-preview.paper-felt {
-  border-color: rgba(72, 59, 43, 0.19);
+  border-color: rgba(34, 37, 40, 0.16);
   background:
-    repeating-linear-gradient(11deg, rgba(91, 74, 54, 0.035) 0 1px, transparent 1px 5px), #e8dfd0;
+    radial-gradient(circle, rgba(32, 35, 38, 0.13) 0 0.55px, transparent 0.7px) 0 0 / 7px 9px,
+    radial-gradient(circle, rgba(32, 35, 38, 0.08) 0 0.45px, transparent 0.65px) 3px 4px / 11px 13px,
+    #f3f3f0;
 }
 
 .theme-preview.paper-felt::before {
-  background: rgba(214, 201, 181, 0.9);
+  background: rgba(231, 231, 226, 0.96);
 }
 
 .theme-preview.paper-felt i:nth-child(1) {
@@ -2314,11 +2316,11 @@ kbd {
 }
 
 .theme-preview.paper-felt i:nth-child(2) {
-  background: #776e63;
+  background: #74777b;
 }
 
 .theme-preview.paper-felt i:nth-child(3) {
-  background: #cfc1ad;
+  background: #d9d9d3;
 }
 
 .theme-preview.custom {
@@ -6132,40 +6134,30 @@ kbd {
 /* Theme contract: built-ins and future named themes only need to resolve these semantic tokens. */
 .lattice-shell[data-theme="paper-felt"] {
   color-scheme: light;
-  --bg: #e8dfd0;
-  --rail: rgba(218, 207, 190, 0.92);
-  --panel: rgba(239, 232, 220, 0.9);
-  --surface: rgba(249, 245, 237, 0.91);
-  --surface-2: rgba(236, 227, 214, 0.92);
-  --surface-3: #d9ccb8;
-  --canvas: #eee6da;
-  --field: rgba(255, 252, 246, 0.92);
-  --line: rgba(61, 50, 38, 0.12);
-  --line-strong: rgba(61, 50, 38, 0.2);
-  --text: #2b2722;
-  --muted: #71685d;
-  --subtle: #8e8375;
+  --bg: #f2f2ef;
+  --rail: rgba(235, 235, 231, 0.96);
+  --panel: rgba(247, 247, 244, 0.94);
+  --surface: rgba(252, 252, 249, 0.95);
+  --surface-2: rgba(239, 239, 235, 0.96);
+  --surface-3: #e5e5df;
+  --canvas: #f6f6f3;
+  --field: #fbfbf8;
+  --line: rgba(30, 33, 36, 0.1);
+  --line-strong: rgba(30, 33, 36, 0.18);
+  --text: #292b2e;
+  --muted: #686b70;
+  --subtle: #898c90;
   --accent: #6755be;
   --accent-strong: #5544ab;
   --accent-soft: rgba(103, 85, 190, 0.13);
   --green: #367c5e;
-  --shadow: 0 20px 60px rgba(71, 56, 38, 0.16);
+  --shadow: 0 20px 60px rgba(32, 35, 38, 0.14);
   --theme-texture:
-    repeating-linear-gradient(
-      14deg,
-      rgba(79, 62, 43, 0.025) 0,
-      rgba(79, 62, 43, 0.025) 1px,
-      transparent 1px,
-      transparent 5px
-    ),
-    repeating-linear-gradient(
-      98deg,
-      rgba(255, 255, 255, 0.13) 0,
-      rgba(255, 255, 255, 0.13) 1px,
-      transparent 1px,
-      transparent 7px
-    ),
-    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.36), transparent 36%);
+    radial-gradient(circle, rgba(26, 29, 32, 0.075) 0 0.52px, transparent 0.72px),
+    radial-gradient(circle, rgba(26, 29, 32, 0.045) 0 0.42px, transparent 0.64px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.62) 0 0.7px, transparent 0.88px);
+  --theme-texture-size: 7px 11px, 13px 17px, 19px 23px;
+  --theme-texture-position: 0 0, 4px 7px, 9px 3px;
 }
 
 .lattice-shell[data-theme="custom"] {
@@ -6192,11 +6184,15 @@ kbd {
     color-mix(in srgb, var(--custom-accent) 8%, transparent),
     transparent 38%
   );
+  --theme-texture-size: auto;
+  --theme-texture-position: 0 0;
 }
 
 .lattice-shell.theme-adaptive {
   background-color: var(--bg);
   background-image: var(--theme-texture);
+  background-position: var(--theme-texture-position);
+  background-size: var(--theme-texture-size);
   color: var(--text);
 }
 
@@ -6234,6 +6230,10 @@ kbd {
       transparent 34%
     ),
     var(--theme-texture);
+  background-position:
+    0 0,
+    var(--theme-texture-position);
+  background-size: auto, var(--theme-texture-size);
   scrollbar-color: var(--subtle) var(--canvas);
 }
 
@@ -6388,6 +6388,139 @@ kbd {
   color: white;
 }
 
+.lattice-shell.theme-adaptive
+  :where(
+    .focus-session-banner,
+    .hero-search,
+    .folder-select,
+    .queue-toggle,
+    .canvas-editor-header,
+    .canvas-description-field,
+    .canvas-back,
+    .canvas-toolbar button,
+    .canvas-object,
+    .pomodoro-starter,
+    .active-pomodoro,
+    .pomodoro-history,
+    .daily-capture,
+    .now-card,
+    .daily-flow-list,
+    .carryover-tray,
+    .wealth-metrics,
+    .wealth-goals-card,
+    .wealth-next-move,
+    .wealth-net-worth-card,
+    .wealth-entry-form,
+    .earning-idea-form,
+    .net-worth-form,
+    .wealth-entry,
+    .earning-idea,
+    .net-worth-history > article
+  ) {
+  border-color: var(--line);
+  background-color: color-mix(in srgb, var(--surface) 94%, transparent);
+}
+
+.lattice-shell.theme-adaptive .hero-search {
+  box-shadow: 0 18px 46px color-mix(in srgb, var(--bg) 58%, transparent);
+}
+
+.lattice-shell.theme-adaptive .hero-search > svg,
+.lattice-shell.theme-adaptive .hero-search input::placeholder {
+  color: var(--subtle);
+}
+
+.lattice-shell.theme-adaptive .app-library {
+  border-color: var(--line);
+  background-color: color-mix(in srgb, var(--panel) 95%, transparent);
+}
+
+.lattice-shell.theme-adaptive .settings-switch {
+  border-color: var(--line-strong);
+  background: var(--surface-3);
+}
+
+.lattice-shell.theme-adaptive .settings-switch span {
+  background: var(--muted);
+}
+
+.lattice-shell.theme-adaptive .settings-switch.active {
+  border-color: transparent;
+  background: var(--accent);
+}
+
+.lattice-shell.theme-adaptive .settings-switch.active span {
+  background: white;
+}
+
+.lattice-shell.theme-adaptive .canvas-board {
+  background-color: var(--canvas);
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--text) 15%, transparent) 0.75px,
+    transparent 0.9px
+  );
+}
+
+.lattice-shell.theme-adaptive .canvas-object {
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--bg) 54%, transparent);
+}
+
+.lattice-shell.theme-adaptive :where(.duration-presets button, .timer-secondary, .timer-stop) {
+  border-color: var(--line);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.lattice-shell.theme-adaptive .duration-presets button.active {
+  border-color: color-mix(in srgb, var(--accent) 48%, transparent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.lattice-shell.theme-adaptive .timer-dial {
+  background: conic-gradient(
+    var(--green) var(--timer-progress),
+    color-mix(in srgb, var(--text) 8%, transparent) 0
+  );
+}
+
+.lattice-shell.theme-adaptive .timer-dial::before {
+  background: var(--surface);
+}
+
+.lattice-shell.theme-adaptive :where(.wealth-lab-app, .runnable-apps-surface) {
+  background-color: var(--canvas);
+}
+
+.lattice-shell.theme-adaptive .wealth-lab-app {
+  background-image: var(--theme-texture);
+  background-position: var(--theme-texture-position);
+  background-size: var(--theme-texture-size);
+}
+
+.lattice-shell.theme-adaptive :where(.money-input, .wealth-goals-card form label > span) {
+  border-color: var(--line);
+  background-color: var(--field);
+}
+
+.lattice-shell.theme-adaptive
+  :where(
+    .wealth-entry-form fieldset button,
+    .wealth-entry-actions button,
+    .earning-idea-actions button
+  ) {
+  border-color: var(--line);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.lattice-shell.theme-adaptive :where(.capture-form textarea, .folder-select, .queue-toggle) {
+  border-color: var(--line);
+  background-color: var(--field);
+  color: var(--muted);
+}
+
 .lattice-shell.theme-adaptive .profile-menu-backdrop,
 .lattice-shell.theme-adaptive .command-backdrop {
   background: color-mix(in srgb, var(--bg) 52%, transparent);
@@ -6395,12 +6528,20 @@ kbd {
 
 .lattice-shell[data-theme="paper-felt"] :where(.activity-rail, .workspace-panel) {
   background-image: var(--theme-texture);
+  background-position: var(--theme-texture-position);
+  background-size: var(--theme-texture-size);
   background-blend-mode: soft-light;
 }
 
+.lattice-shell[data-theme="paper-felt"] .app-library {
+  background-image: var(--theme-texture);
+  background-position: var(--theme-texture-position);
+  background-size: var(--theme-texture-size);
+}
+
 .lattice-shell[data-theme="paper-felt"] .brand-mark {
-  border-color: rgba(72, 59, 43, 0.18);
-  box-shadow: 0 8px 22px rgba(79, 62, 43, 0.14);
+  border-color: rgba(30, 33, 36, 0.16);
+  box-shadow: 0 8px 22px rgba(30, 33, 36, 0.13);
 }
 
 @media (max-width: 1180px) {

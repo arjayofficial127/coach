@@ -23,6 +23,13 @@ const boundsSchema = z.object({
   height: z.number().finite().positive(),
 });
 
+const shellAppearanceSchema = z
+  .object({
+    backgroundColor: z.string().regex(/^#[0-9a-f]{6}$/i),
+    symbolColor: z.string().regex(/^#[0-9a-f]{6}$/i),
+  })
+  .strict();
+
 const noteSchema = z.object({
   title: z.string().trim().min(1).max(200),
   url: z
@@ -130,6 +137,16 @@ export function registerIpc(
     });
   };
 
+  handle(IPC.shellSetAppearance, (_event, payload) => {
+    const appearance = shellAppearanceSchema.parse(payload);
+    window.setTitleBarOverlay({
+      color: appearance.backgroundColor,
+      symbolColor: appearance.symbolColor,
+      height: 43,
+    });
+    window.setBackgroundColor(appearance.backgroundColor);
+    return appearance;
+  });
   handle(IPC.browserSetBounds, (_event, payload) => browser.setBounds(boundsSchema.parse(payload)));
   handle(IPC.browserNavigate, (_event, payload) => browser.navigate(z.string().parse(payload)));
   handle(IPC.browserBack, () => browser.back());

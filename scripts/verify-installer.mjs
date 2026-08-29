@@ -341,6 +341,7 @@ if (
   !smoke.runnableApps?.persisted ||
   !smoke.runnableApps?.activeRunCleared ||
   !smoke.runnableApps?.profileScoped ||
+  !smoke.runnableApps?.adaptiveLightSurface ||
   !smoke.runnableApps?.nativeViewHidden
 ) {
   smokeFailures.push("installed runnable Pomodoro workflow failed");
@@ -359,6 +360,7 @@ if (
   !smoke.dailyFlow?.persisted ||
   !smoke.dailyFlow?.profileScoped ||
   !smoke.dailyFlow?.activeRunCleared ||
+  !smoke.dailyFlow?.adaptiveLightSurface ||
   !smoke.dailyFlow?.nativeViewHidden
 ) {
   smokeFailures.push("installed Daily Flow workflow failed");
@@ -382,6 +384,7 @@ if (
   !smoke.wealthLab?.persisted ||
   !smoke.wealthLab?.profileScoped ||
   !smoke.wealthLab?.activeRunCleared ||
+  !smoke.wealthLab?.adaptiveLightSurface ||
   !smoke.wealthLab?.nativeViewHidden
 ) {
   smokeFailures.push("installed Wealth Lab workflow failed");
@@ -434,7 +437,8 @@ if (
   !smoke.themes?.customPersisted ||
   !smoke.themes?.customProfileScoped ||
   !smoke.themes?.undoRestored ||
-  !smoke.themes?.returnedToDark
+  !smoke.themes?.returnedToDark ||
+  !smoke.themes?.nativeTitleBarSynced
 ) {
   smokeFailures.push("installed theme selection, customization, persistence, or Undo failed");
 }

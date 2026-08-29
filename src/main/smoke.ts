@@ -114,6 +114,7 @@ export interface PhaseNineSmokeEvidence {
     persisted: boolean;
     activeRunCleared: boolean;
     profileScoped: boolean;
+    adaptiveLightSurface: boolean;
     nativeViewHidden: boolean;
     screenshotPath: string;
     screenshotBytes: number;
@@ -133,6 +134,7 @@ export interface PhaseNineSmokeEvidence {
     persisted: boolean;
     profileScoped: boolean;
     activeRunCleared: boolean;
+    adaptiveLightSurface: boolean;
     nativeViewHidden: boolean;
     screenshotPath: string;
     screenshotBytes: number;
@@ -160,6 +162,7 @@ export interface PhaseNineSmokeEvidence {
     persisted: boolean;
     profileScoped: boolean;
     activeRunCleared: boolean;
+    adaptiveLightSurface: boolean;
     nativeViewHidden: boolean;
     screenshotPath: string;
     screenshotBytes: number;
@@ -260,6 +263,7 @@ export interface PhaseNineSmokeEvidence {
     customProfileScoped: boolean;
     undoRestored: boolean;
     returnedToDark: boolean;
+    nativeTitleBarSynced: boolean;
   };
   note: {
     vaultPath: string;
@@ -379,6 +383,13 @@ export async function runPhaseNineSmoke(
     show: false,
     width: 1_000,
     height: 720,
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: "#101017",
+      symbolColor: "#e9e9f2",
+      height: 43,
+    },
+    backgroundColor: "#101017",
     webPreferences: {
       partition: `lattice-shell-smoke-${randomUUID()}`,
       preload: preloadPath,
@@ -789,9 +800,10 @@ export async function runPhaseNineSmoke(
     const runnableAppsImage = await window.webContents.capturePage();
     if (runnableAppsImage.isEmpty())
       throw new Error("Electron returned an empty runnable-app capture.");
-    const runnableAppsScreenshot = runnableAppsImage.toPNG();
+    let runnableAppsScreenshot = runnableAppsImage.toPNG();
     const runnableAppsScreenshotPath = path.join(smokeRoot, "phase-13-runnable-apps.png");
     await writeFile(runnableAppsScreenshotPath, runnableAppsScreenshot);
+    let adaptiveLightSurface = false;
     window.hide();
 
     const dailyFlowBeforeFocus = (await window.webContents.executeJavaScript(`(async () => {
@@ -857,9 +869,10 @@ export async function runPhaseNineSmoke(
     await delay(100);
     const dailyFlowImage = await window.webContents.capturePage();
     if (dailyFlowImage.isEmpty()) throw new Error("Electron returned an empty Daily Flow capture.");
-    const dailyFlowScreenshot = dailyFlowImage.toPNG();
+    let dailyFlowScreenshot = dailyFlowImage.toPNG();
     const dailyFlowScreenshotPath = path.join(smokeRoot, "phase-14-daily-flow.png");
     await writeFile(dailyFlowScreenshotPath, dailyFlowScreenshot);
+    let dailyFlowAdaptiveLightSurface = false;
     window.hide();
 
     const dailyFlowAfterFocus = (await window.webContents.executeJavaScript(`(async () => {
@@ -1058,9 +1071,10 @@ export async function runPhaseNineSmoke(
     await delay(100);
     const wealthLabImage = await window.webContents.capturePage();
     if (wealthLabImage.isEmpty()) throw new Error("Electron returned an empty Wealth Lab capture.");
-    const wealthLabScreenshot = wealthLabImage.toPNG();
+    let wealthLabScreenshot = wealthLabImage.toPNG();
     const wealthLabScreenshotPath = path.join(smokeRoot, "phase-15-wealth-lab.png");
     await writeFile(wealthLabScreenshotPath, wealthLabScreenshot);
+    let wealthLabAdaptiveLightSurface = false;
     window.hide();
 
     const wealthLabAfterFocus = (await window.webContents.executeJavaScript(`(async () => {
@@ -1463,16 +1477,23 @@ export async function runPhaseNineSmoke(
 
     const feltTheme = (await window.webContents.executeJavaScript(`(async () => {
       const button = document.querySelector('[data-theme-option="paper-felt"]');
-      if (!(button instanceof HTMLButtonElement)) throw new Error("Paper Felt theme missing");
+      if (!(button instanceof HTMLButtonElement)) throw new Error("Felt White theme missing");
       button.click();
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      const deadline = Date.now() + 2_000;
+      while (
+        Date.now() < deadline &&
+        document.querySelector(".lattice-shell")?.getAttribute("data-titlebar-theme") !== "paper-felt"
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
       const shell = document.querySelector(".lattice-shell");
       const surface = document.querySelector(".trusted-surface");
       return {
         applied: shell?.getAttribute("data-theme") === "paper-felt",
-        textureVisible: surface instanceof HTMLElement && getComputedStyle(surface).backgroundImage.includes("repeating-linear-gradient")
+        textureVisible: surface instanceof HTMLElement && getComputedStyle(surface).backgroundImage.includes("radial-gradient"),
+        nativeTitleBarSynced: shell?.getAttribute("data-titlebar-theme") === "paper-felt"
       };
-    })()`)) as { applied: boolean; textureVisible: boolean };
+    })()`)) as { applied: boolean; textureVisible: boolean; nativeTitleBarSynced: boolean };
 
     // Chromium only exposes composed surfaces while the owning window is shown. Keep
     // the smoke window out of the taskbar and avoid taking focus.
@@ -1488,11 +1509,20 @@ export async function runPhaseNineSmoke(
 
     const themeSmoke = (await window.webContents.executeJavaScript(`(async () => {
       const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+      const waitForTitleBar = async (id) => {
+        const deadline = Date.now() + 2_000;
+        while (
+          Date.now() < deadline &&
+          document.querySelector(".lattice-shell")?.getAttribute("data-titlebar-theme") !== id
+        ) {
+          await wait(25);
+        }
+      };
       const clickTheme = async (id) => {
         const button = document.querySelector('[data-theme-option="' + id + '"]');
         if (!(button instanceof HTMLButtonElement)) throw new Error(id + " theme missing");
         button.click();
-        await wait(75);
+        await waitForTitleBar(id);
       };
       const setInput = (selector, value) => {
         const input = document.querySelector(selector);
@@ -1519,8 +1549,10 @@ export async function runPhaseNineSmoke(
       setInput('input[aria-label="Accent color"]', "#ef7aaa");
       await wait(75);
       await saveCustom();
+      await waitForTitleBar("custom");
 
       const customApplied = document.querySelector(".lattice-shell")?.getAttribute("data-theme-name") === "Smoke Aubergine";
+      const customTitleBarSynced = document.querySelector(".lattice-shell")?.getAttribute("data-titlebar-theme") === "custom";
       const initialStorageKey = Object.keys(localStorage).find((key) => {
         if (!key.startsWith("lattice.settings.v2.profile.")) return false;
         const stored = JSON.parse(localStorage.getItem(key) ?? "null");
@@ -1538,9 +1570,17 @@ export async function runPhaseNineSmoke(
       await wait(50);
       await saveCustom();
       await clickTheme("lattice-dark");
+      await wait(50);
+
+      const shell = document.querySelector(".lattice-shell");
+      const returnedToDark = shell?.getAttribute("data-theme") === "lattice-dark";
+      const darkTitleBarSynced = shell?.getAttribute("data-titlebar-theme") === "lattice-dark";
+      await clickTheme("paper-felt");
+      const finalFeltSynced = shell?.getAttribute("data-theme") === "paper-felt"
+        && shell?.getAttribute("data-titlebar-theme") === "paper-felt";
       const dismiss = document.querySelector('button[aria-label="Dismiss recovery action"]');
       if (dismiss instanceof HTMLButtonElement) dismiss.click();
-      await wait(50);
+      await wait(25);
 
       const finalStorageKey = Object.keys(localStorage).find((key) => {
         if (!key.startsWith("lattice.settings.v2.profile.")) return false;
@@ -1553,7 +1593,8 @@ export async function runPhaseNineSmoke(
         customPersisted: Boolean(initialStorageKey && finalStorageKey),
         customProfileScoped: Boolean(finalStorageKey?.startsWith("lattice.settings.v2.profile.")),
         undoRestored,
-        returnedToDark: document.querySelector(".lattice-shell")?.getAttribute("data-theme") === "lattice-dark"
+        returnedToDark,
+        nativeTitleBarSynced: customTitleBarSynced && darkTitleBarSynced && finalFeltSynced
       };
     })()`)) as {
       customName: string;
@@ -1562,7 +1603,116 @@ export async function runPhaseNineSmoke(
       customProfileScoped: boolean;
       undoRestored: boolean;
       returnedToDark: boolean;
+      nativeTitleBarSynced: boolean;
     };
+
+    await window.webContents.executeJavaScript(
+      `document.dispatchEvent(new KeyboardEvent("keydown", { key: "7", altKey: true, bubbles: true }))`,
+    );
+    await delay(100);
+    adaptiveLightSurface = (await window.webContents.executeJavaScript(`(() => {
+      const hasLightBackground = (selector) => {
+        const element = document.querySelector(selector);
+        if (!(element instanceof HTMLElement)) return false;
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) return false;
+        context.fillStyle = getComputedStyle(element).backgroundColor;
+        context.fillRect(0, 0, 1, 1);
+        const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
+        return red > 200 && green > 200 && blue > 200;
+      };
+      return document.querySelector(".lattice-shell")?.getAttribute("data-theme") === "paper-felt"
+        && hasLightBackground(".app-library")
+        && hasLightBackground("[data-pomodoro-starter]")
+        && hasLightBackground(".pomodoro-history");
+    })()`)) as boolean;
+    window.setSkipTaskbar(true);
+    window.showInactive();
+    await delay(100);
+    const feltRunnableAppsImage = await window.webContents.capturePage();
+    if (feltRunnableAppsImage.isEmpty()) {
+      throw new Error("Electron returned an empty Felt White runnable-app capture.");
+    }
+    runnableAppsScreenshot = feltRunnableAppsImage.toPNG();
+    await writeFile(runnableAppsScreenshotPath, runnableAppsScreenshot);
+    window.hide();
+
+    dailyFlowAdaptiveLightSurface = (await window.webContents.executeJavaScript(`(async () => {
+      const button = [...document.querySelectorAll("[data-runnable-app]")].find((candidate) =>
+        candidate.textContent?.includes("Daily Flow"),
+      );
+      if (!(button instanceof HTMLButtonElement)) throw new Error("Daily Flow app missing");
+      button.click();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const hasLightBackground = (selector) => {
+        const element = document.querySelector(selector);
+        if (!(element instanceof HTMLElement)) return false;
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) return false;
+        context.fillStyle = getComputedStyle(element).backgroundColor;
+        context.fillRect(0, 0, 1, 1);
+        const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
+        return red > 200 && green > 200 && blue > 200;
+      };
+      return document.querySelector(".lattice-shell")?.getAttribute("data-theme") === "paper-felt"
+        && hasLightBackground(".app-library")
+        && hasLightBackground(".daily-capture")
+        && hasLightBackground(".now-card")
+        && hasLightBackground(".daily-flow-list");
+    })()`)) as boolean;
+    window.setSkipTaskbar(true);
+    window.showInactive();
+    await delay(100);
+    const feltDailyFlowImage = await window.webContents.capturePage();
+    if (feltDailyFlowImage.isEmpty()) {
+      throw new Error("Electron returned an empty Felt White Daily Flow capture.");
+    }
+    dailyFlowScreenshot = feltDailyFlowImage.toPNG();
+    await writeFile(dailyFlowScreenshotPath, dailyFlowScreenshot);
+    window.hide();
+
+    wealthLabAdaptiveLightSurface = (await window.webContents.executeJavaScript(`(async () => {
+      const button = [...document.querySelectorAll("[data-runnable-app]")].find((candidate) =>
+        candidate.textContent?.includes("Wealth Lab"),
+      );
+      if (!(button instanceof HTMLButtonElement)) throw new Error("Wealth Lab app missing");
+      button.click();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const hasLightBackground = (selector) => {
+        const element = document.querySelector(selector);
+        if (!(element instanceof HTMLElement)) return false;
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) return false;
+        context.fillStyle = getComputedStyle(element).backgroundColor;
+        context.fillRect(0, 0, 1, 1);
+        const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
+        return red > 200 && green > 200 && blue > 200;
+      };
+      return document.querySelector(".lattice-shell")?.getAttribute("data-theme") === "paper-felt"
+        && hasLightBackground(".app-library")
+        && hasLightBackground(".wealth-metrics")
+        && hasLightBackground(".wealth-goals-card")
+        && hasLightBackground(".wealth-next-move");
+    })()`)) as boolean;
+    window.setSkipTaskbar(true);
+    window.showInactive();
+    await delay(100);
+    const feltWealthLabImage = await window.webContents.capturePage();
+    if (feltWealthLabImage.isEmpty()) {
+      throw new Error("Electron returned an empty Felt White Wealth Lab capture.");
+    }
+    wealthLabScreenshot = feltWealthLabImage.toPNG();
+    await writeFile(wealthLabScreenshotPath, wealthLabScreenshot);
+    window.hide();
 
     await window.webContents.executeJavaScript(`(() => {
       const pages = [...document.querySelectorAll("button.library-row")]
@@ -1925,6 +2075,7 @@ export async function runPhaseNineSmoke(
       },
       runnableApps: {
         ...runnableAppsDom,
+        adaptiveLightSurface,
         nativeViewHidden: nativeViewHiddenForRunnableApps,
         screenshotPath: runnableAppsScreenshotPath,
         screenshotBytes: runnableAppsScreenshot.byteLength,
@@ -1932,6 +2083,7 @@ export async function runPhaseNineSmoke(
       dailyFlow: {
         ...dailyFlowBeforeFocus,
         ...dailyFlowAfterFocus,
+        adaptiveLightSurface: dailyFlowAdaptiveLightSurface,
         nativeViewHidden: nativeViewHiddenForDailyFlow,
         screenshotPath: dailyFlowScreenshotPath,
         screenshotBytes: dailyFlowScreenshot.byteLength,
@@ -1939,6 +2091,7 @@ export async function runPhaseNineSmoke(
       wealthLab: {
         ...wealthLabBeforeFocus,
         ...wealthLabAfterFocus,
+        adaptiveLightSurface: wealthLabAdaptiveLightSurface,
         nativeViewHidden: nativeViewHiddenForWealthLab,
         screenshotPath: wealthLabScreenshotPath,
         screenshotBytes: wealthLabScreenshot.byteLength,
@@ -2043,6 +2196,7 @@ export async function runPhaseNineSmoke(
         feltApplied: feltTheme.applied,
         feltTextureVisible: feltTheme.textureVisible,
         ...themeSmoke,
+        nativeTitleBarSynced: feltTheme.nativeTitleBarSynced && themeSmoke.nativeTitleBarSynced,
       },
       note: {
         vaultPath: shellProbe.vault.displayPath,

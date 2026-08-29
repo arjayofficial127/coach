@@ -3,6 +3,7 @@ import { type BrowserState, IPC, type LatticeApi, type ShellCommand } from "../s
 
 const api: LatticeApi = {
   shell: {
+    setAppearance: (input) => ipcRenderer.invoke(IPC.shellSetAppearance, input),
     onCommand: (listener) => {
       const handler = (_event: Electron.IpcRendererEvent, command: ShellCommand) =>
         listener(command);
