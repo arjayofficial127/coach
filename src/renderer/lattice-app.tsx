@@ -1098,6 +1098,7 @@ export function LatticeApp() {
       setSurface(destination);
       setCaptureOpen(false);
       setStatus("New tab ready");
+      if (destination === "browser") focusBrowserLocation();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     }
@@ -2123,7 +2124,7 @@ export function LatticeApp() {
       return;
     }
     if (command === "new-tab") {
-      void createTab();
+      void createTab(workspace.activeDesktopId, "browser");
       return;
     }
     if (command === "toggle-focus") {
@@ -2992,7 +2993,7 @@ export function LatticeApp() {
             <button
               className="new-tab-button"
               type="button"
-              onClick={() => void createTab()}
+              onClick={() => void createTab(workspace.activeDesktopId, "browser")}
               aria-label="New tab"
             >
               <Icon name="plus" />
