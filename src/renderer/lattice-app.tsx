@@ -600,6 +600,8 @@ export function LatticeApp() {
     (item) => item.kind === "note",
   ).length;
   const isNewTabSurface = surface === "home";
+  const showNewTabSurface =
+    isNewTabSurface || (surface === "browser" && contextualTab?.url === "about:blank");
   const searchShortcutLabel = useMemo(() => {
     if (typeof navigator === "undefined") return "Ctrl K";
     return /Mac|iPad|iPhone|iPod/i.test(navigator.platform) ? "⌘ K" : "Ctrl K";
@@ -2226,7 +2228,7 @@ export function LatticeApp() {
   return (
     <div
       className={`lattice-shell${focusMode ? " focus-mode" : ""}${
-        isNewTabSurface ? " new-tab-sizing-invalidated" : ""
+        showNewTabSurface ? " new-tab-sizing-invalidated" : ""
       }${settings.activeTheme === "lattice-dark" ? "" : " theme-adaptive"}`}
       data-theme={settings.activeTheme}
       data-theme-name={
@@ -2939,7 +2941,7 @@ export function LatticeApp() {
       <section
         className={[
           "content-shell",
-          isNewTabSurface ? "new-tab-content" : "",
+          showNewTabSurface ? "new-tab-content" : "",
           captureOpen ? "drawer-open" : "",
           focusMode ? "focus-content" : "",
         ]
@@ -3187,7 +3189,7 @@ export function LatticeApp() {
             <div ref={viewportRef} className="native-view-slot">
               Native WebContentsView surface
             </div>
-            {surface === "home" && (
+            {showNewTabSurface && (
               <div className="trusted-surface new-tab-surface">
                 <nav className="new-tab-page-actions" aria-label="New tab actions">
                   <button type="button" onClick={() => void showBrowser()}>
