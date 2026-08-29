@@ -1446,6 +1446,8 @@ kbd {
   align-self: flex-end;
   width: max-content;
   min-width: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
   min-width: 84px;
   align-items: center;
   gap: 7px;
