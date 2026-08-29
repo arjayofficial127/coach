@@ -2932,12 +2932,10 @@ export function LatticeApp() {
           .join(" ")}
       >
         <header className="tab-strip">
-          {!isNewTabSurface && (
-            <div className="desktop-context">
-              <span className={`context-dot ${activeDesktop?.color ?? "violet"}`} />
-              {activeDesktop?.name ?? "Desk 1"}
-            </div>
-          )}
+          <div className="desktop-context">
+            <span className={`context-dot ${activeDesktop?.color ?? "violet"}`} />
+            {activeDesktop?.name ?? "Desk 1"}
+          </div>
           <div className="tabs-viewport">
             {desktopTabs.map((tab) => (
               <div

@@ -103,7 +103,8 @@ export class BrowserRuntime {
   }
 
   closeTab(tabId: string): BrowserSnapshot {
-    const tab = this.requireTab(tabId);
+    const tab = this.tabs.get(tabId);
+    if (!tab) return this.snapshot();
     const tabIds = [...this.tabs.keys()];
     const closedIndex = tabIds.indexOf(tabId);
     const wasActive = tabId === this.activeTabId;

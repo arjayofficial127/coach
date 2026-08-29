@@ -7301,6 +7301,12 @@ kbd {
   }
 }
 
+/* Keep the top-bar desktop context content-sized at every viewport width. */
+.desktop-context {
+  width: max-content;
+  min-width: 0;
+}
+
 /* Temporary Council-scale invalidation. Remove this block and enable the TS flag to restore it. */
 .lattice-shell.new-tab-sizing-invalidated {
   --coach-sidebar-width: 316px;
