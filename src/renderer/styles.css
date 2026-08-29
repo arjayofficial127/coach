@@ -109,8 +109,16 @@ svg {
   font-weight: 750;
 }
 
-.brand-mark span {
-  transform: translateY(-0.5px);
+.brand-mark {
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: #f7f5f2;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+.brand-mark img {
+  width: 27px;
+  height: 27px;
+  object-fit: contain;
 }
 
 .rail-actions {

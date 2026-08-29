@@ -1,36 +1,36 @@
 {
-  "verifiedAt": "2026-08-29T00:00:35.290Z",
+  "verifiedAt": "2026-08-29T01:00:23.785Z",
   "version": "0.15.0",
   "installer": {
     "path": "C:\\coach\\release\\Lattice-Setup-0.15.0.exe",
-    "bytes": 110964965,
-    "sha256": "dac13747a323ef6f14be66c19e96d997108c6a97b1d58f77f0ae1e747dae5ceb",
+    "bytes": 110964519,
+    "sha256": "08b2d3e884750946bce1aff1dfe8ae844883efa93b9fab3a7927ca2bc1a9e942",
     "authenticodeStatus": "NotSigned",
     "signed": false
   },
   "installation": {
     "mode": "current-user",
     "silent": true,
-    "isolatedTestDirectory": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine-install-50524",
+    "isolatedTestDirectory": "C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine-install-34960",
     "uninstallRecordCreated": true,
     "uninstallRecord": {
       "PSChildName": "a580a7fa-68d5-53ac-9906-76801e868ef9",
       "DisplayName": "Lattice",
       "DisplayVersion": "0.15.0",
       "InstallLocation": null,
-      "UninstallString": "\"C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine-install-50524\\Uninstall Lattice.exe\" /currentuser"
+      "UninstallString": "\"C:\\Users\\arvin\\AppData\\Local\\Temp\\lattice-phase-nine-install-34960\\Uninstall Lattice.exe\" /currentuser"
     },
     "startMenuShortcutCreated": true,
     "desktopShortcutConfigured": false,
     "portableHashes": {
-      "executable": "ab56f84ff62d9d9618f50a577a22ec223013df88b13d2ab02c45c63a687fbb81",
-      "appAsar": "7d81429977ce6879fc92da25e8bcfa810c8653283c62e81ff831f990cd96d203",
-      "sourceManifest": "1dcc15a409767c6519887c416aaea66d91096f3e5217c868990aac7552b049d9"
+      "executable": "209af648778d4940ece7bbcc43add1893fdf54dcecb3cbc157c09a766169ab66",
+      "appAsar": "b1d34f45f3aed3bb94349f9ba4e419c86d608927431f7bae46a6e91cf5dc3882",
+      "sourceManifest": "277631916e58eab489539e90c0b50ef2591c24c43fff29344e024aa03563bf1c"
     },
     "installedHashes": {
-      "executable": "ab56f84ff62d9d9618f50a577a22ec223013df88b13d2ab02c45c63a687fbb81",
-      "appAsar": "7d81429977ce6879fc92da25e8bcfa810c8653283c62e81ff831f990cd96d203",
-      "sourceManifest": "1dcc15a409767c6519887c416aaea66d91096f3e5217c868990aac7552b049d9"
+      "executable": "209af648778d4940ece7bbcc43add1893fdf54dcecb3cbc157c09a766169ab66",
+      "appAsar": "b1d34f45f3aed3bb94349f9ba4e419c86d608927431f7bae46a6e91cf5dc3882",
+      "sourceManifest": "277631916e58eab489539e90c0b50ef2591c24c43fff29344e024aa03563bf1c"
     },
     "hardenedPackagePreserved": true,
     "authenticodeStatus": "NotSigned",

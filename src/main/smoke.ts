@@ -25,6 +25,9 @@ export interface PhaseNineSmokeEvidence {
     title: string;
     domReady: boolean;
     bridgeVisible: boolean;
+    brandLogoVisible: boolean;
+    svgFaviconPresent: boolean;
+    pngFaviconPresent: boolean;
     contentSecurityPolicy: string | null;
     windowContentSize: { width: number; height: number };
     rendererReportedBounds: BrowserBounds;
@@ -266,6 +269,9 @@ export interface PhaseNineSmokeEvidence {
 interface ShellProbeResult {
   domReady: boolean;
   bridgeVisible: boolean;
+  brandLogoVisible: boolean;
+  svgFaviconPresent: boolean;
+  pngFaviconPresent: boolean;
   nativeSlotBounds: BrowserBounds;
   vaultPanelBounds: BrowserBounds;
   vault: VaultInfo;
@@ -503,6 +509,12 @@ export async function runPhaseNineSmoke(
       return {
         domReady: Boolean(document.querySelector(".lattice-shell")),
         bridgeVisible: typeof window.lattice !== "undefined",
+        brandLogoVisible: (() => {
+          const logo = document.querySelector(".brand-mark img");
+          return logo instanceof HTMLImageElement && logo.complete && logo.naturalWidth > 0;
+        })(),
+        svgFaviconPresent: Boolean(document.querySelector('link[rel="icon"][type="image/svg+xml"]')),
+        pngFaviconPresent: Boolean(document.querySelector('link[rel="icon"][type="image/png"]')),
         nativeSlotBounds: readBounds(".native-view-slot"),
         vaultPanelBounds: readBounds(".vault-probe"),
         vault,
@@ -1747,6 +1759,9 @@ export async function runPhaseNineSmoke(
         title: shellTitle,
         domReady: shellProbe.domReady,
         bridgeVisible: shellProbe.bridgeVisible,
+        brandLogoVisible: shellProbe.brandLogoVisible,
+        svgFaviconPresent: shellProbe.svgFaviconPresent,
+        pngFaviconPresent: shellProbe.pngFaviconPresent,
         contentSecurityPolicy,
         windowContentSize: { width: windowContentWidth, height: windowContentHeight },
         rendererReportedBounds,

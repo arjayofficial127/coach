@@ -5,6 +5,7 @@ import path from "node:path";
 const SOURCE_INPUTS = [
   ".npmrc",
   "biome.json",
+  "build",
   "electron-builder.yml",
   "index.html",
   "package.json",

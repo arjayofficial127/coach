@@ -12,6 +12,7 @@ import type {
   VaultInfo,
   VaultReferenceIndex,
 } from "../shared/contracts";
+import latticeLogoUrl from "./assets/lattice-logo.svg";
 import { journalItemsForLane } from "./bullet-journal-model";
 import { CanvasWorkspace } from "./canvas-workspace";
 import {
@@ -1644,7 +1645,7 @@ export function LatticeApp() {
           onClick={showFocusHome}
           aria-label="Open Focus"
         >
-          <span>L</span>
+          <img src={latticeLogoUrl} alt="" />
         </button>
         <div className="rail-actions">
           {railItems.map((item) => (

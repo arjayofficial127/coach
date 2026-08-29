@@ -91,6 +91,10 @@ if (evidence.shell.url !== "lattice://app/index.html")
 if (evidence.shell.title !== "Lattice") failures.push("packaged shell title was missing");
 if (!evidence.shell.domReady) failures.push("packaged React shell did not render");
 if (!evidence.shell.bridgeVisible) failures.push("packaged preload bridge did not load");
+if (!evidence.shell.brandLogoVisible) failures.push("packaged Lattice logo did not render");
+if (!evidence.shell.svgFaviconPresent || !evidence.shell.pngFaviconPresent) {
+  failures.push("packaged favicon set was incomplete");
+}
 if (!evidence.shell.contentSecurityPolicy?.includes("connect-src 'none'")) {
   failures.push("packaged shell did not receive its strict CSP response header");
 }

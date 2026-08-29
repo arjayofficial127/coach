@@ -13,6 +13,8 @@ decisions and earning experiments without gaining financial-account authority.
 
 ## What works
 
+- The supplied cap artwork is now Lattice's shared in-app logo, SVG/PNG favicon set, portable-app
+  icon, Start-menu shortcut icon, and NSIS installer/uninstaller icon.
 - Real HTTPS websites render in isolated native `WebContentsView` tabs.
 - Up to eight named website profiles can be created and switched from the rail. Each owns distinct
   Chromium cookies, origin storage, cache, tabs, desktops, settings, and focus intention.
@@ -122,6 +124,8 @@ as production distribution yet.
 
 ## Evidence and decisions
 
+- [Cap brand-mark decision](docs/decisions/0021-cap-brand-mark.md)
+- [Logo preview](artifacts/brand/lattice-logo-preview.png)
 - [Phase 15 report](docs/phase-15-report.md)
 - [Wealth Lab screenshot](artifacts/phase-15/wealth-lab.png)
 - [Phase 14 report](docs/phase-14-report.md)

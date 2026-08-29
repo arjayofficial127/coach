@@ -43,6 +43,7 @@ const packagedPaths = await packager({
   platform: "win32",
   arch: "x64",
   out: outputRoot,
+  icon: path.join(repositoryRoot, "build", "icon.ico"),
   overwrite: true,
   asar: true,
   prune: false,

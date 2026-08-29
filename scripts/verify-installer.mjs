@@ -284,6 +284,13 @@ if (smoke.packaged !== true) smokeFailures.push("installed app was not packaged"
 if (!smoke.shell?.domReady || !smoke.shell?.bridgeVisible) {
   smokeFailures.push("trusted shell did not render through preload");
 }
+if (
+  !smoke.shell?.brandLogoVisible ||
+  !smoke.shell?.svgFaviconPresent ||
+  !smoke.shell?.pngFaviconPresent
+) {
+  smokeFailures.push("installed Lattice logo and favicon set did not render");
+}
 if (smoke.remote?.nativeViewConstructor !== "WebContentsView") {
   smokeFailures.push("real website did not use WebContentsView");
 }

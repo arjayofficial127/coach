@@ -72,6 +72,8 @@ artifacts/*
 !artifacts/phase-10/
 !artifacts/phase-10/focus-navigation.png
 !artifacts/phase-10/installed-focus-navigation.png
+!artifacts/brand/
+!artifacts/brand/lattice-logo-preview.png
 .package-source/
 dist/
 *.log

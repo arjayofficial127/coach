@@ -5,12 +5,16 @@ compression: normal
 directories:
   output: release
 win:
+  icon: build/icon.ico
   target:
     - target: nsis
       arch:
         - x64
   signAndEditExecutable: false
 nsis:
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
   oneClick: false
   uninstallDisplayName: Lattice
   perMachine: false
