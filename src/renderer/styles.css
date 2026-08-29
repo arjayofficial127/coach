@@ -9246,6 +9246,14 @@ kbd {
   resize: vertical;
 }
 
+.dashboard-group-editor {
+  display: grid;
+  gap: 7px;
+  margin: 14px 0;
+  border-block: 1px solid var(--line);
+  padding: 12px 0 3px;
+}
+
 .dashboard-customizer-list {
   display: grid;
   gap: 5px;

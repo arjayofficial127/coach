@@ -45,6 +45,7 @@ interface DashboardPreferences {
   enabled: Record<DashboardWidgetId, boolean>;
   order: DashboardWidgetId[];
   highlightedUrls: string[];
+  groupDescriptions: Record<string, string>;
 }
 
 function defaultPreferences(): DashboardPreferences {
@@ -57,6 +58,7 @@ function defaultPreferences(): DashboardPreferences {
     >,
     order: [...DEFAULT_ORDER],
     highlightedUrls: [],
+    groupDescriptions: {},
   };
 }
 
@@ -85,6 +87,14 @@ function readPreferences(): DashboardPreferences {
             .filter((url): url is string => typeof url === "string")
             .slice(0, 200)
         : [],
+      groupDescriptions:
+        parsed.groupDescriptions && typeof parsed.groupDescriptions === "object"
+          ? Object.fromEntries(
+              Object.entries(parsed.groupDescriptions)
+                .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+                .map(([name, description]) => [name.slice(0, 80), description.slice(0, 240)]),
+            )
+          : {},
     };
   } catch {
     return fallback;
@@ -157,14 +167,22 @@ export function DashboardSurface({
   const [enabled, setEnabled] = useState(initialPreferences.enabled);
   const [order, setOrder] = useState(initialPreferences.order);
   const [highlightedUrls, setHighlightedUrls] = useState(initialPreferences.highlightedUrls);
+  const [groupDescriptions, setGroupDescriptions] = useState(initialPreferences.groupDescriptions);
   const selectedTab = openTabs.find((tab) => tab.id === selectedTabId) ?? openTabs[0] ?? null;
 
   useEffect(() => {
     localStorage.setItem(
       DASHBOARD_STORAGE_KEY,
-      JSON.stringify({ headline, message, enabled, order, highlightedUrls }),
+      JSON.stringify({
+        headline,
+        message,
+        enabled,
+        order,
+        highlightedUrls,
+        groupDescriptions,
+      }),
     );
-  }, [enabled, headline, highlightedUrls, message, order]);
+  }, [enabled, groupDescriptions, headline, highlightedUrls, message, order]);
 
   const highlightedItems = useMemo(() => {
     const candidates = [
@@ -323,7 +341,9 @@ export function DashboardSurface({
             <section key={name}>
               <header>
                 <strong>{name}</strong>
-                <small>{groupLinks.length} saved · Organized collection</small>
+                <small>
+                  {groupLinks.length} saved · {groupDescriptions[name] || "Organized collection"}
+                </small>
               </header>
               {groupLinks.slice(0, 4).map((link) => (
                 <div className="dashboard-saved-link" key={link.id}>
@@ -489,6 +509,27 @@ export function DashboardSurface({
             Supporting text
             <textarea value={message} onChange={(event) => setMessage(event.target.value)} />
           </label>
+          {savedGroups.length > 0 && (
+            <section className="dashboard-group-editor">
+              <strong>Saved-link group descriptions</strong>
+              {savedGroups.map(([name]) => (
+                <label key={name}>
+                  {name}
+                  <input
+                    value={groupDescriptions[name] ?? ""}
+                    maxLength={240}
+                    placeholder="Describe what belongs in this group"
+                    onChange={(event) =>
+                      setGroupDescriptions((current) => ({
+                        ...current,
+                        [name]: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              ))}
+            </section>
+          )}
           <strong>Show, hide, and reorder</strong>
           <div className="dashboard-customizer-list">
             {order.map((id, index) => (
