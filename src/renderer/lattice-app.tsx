@@ -1050,10 +1050,7 @@ export function LatticeApp() {
   ) => {
     if (!confirmCanvasLeave()) return;
     try {
-      const reusable =
-        !forceNewTab &&
-        activeTab &&
-        tabDesktops[activeTab.id] === desktopId;
+      const reusable = !forceNewTab && activeTab && tabDesktops[activeTab.id] === desktopId;
       if (reusable) {
         await window.lattice.browser.navigate(url);
       } else {
