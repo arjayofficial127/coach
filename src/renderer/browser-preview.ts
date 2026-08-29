@@ -8,6 +8,7 @@ import type {
   SaveNoteResult,
   VaultInfo,
 } from "../shared/contracts";
+import { clampZoomPercent } from "../shared/zoom";
 
 type PreviewTrashEntry =
   | { kind: "saved-link"; item: SavedLinkRecord }
@@ -15,6 +16,7 @@ type PreviewTrashEntry =
 
 const now = Date.now();
 let activeTabId = "11111111-1111-4111-8111-111111111111";
+let shellZoomPercent = 100;
 let tabs: BrowserState[] = [
   {
     id: activeTabId,
@@ -133,6 +135,11 @@ export function installBrowserPreviewBridge(): void {
   const api: LatticeApi = {
     shell: {
       setAppearance: async (input) => input,
+      getZoom: async () => shellZoomPercent,
+      setZoom: async (percent) => {
+        shellZoomPercent = clampZoomPercent(percent);
+        return shellZoomPercent;
+      },
       onCommand: () => () => undefined,
     },
     browser: {

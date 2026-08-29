@@ -4,6 +4,8 @@ import { type BrowserState, IPC, type LatticeApi, type ShellCommand } from "../s
 const api: LatticeApi = {
   shell: {
     setAppearance: (input) => ipcRenderer.invoke(IPC.shellSetAppearance, input),
+    getZoom: () => ipcRenderer.invoke(IPC.shellGetZoom),
+    setZoom: (percent) => ipcRenderer.invoke(IPC.shellSetZoom, percent),
     onCommand: (listener) => {
       const handler = (_event: Electron.IpcRendererEvent, command: ShellCommand) =>
         listener(command);

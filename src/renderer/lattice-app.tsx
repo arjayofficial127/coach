@@ -21,6 +21,16 @@ import type {
   VaultInfo,
   VaultReferenceIndex,
 } from "../shared/contracts";
+import {
+  clampZoomPercent,
+  DEFAULT_ZOOM_PERCENT,
+  FINE_ZOOM_STEP,
+  MAX_ZOOM_PERCENT,
+  MIN_ZOOM_PERCENT,
+  nextZoomPercent,
+  type ZoomCommand,
+  zoomCommandForShortcut,
+} from "../shared/zoom";
 import latticeLogoUrl from "./assets/lattice-logo.svg";
 import { captureJournalInboxNote, journalItemsForLane, localDayKey } from "./bullet-journal-model";
 import { CanvasWorkspace } from "./canvas-workspace";
@@ -81,6 +91,7 @@ const WORKSPACE_STORAGE_KEY = "lattice.workspace.v1";
 const SESSION_STORAGE_KEY = "lattice.session.v1";
 const SETTINGS_STORAGE_KEY = "lattice.settings.v2";
 const LEGACY_SETTINGS_STORAGE_KEY = "lattice.settings.v1";
+const ZOOM_STORAGE_KEY = "lattice.shell-zoom.v1";
 const emptySnapshot: BrowserSnapshot = { activeTabId: "", tabs: [] };
 const emptyReferenceIndex: VaultReferenceIndex = {
   generatedAt: "",
@@ -291,6 +302,10 @@ function formatWaitingNotes(count: number) {
   return count === 0 ? "No notes waiting" : `${formatCount(count, "note")} waiting`;
 }
 
+// Temporary comparison switch: preserve the Council New Tab structure while using Coach's
+// established application scale. Flip to true to restore the larger Council sizing unchanged.
+const COUNCIL_NEW_TAB_SIZING_ENABLED = false;
+
 export function LatticeApp() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const webStageRef = useRef<HTMLElement>(null);
@@ -299,6 +314,9 @@ export function LatticeApp() {
   const newDesktopInputRef = useRef<HTMLInputElement>(null);
   const desktopRenameInputRef = useRef<HTMLInputElement>(null);
   const commandHandlerRef = useRef<(command: ShellCommand) => void>(() => undefined);
+  const zoomHandlerRef = useRef<(command: ZoomCommand) => void>(() => undefined);
+  const zoomPercentRef = useRef(DEFAULT_ZOOM_PERCENT);
+  const zoomRequestRef = useRef(0);
   const recoveryHandlerRef = useRef<() => void>(() => undefined);
   const pendingRecoveryRef = useRef<PendingRecovery | null>(null);
   const recoveryTimerRef = useRef<number | null>(null);
@@ -366,6 +384,9 @@ export function LatticeApp() {
   const [confirmClearAvatar, setConfirmClearAvatar] = useState(false);
   const [recoveryNotice, setRecoveryNotice] = useState<RecoveryNotice | null>(null);
   const [nativeAppearanceTheme, setNativeAppearanceTheme] = useState<ThemeId | null>(null);
+  const [zoomPercent, setZoomPercent] = useState(DEFAULT_ZOOM_PERCENT);
+  const [zoomFeedbackVisible, setZoomFeedbackVisible] = useState(false);
+  const [zoomFineTuneOpen, setZoomFineTuneOpen] = useState(false);
 
   const customThemeDirty = useMemo(
     () => JSON.stringify(customThemeDraft) !== JSON.stringify(settings.customTheme),
@@ -438,6 +459,64 @@ export function LatticeApp() {
     },
     [],
   );
+
+  const syncZoomState = useCallback((percent: number) => {
+    const normalized = clampZoomPercent(percent);
+    zoomPercentRef.current = normalized;
+    setZoomPercent(normalized);
+    return normalized;
+  }, []);
+
+  const applyShellZoom = (percent: number) => {
+    const normalized = syncZoomState(percent);
+    const requestId = ++zoomRequestRef.current;
+    setZoomFeedbackVisible(true);
+    localStorage.setItem(ZOOM_STORAGE_KEY, String(normalized));
+    void window.lattice.shell
+      .setZoom(normalized)
+      .then((applied) => {
+        if (requestId === zoomRequestRef.current) syncZoomState(applied);
+      })
+      .catch((error) => {
+        if (requestId !== zoomRequestRef.current) return;
+        setStatus(error instanceof Error ? error.message : String(error));
+        void window.lattice.shell
+          .getZoom()
+          .then(syncZoomState)
+          .catch(() => undefined);
+      });
+  };
+
+  zoomHandlerRef.current = (command) => {
+    applyShellZoom(nextZoomPercent(zoomPercentRef.current, command));
+  };
+
+  useEffect(() => {
+    let active = true;
+    const stored = Number(localStorage.getItem(ZOOM_STORAGE_KEY));
+    const request =
+      Number.isFinite(stored) && stored > 0
+        ? window.lattice.shell.setZoom(clampZoomPercent(stored))
+        : window.lattice.shell.getZoom();
+    void request
+      .then((percent) => {
+        if (active) syncZoomState(percent);
+      })
+      .catch((error) => {
+        if (active) setStatus(error instanceof Error ? error.message : String(error));
+      });
+    return () => {
+      active = false;
+    };
+  }, [syncZoomState]);
+
+  useEffect(() => {
+    if (!zoomFeedbackVisible || zoomFineTuneOpen) return;
+    const timer = window.setTimeout(() => {
+      if (zoomPercentRef.current === zoomPercent) setZoomFeedbackVisible(false);
+    }, 1_800);
+    return () => window.clearTimeout(timer);
+  }, [zoomFeedbackVisible, zoomFineTuneOpen, zoomPercent]);
 
   const confirmCanvasLeave = () => {
     if (surface !== "pages" || !canvasDirtyRef.current) return true;
@@ -1584,6 +1663,22 @@ export function LatticeApp() {
     if (nextTheme) selectTheme(nextTheme.id);
   };
 
+  const activeThemeName =
+    settings.activeTheme === "custom"
+      ? settings.customTheme.name
+      : (THEME_CATALOG.find((theme) => theme.id === settings.activeTheme)?.name ?? "Theme");
+  const themeSwitcherIcon: IconName =
+    settings.activeTheme === "lattice-dark"
+      ? "moon"
+      : settings.activeTheme === "paper-felt"
+        ? "sun"
+        : "leaf";
+  const nextThemeName =
+    THEME_CATALOG[
+      (THEME_CATALOG.findIndex((theme) => theme.id === settings.activeTheme) + 1) %
+        THEME_CATALOG.length
+    ]?.name ?? "next theme";
+
   const applyCustomTheme = () => {
     const previous = settings;
     const normalized = normalizeCustomTheme(customThemeDraft);
@@ -1988,6 +2083,10 @@ export function LatticeApp() {
   const activeRailItem = surface === "library" || surface === "queue" ? "library" : surface;
 
   commandHandlerRef.current = (command) => {
+    if (command === "zoom-in" || command === "zoom-out" || command === "zoom-reset") {
+      zoomHandlerRef.current(command);
+      return;
+    }
     if (command === "search") {
       openCommandPalette();
       return;
@@ -2034,6 +2133,7 @@ export function LatticeApp() {
         setCaptureOpen(false);
         setWorkspaceMenuOpen(false);
         setBrowserMenuOpen(false);
+        setZoomFineTuneOpen(false);
         setFocusMode(false);
         if (pendingRecoveryRef.current?.actionLabel === "Exit focus") {
           if (recoveryTimerRef.current !== null) {
@@ -2056,6 +2156,18 @@ export function LatticeApp() {
               ? "show-focus"
               : (`show-${focusShortcut.surface}` as ShellCommand),
         );
+        return;
+      }
+      const zoomCommand = zoomCommandForShortcut({
+        key: event.key,
+        code: event.code,
+        control: event.ctrlKey,
+        meta: event.metaKey,
+        alt: event.altKey,
+      });
+      if (zoomCommand) {
+        event.preventDefault();
+        zoomHandlerRef.current(zoomCommand);
         return;
       }
       if ((!event.ctrlKey && !event.metaKey) || event.altKey) return;
@@ -2089,7 +2201,11 @@ export function LatticeApp() {
   return (
     <div
       className={`lattice-shell${focusMode ? " focus-mode" : ""}${
-        isNewTabSurface ? " new-tab-shell" : ""
+        isNewTabSurface
+          ? COUNCIL_NEW_TAB_SIZING_ENABLED
+            ? " new-tab-shell"
+            : " new-tab-sizing-invalidated"
+          : ""
       }${settings.activeTheme === "lattice-dark" ? "" : " theme-adaptive"}`}
       data-theme={settings.activeTheme}
       data-theme-name={
@@ -3044,15 +3160,11 @@ export function LatticeApp() {
                   <button
                     type="button"
                     className="new-tab-appearance"
-                    aria-label={`Change appearance. Current theme: ${
-                      settings.activeTheme === "custom"
-                        ? settings.customTheme.name
-                        : THEME_CATALOG.find((theme) => theme.id === settings.activeTheme)?.name
-                    }`}
-                    title="Change appearance"
+                    aria-label={`Current theme: ${activeThemeName}. Switch to ${nextThemeName}`}
+                    title={`Switch to ${nextThemeName}`}
                     onClick={cycleTheme}
                   >
-                    <Icon name="settings" />
+                    <Icon name={themeSwitcherIcon} />
                   </button>
                 </nav>
                 <section className="new-tab-search-zone" aria-labelledby="new-tab-heading">
@@ -4063,6 +4175,77 @@ export function LatticeApp() {
           >
             <Icon name="close" />
           </button>
+        </aside>
+      )}
+      {(zoomFeedbackVisible || zoomPercent !== DEFAULT_ZOOM_PERCENT) && (
+        <aside
+          className={`zoom-feedback${zoomFineTuneOpen ? " expanded" : ""}${
+            recoveryNotice ? " above-recovery" : ""
+          }`}
+          aria-label={`Zoom ${zoomPercent}%`}
+          onMouseEnter={() => setZoomFineTuneOpen(true)}
+          onMouseLeave={() => setZoomFineTuneOpen(false)}
+        >
+          <button
+            type="button"
+            className="zoom-feedback-summary"
+            aria-expanded={zoomFineTuneOpen}
+            aria-controls="zoom-fine-tune"
+            title="Fine-tune zoom"
+            onClick={() => setZoomFineTuneOpen(true)}
+          >
+            {zoomPercent}%
+          </button>
+          {zoomFineTuneOpen && (
+            <fieldset id="zoom-fine-tune" className="zoom-fine-tune" aria-label="Zoom controls">
+              <header>
+                <span>
+                  <strong>Zoom</strong>
+                  <small>Fine-tune the workspace</small>
+                </span>
+                <output>{zoomPercent}%</output>
+              </header>
+              <div className="zoom-fine-tune-controls">
+                <button
+                  type="button"
+                  aria-label="Zoom out 5 percent"
+                  disabled={zoomPercent <= MIN_ZOOM_PERCENT}
+                  onClick={() => applyShellZoom(zoomPercentRef.current - FINE_ZOOM_STEP)}
+                >
+                  −
+                </button>
+                <input
+                  type="range"
+                  min={MIN_ZOOM_PERCENT}
+                  max={MAX_ZOOM_PERCENT}
+                  step={FINE_ZOOM_STEP}
+                  value={zoomPercent}
+                  aria-label="Zoom percentage"
+                  onChange={(event) => applyShellZoom(Number(event.target.value))}
+                />
+                <button
+                  type="button"
+                  aria-label="Zoom in 5 percent"
+                  disabled={zoomPercent >= MAX_ZOOM_PERCENT}
+                  onClick={() => applyShellZoom(zoomPercentRef.current + FINE_ZOOM_STEP)}
+                >
+                  +
+                </button>
+              </div>
+              <footer>
+                <span>
+                  <kbd>Ctrl</kbd> <kbd>+</kbd> / <kbd>−</kbd>
+                </span>
+                <button
+                  type="button"
+                  disabled={zoomPercent === DEFAULT_ZOOM_PERCENT}
+                  onClick={() => applyShellZoom(DEFAULT_ZOOM_PERCENT)}
+                >
+                  Reset
+                </button>
+              </footer>
+            </fieldset>
+          )}
         </aside>
       )}
       {commandOpen && (

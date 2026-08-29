@@ -8,6 +8,7 @@ import type {
   ProfileSwitchResult,
 } from "../shared/contracts";
 import { IPC } from "../shared/contracts";
+import { clampZoomPercent } from "../shared/zoom";
 import { isTrustedShellUrl } from "./policies/shell-origin";
 import {
   parseCreateCanvasPageInput,
@@ -146,6 +147,14 @@ export function registerIpc(
     });
     window.setBackgroundColor(appearance.backgroundColor);
     return appearance;
+  });
+  handle(IPC.shellGetZoom, () =>
+    clampZoomPercent(Math.round(window.webContents.getZoomFactor() * 100)),
+  );
+  handle(IPC.shellSetZoom, (_event, payload) => {
+    const percent = z.number().int().min(50).max(200).parse(payload);
+    window.webContents.setZoomFactor(percent / 100);
+    return clampZoomPercent(Math.round(window.webContents.getZoomFactor() * 100));
   });
   handle(IPC.browserSetBounds, (_event, payload) => browser.setBounds(boundsSchema.parse(payload)));
   handle(IPC.browserNavigate, (_event, payload) => browser.navigate(z.string().parse(payload)));

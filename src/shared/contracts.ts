@@ -1,5 +1,7 @@
 export const IPC = {
   shellSetAppearance: "shell:set-appearance",
+  shellGetZoom: "shell:get-zoom",
+  shellSetZoom: "shell:set-zoom",
   browserSetBounds: "browser:set-bounds",
   browserNavigate: "browser:navigate",
   browserBack: "browser:back",
@@ -53,7 +55,10 @@ export type ShellCommand =
   | "show-library"
   | "show-queue"
   | "show-apps"
-  | "show-settings";
+  | "show-settings"
+  | "zoom-in"
+  | "zoom-out"
+  | "zoom-reset";
 
 export interface ShellAppearance {
   backgroundColor: string;
@@ -304,6 +309,8 @@ export interface LatticeApi {
   shell: {
     onCommand(listener: (command: ShellCommand) => void): () => void;
     setAppearance(input: ShellAppearance): Promise<ShellAppearance>;
+    getZoom(): Promise<number>;
+    setZoom(percent: number): Promise<number>;
   };
   browser: {
     setBounds(bounds: BrowserBounds): Promise<void>;

@@ -17,6 +17,7 @@ import type {
   ShellCommand,
 } from "../../shared/contracts";
 import { IPC } from "../../shared/contracts";
+import { zoomCommandForShortcut } from "../../shared/zoom";
 import { constrainBrowserBounds } from "../policies/bounds";
 import { isAllowedRemoteNavigation, normalizeHttpUrl } from "../policies/navigation";
 
@@ -397,7 +398,14 @@ export class BrowserRuntime {
     tab.contents.on("before-input-event", (event, input) => {
       if (input.type !== "keyDown") return;
       const key = input.key.toLowerCase();
-      const command: ShellCommand | null =
+      const zoomCommand = zoomCommandForShortcut({
+        key: input.key,
+        code: input.code,
+        control: input.control,
+        meta: input.meta,
+        alt: input.alt,
+      });
+      const navigationCommand: ShellCommand | null =
         input.alt && !input.control && !input.meta && !input.shift
           ? key === "1"
             ? "show-focus"
@@ -427,6 +435,7 @@ export class BrowserRuntime {
                       ? "search"
                       : null
             : null;
+      const command = zoomCommand ?? navigationCommand;
       if (!command) return;
       event.preventDefault();
       if (!this.window.isDestroyed()) this.window.webContents.send(IPC.shellCommand, command);
