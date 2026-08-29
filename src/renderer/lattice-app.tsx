@@ -2475,9 +2475,6 @@ export function LatticeApp() {
               setWorkspaceMenuOpen((open) => !open);
             }}
           >
-            <span className="workspace-selector-logo">
-              <img src={coachLogoUrl} alt="" />
-            </span>
             <span className="workspace-title">
               <span className="eyebrow">Workspace</span>
               <strong>
