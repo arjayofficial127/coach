@@ -31,7 +31,8 @@ import {
   type ZoomCommand,
   zoomCommandForShortcut,
 } from "../shared/zoom";
-import latticeLogoUrl from "./assets/lattice-logo.svg";
+import lightCapLogoUrl from "./assets/traced-cap-icon.svg";
+import darkCapLogoUrl from "./assets/traced-cap-icon-white.svg";
 import { captureJournalInboxNote, journalItemsForLane, localDayKey } from "./bullet-journal-model";
 import { CanvasWorkspace } from "./canvas-workspace";
 import type { DailyFlowView } from "./daily-flow-surface";
@@ -300,6 +301,19 @@ function formatCount(count: number, singular: string, plural = `${singular}s`) {
 
 function formatWaitingNotes(count: number) {
   return count === 0 ? "No notes waiting" : `${formatCount(count, "note")} waiting`;
+}
+
+function colorLuminance(hex: string): number {
+  const value = hex.replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(value)) return 0.5;
+  const channels = [0, 2, 4].map(
+    (offset) => Number.parseInt(value.slice(offset, offset + 2), 16) / 255,
+  );
+  const linear = channels.map((channel) =>
+    channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+  );
+  const [red = 0.5, green = 0.5, blue = 0.5] = linear;
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
 
 // Temporary comparison switch: preserve the Council New Tab structure while using Coach's
@@ -1039,8 +1053,7 @@ export function LatticeApp() {
       const reusable =
         !forceNewTab &&
         activeTab &&
-        tabDesktops[activeTab.id] === desktopId &&
-        activeTab.url === "about:blank";
+        tabDesktops[activeTab.id] === desktopId;
       if (reusable) {
         await window.lattice.browser.navigate(url);
       } else {
@@ -1678,6 +1691,11 @@ export function LatticeApp() {
       (THEME_CATALOG.findIndex((theme) => theme.id === settings.activeTheme) + 1) %
         THEME_CATALOG.length
     ]?.name ?? "next theme";
+  const coachLogoUrl =
+    settings.activeTheme === "paper-felt" ||
+    (settings.activeTheme === "custom" && colorLuminance(previewCustomTheme.background) >= 0.34)
+      ? lightCapLogoUrl
+      : darkCapLogoUrl;
 
   const applyCustomTheme = () => {
     const previous = settings;
@@ -2223,7 +2241,7 @@ export function LatticeApp() {
           onClick={showDashboard}
           aria-label="Open Dashboard"
         >
-          <img src={latticeLogoUrl} alt="" />
+          <img src={coachLogoUrl} alt="" />
         </button>
         <div className="rail-actions">
           {railItems.map((item) => (
@@ -2461,7 +2479,7 @@ export function LatticeApp() {
             }}
           >
             <span className="workspace-selector-logo">
-              <img src={latticeLogoUrl} alt="" />
+              <img src={coachLogoUrl} alt="" />
             </span>
             <span className="workspace-title">
               <span className="eyebrow">Workspace</span>
