@@ -187,7 +187,7 @@ if (
 ) {
   failures.push("renderer reload duplicated or lost native tabs");
 }
-if (evidence.session.activeDesktop !== "Build") {
+if (evidence.session.activeDesktop !== "Desk 2") {
   failures.push("restored active tab did not return to its desktop");
 }
 if (!evidence.session.activeDesktopSummary.startsWith("1 tabs")) {
@@ -230,6 +230,10 @@ if (
   evidence.navigation?.heading !== "Let's focus on what matters." ||
   JSON.stringify(evidence.navigation?.dashboardCards) !==
     JSON.stringify(["recent-thread", "canvas", "today-focus", "reading-queue"]) ||
+  JSON.stringify(evidence.navigation?.desktopNames) !==
+    JSON.stringify(["Desk 1", "Desk 2", "Desk 3"]) ||
+  !evidence.navigation?.desktopsBeforeNavigate ||
+  !evidence.navigation?.inlineRenameRoundTrip ||
   evidence.navigation?.readingPreviewCount < 1 ||
   evidence.navigation?.privacyPromise !== "Private by design. Always local." ||
   !evidence.navigation?.focusBarThemed ||
@@ -346,7 +350,7 @@ if (!evidence.desktopLifecycle.nativeViewHiddenWhileMenuOpen) {
   failures.push("native website view remained above the trusted browser menu");
 }
 if (
-  evidence.desktopLifecycle.movedToDesktop !== "Inspiration" ||
+  evidence.desktopLifecycle.movedToDesktop !== "Desk 3" ||
   !evidence.desktopLifecycle.movedTabRetained ||
   !evidence.desktopLifecycle.emptiedSourceDesktop
 ) {
@@ -360,7 +364,7 @@ if (
   failures.push("confirmed empty-desktop deletion did not select the adjacent desktop");
 }
 if (!evidence.desktopLifecycle.savedResearchDesktopPreserved) {
-  failures.push("desktop lifecycle changed the saved Research desktop");
+  failures.push("desktop lifecycle changed the saved first desktop");
 }
 if (
   !evidence.metadataEditing.formVisible ||

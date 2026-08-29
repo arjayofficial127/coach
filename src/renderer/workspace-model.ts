@@ -5,7 +5,7 @@ export interface DesktopDefinition {
 }
 
 export interface WorkspacePreferences {
-  version: 1;
+  version: 2;
   activeDesktopId: string;
   desktops: DesktopDefinition[];
 }
@@ -23,13 +23,13 @@ export type DeleteDesktopResult =
     };
 
 export const DEFAULT_DESKTOPS: DesktopDefinition[] = [
-  { id: "research", name: "Research", color: "violet" },
-  { id: "build", name: "Build", color: "cyan" },
-  { id: "inspiration", name: "Inspiration", color: "amber" },
+  { id: "research", name: "Desk 1", color: "violet" },
+  { id: "build", name: "Desk 2", color: "cyan" },
+  { id: "inspiration", name: "Desk 3", color: "amber" },
 ];
 
 export const DEFAULT_WORKSPACE: WorkspacePreferences = {
-  version: 1,
+  version: 2,
   activeDesktopId: DEFAULT_DESKTOPS[0]?.id ?? "research",
   desktops: DEFAULT_DESKTOPS,
 };
@@ -45,8 +45,24 @@ const VALID_COLORS = new Set<DesktopDefinition["color"]>([
 export function parseWorkspacePreferences(serialized: string | null): WorkspacePreferences {
   if (!serialized) return DEFAULT_WORKSPACE;
   try {
-    const candidate = JSON.parse(serialized) as Partial<WorkspacePreferences>;
-    if (candidate.version !== 1 || !Array.isArray(candidate.desktops)) return DEFAULT_WORKSPACE;
+    const candidate = JSON.parse(serialized) as {
+      version?: number;
+      activeDesktopId?: unknown;
+      desktops?: Array<Partial<DesktopDefinition> | null>;
+    };
+    if (![1, 2].includes(candidate.version ?? 0) || !Array.isArray(candidate.desktops)) {
+      return DEFAULT_WORKSPACE;
+    }
+    const legacyDefaultNames: Record<string, string> = {
+      research: "Research",
+      build: "Build",
+      inspiration: "Inspiration",
+    };
+    const genericNames: Record<string, string> = {
+      research: "Desk 1",
+      build: "Desk 2",
+      inspiration: "Desk 3",
+    };
     const desktops = candidate.desktops
       .filter((desktop): desktop is DesktopDefinition =>
         Boolean(
@@ -54,16 +70,23 @@ export function parseWorkspacePreferences(serialized: string | null): WorkspaceP
             typeof desktop.id === "string" &&
             typeof desktop.name === "string" &&
             desktop.name.trim() &&
-            VALID_COLORS.has(desktop.color),
+            VALID_COLORS.has(desktop.color as DesktopDefinition["color"]),
         ),
       )
       .slice(0, 12)
-      .map((desktop) => ({ ...desktop, name: desktop.name.trim().slice(0, 40) }));
+      .map((desktop) => {
+        const name = desktop.name.trim().slice(0, 40);
+        const migratedName =
+          candidate.version === 1 && legacyDefaultNames[desktop.id] === name
+            ? (genericNames[desktop.id] ?? name)
+            : name;
+        return { ...desktop, name: migratedName };
+      });
     if (desktops.length === 0) return DEFAULT_WORKSPACE;
     const activeDesktopId = desktops.some((desktop) => desktop.id === candidate.activeDesktopId)
       ? (candidate.activeDesktopId as string)
       : (desktops[0]?.id ?? DEFAULT_WORKSPACE.activeDesktopId);
-    return { version: 1, activeDesktopId, desktops };
+    return { version: 2, activeDesktopId, desktops };
   } catch {
     return DEFAULT_WORKSPACE;
   }

@@ -97,6 +97,9 @@ export interface PhaseNineSmokeEvidence {
   navigation: {
     heading: string;
     dashboardCards: string[];
+    desktopNames: string[];
+    desktopsBeforeNavigate: boolean;
+    inlineRenameRoundTrip: boolean;
     todayTaskCount: number;
     readingPreviewCount: number;
     privacyPromise: string;
@@ -669,6 +672,42 @@ export async function runPhaseNineSmoke(
     // Exercise it through the same trusted renderer used by the packaged app, then
     // restore Browse before continuing the long-running Phase 9 regression.
     const navigationDom = (await window.webContents.executeJavaScript(`(async () => {
+      const desktopNames = [...document.querySelectorAll('.desktop-item strong')]
+        .map((item) => item.textContent?.trim() ?? "");
+      const sectionLabels = [...document.querySelectorAll('.workspace-panel .section-label')];
+      const desktopsLabel = sectionLabels.find((item) => item.textContent?.includes('Desktops'));
+      const navigateLabel = sectionLabels.find((item) => item.textContent?.includes('Navigate'));
+      const desktopsBeforeNavigate = Boolean(
+        desktopsLabel && navigateLabel &&
+        (desktopsLabel.compareDocumentPosition(navigateLabel) & Node.DOCUMENT_POSITION_FOLLOWING)
+      );
+      const renameDeskOne = document.querySelector('button[aria-label="Rename Desk 1"]');
+      if (!(renameDeskOne instanceof HTMLButtonElement)) throw new Error("Inline desktop rename missing");
+      renameDeskOne.click();
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      const firstRenameInput = document.querySelector('input[aria-label="Rename Desk 1"]');
+      if (!(firstRenameInput instanceof HTMLInputElement)) throw new Error("Desktop rename input missing");
+      const nameSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      nameSetter?.call(firstRenameInput, "Focus Desk");
+      firstRenameInput.dispatchEvent(new Event("input", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      firstRenameInput.form?.requestSubmit();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const renamed = [...document.querySelectorAll('.desktop-item strong')]
+        .some((item) => item.textContent?.trim() === "Focus Desk");
+      const restoreName = document.querySelector('button[aria-label="Rename Focus Desk"]');
+      if (!(restoreName instanceof HTMLButtonElement)) throw new Error("Renamed desktop action missing");
+      restoreName.click();
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      const restoreInput = document.querySelector('input[aria-label="Rename Focus Desk"]');
+      if (!(restoreInput instanceof HTMLInputElement)) throw new Error("Restore desktop name input missing");
+      nameSetter?.call(restoreInput, "Desk 1");
+      restoreInput.dispatchEvent(new Event("input", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      restoreInput.form?.requestSubmit();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const restored = [...document.querySelectorAll('.desktop-item strong')]
+        .some((item) => item.textContent?.trim() === "Desk 1");
       const dashboard = document.querySelector('button[aria-label="Dashboard"]');
       if (!(dashboard instanceof HTMLButtonElement)) throw new Error("Dashboard destination missing");
       dashboard.click();
@@ -699,6 +738,9 @@ export async function runPhaseNineSmoke(
         heading: document.querySelector('.home-hero h1')?.textContent?.trim() ?? "",
         dashboardCards: [...document.querySelectorAll('[data-home-card]')]
           .map((card) => card.getAttribute('data-home-card') ?? ""),
+        desktopNames,
+        desktopsBeforeNavigate,
+        inlineRenameRoundTrip: renamed && restored,
         todayTaskCount: document.querySelectorAll('.home-task-row').length,
         readingPreviewCount: document.querySelectorAll('.home-reading-row').length,
         privacyPromise: document.querySelector('.home-privacy-card strong')?.textContent?.trim() ?? "",
@@ -712,6 +754,9 @@ export async function runPhaseNineSmoke(
     })()`)) as {
       heading: string;
       dashboardCards: string[];
+      desktopNames: string[];
+      desktopsBeforeNavigate: boolean;
+      inlineRenameRoundTrip: boolean;
       todayTaskCount: number;
       readingPreviewCount: number;
       privacyPromise: string;
@@ -1273,7 +1318,7 @@ export async function runPhaseNineSmoke(
 
     // An occupied desktop cannot be deleted. Move its live native tab to the next
     // desktop, then prove the now-empty desktop needs confirmation and can be
-    // removed without disturbing the Research desktop's saved Markdown.
+    // removed without disturbing the first desktop's saved Markdown.
     await window.webContents.executeJavaScript(`(() => {
       const menu = document.querySelector('button[aria-label="Workspace menu"]');
       if (!(menu instanceof HTMLButtonElement)) throw new Error("Workspace menu missing");
@@ -1298,7 +1343,7 @@ export async function runPhaseNineSmoke(
       guardedDeleteBlockedForOpenTab = (await window.webContents.executeJavaScript(`(() => {
         const status = document.querySelector(".status-bar span")?.textContent ?? "";
         const buildPresent = [...document.querySelectorAll(".desktop-item strong")]
-          .some((item) => item.textContent?.trim() === "Build");
+          .some((item) => item.textContent?.trim() === "Desk 2");
         return buildPresent && status.includes("Move or close this desktop's tabs first");
       })()`)) as boolean;
       if (guardedDeleteBlockedForOpenTab) break;
@@ -1325,7 +1370,7 @@ export async function runPhaseNineSmoke(
     const movedTabId = runtime.snapshot().activeTabId;
     await window.webContents.executeJavaScript(`(() => {
       const target = document.querySelector('[data-move-tab-to="inspiration"]');
-      if (!(target instanceof HTMLButtonElement)) throw new Error("Inspiration move target missing");
+       if (!(target instanceof HTMLButtonElement)) throw new Error("Desk 3 move target missing");
       target.click();
     })()`);
     const movedDeadline = Date.now() + 2_000;
@@ -1336,21 +1381,20 @@ export async function runPhaseNineSmoke(
         activeDesktopSummary: document.querySelector(".desktop-item.active small")?.textContent?.trim() ?? "",
         activeTabTitle: document.querySelector(".browser-tab.active .tab-title")?.textContent?.trim() ?? "",
         buildPresent: [...document.querySelectorAll(".desktop-item strong")]
-          .some((item) => item.textContent?.trim() === "Build"),
+          .some((item) => item.textContent?.trim() === "Desk 2"),
         researchSummary: [...document.querySelectorAll(".desktop-item")]
-          .find((item) => item.querySelector("strong")?.textContent?.trim() === "Research")
+          .find((item) => item.querySelector("strong")?.textContent?.trim() === "Desk 1")
           ?.querySelector("small")?.textContent?.trim() ?? ""
       }))()`)) as DesktopLifecycleDomResult;
-      if (movedDom.activeDesktop === "Inspiration" && movedDom.activeTabTitle) break;
+      if (movedDom.activeDesktop === "Desk 3" && movedDom.activeTabTitle) break;
       await delay(25);
     }
     if (!movedDom) throw new Error("The Phase 8 tab move UI did not become ready.");
     const movedTabRetained = runtime.snapshot().activeTabId === movedTabId;
 
     await window.webContents.executeJavaScript(`(() => {
-      const build = [...document.querySelectorAll(".desktop-item")]
-        .find((item) => item.querySelector("strong")?.textContent?.trim() === "Build");
-      if (!(build instanceof HTMLButtonElement)) throw new Error("Build desktop missing");
+      const build = document.querySelector('[data-desktop-id="build"] .desktop-select');
+      if (!(build instanceof HTMLButtonElement)) throw new Error("Desk 2 desktop missing");
       build.click();
     })()`);
     const emptyDeadline = Date.now() + 2_000;
@@ -1358,7 +1402,7 @@ export async function runPhaseNineSmoke(
     while (Date.now() < emptyDeadline) {
       emptiedSourceDesktop = (await window.webContents.executeJavaScript(`(() => {
         const active = document.querySelector(".desktop-item.active");
-        return active?.querySelector("strong")?.textContent?.trim() === "Build" &&
+        return active?.querySelector("strong")?.textContent?.trim() === "Desk 2" &&
           active?.querySelector("small")?.textContent?.trim().startsWith("0 tabs");
       })()`)) as boolean;
       if (emptiedSourceDesktop) break;
@@ -1405,12 +1449,12 @@ export async function runPhaseNineSmoke(
         activeDesktopSummary: document.querySelector(".desktop-item.active small")?.textContent?.trim() ?? "",
         activeTabTitle: document.querySelector(".browser-tab.active .tab-title")?.textContent?.trim() ?? "",
         buildPresent: [...document.querySelectorAll(".desktop-item strong")]
-          .some((item) => item.textContent?.trim() === "Build"),
+          .some((item) => item.textContent?.trim() === "Desk 2"),
         researchSummary: [...document.querySelectorAll(".desktop-item")]
-          .find((item) => item.querySelector("strong")?.textContent?.trim() === "Research")
+          .find((item) => item.querySelector("strong")?.textContent?.trim() === "Desk 1")
           ?.querySelector("small")?.textContent?.trim() ?? ""
       }))()`)) as DesktopLifecycleDomResult;
-      if (!deletedDom.buildPresent && deletedDom.activeDesktop === "Inspiration") break;
+      if (!deletedDom.buildPresent && deletedDom.activeDesktop === "Desk 3") break;
       await delay(25);
     }
     if (!deletedDom) throw new Error("The Phase 8 desktop delete UI did not become ready.");
@@ -2303,7 +2347,7 @@ export async function runPhaseNineSmoke(
         emptiedSourceDesktop,
         deletionConfirmationVisible,
         deletedEmptyDesktop: !deletedDom.buildPresent,
-        adjacentDesktopActivated: deletedDom.activeDesktop === "Inspiration",
+        adjacentDesktopActivated: deletedDom.activeDesktop === "Desk 3",
         savedResearchDesktopPreserved: deletedDom.researchSummary.includes("1 saved"),
       },
       metadataEditing: {

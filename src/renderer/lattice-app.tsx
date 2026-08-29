@@ -286,6 +286,8 @@ export function LatticeApp() {
   const webStageRef = useRef<HTMLElement>(null);
   const omniboxRef = useRef<HTMLInputElement>(null);
   const commandInputRef = useRef<HTMLInputElement>(null);
+  const newDesktopInputRef = useRef<HTMLInputElement>(null);
+  const desktopRenameInputRef = useRef<HTMLInputElement>(null);
   const commandHandlerRef = useRef<(command: ShellCommand) => void>(() => undefined);
   const recoveryHandlerRef = useRef<() => void>(() => undefined);
   const pendingRecoveryRef = useRef<PendingRecovery | null>(null);
@@ -898,6 +900,17 @@ export function LatticeApp() {
   }, [commandOpen]);
 
   useEffect(() => {
+    if (!addingDesktop) return;
+    newDesktopInputRef.current?.focus();
+  }, [addingDesktop]);
+
+  useEffect(() => {
+    if (!editingDesktopId) return;
+    desktopRenameInputRef.current?.focus();
+    desktopRenameInputRef.current?.select();
+  }, [editingDesktopId]);
+
+  useEffect(() => {
     if (surface !== "home") return;
     const frame = window.requestAnimationFrame(() => {
       omniboxRef.current?.focus();
@@ -1083,10 +1096,11 @@ export function LatticeApp() {
     setSurface("home");
   };
 
-  const beginRenameDesktop = () => {
-    if (!activeDesktop) return;
-    setEditingDesktopId(activeDesktop.id);
-    setEditingDesktopName(activeDesktop.name);
+  const beginRenameDesktop = (desktopId: string) => {
+    const desktop = workspace.desktops.find((candidate) => candidate.id === desktopId);
+    if (!desktop) return;
+    setEditingDesktopId(desktop.id);
+    setEditingDesktopName(desktop.name);
     setWorkspaceMenuOpen(false);
   };
 
@@ -1253,7 +1267,7 @@ export function LatticeApp() {
         title: displayTitle(contextualTab),
         url: contextualTab.url,
         description: captureDescription.trim(),
-        folder: activeDesktop?.name ?? "Research",
+        folder: activeDesktop?.name ?? "Desk 1",
         desktopId: activeDesktop?.id ?? "research",
         readingStatus: queueCapture ? "queued" : "saved",
       });
@@ -2224,7 +2238,10 @@ export function LatticeApp() {
           </button>
           {workspaceMenuOpen && (
             <div className="workspace-menu">
-              <button type="button" onClick={beginRenameDesktop}>
+              <button
+                type="button"
+                onClick={() => activeDesktop && beginRenameDesktop(activeDesktop.id)}
+              >
                 <Icon name="desktop" />
                 Rename {activeDesktop?.name}
               </button>
@@ -2247,6 +2264,118 @@ export function LatticeApp() {
             </div>
           )}
         </div>
+
+        <div className="section-label desktop-section-label">
+          <span>Desktops</span>
+          <button type="button" onClick={() => setAddingDesktop(true)} aria-label="Add desktop">
+            <Icon name="plus" />
+          </button>
+        </div>
+        <div className="desktop-list">
+          {workspace.desktops.map((desktop) => {
+            const tabCount = snapshot.tabs.filter(
+              (tab) => tabDesktops[tab.id] === desktop.id,
+            ).length;
+            const linkCount = links.filter((link) =>
+              link.desktopId ? link.desktopId === desktop.id : link.folder === desktop.name,
+            ).length;
+            const active = desktop.id === workspace.activeDesktopId;
+            if (editingDesktopId === desktop.id) {
+              return (
+                <form
+                  key={desktop.id}
+                  className={
+                    active
+                      ? "desktop-item desktop-rename-row active"
+                      : "desktop-item desktop-rename-row"
+                  }
+                  data-desktop-id={desktop.id}
+                  onSubmit={submitDesktopRename}
+                >
+                  <span className={`desktop-glyph ${desktop.color}`}>
+                    <Icon name="desktop" />
+                  </span>
+                  <input
+                    ref={desktopRenameInputRef}
+                    value={editingDesktopName}
+                    onChange={(event) => setEditingDesktopName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") {
+                        event.preventDefault();
+                        setEditingDesktopId(null);
+                      }
+                    }}
+                    placeholder="Desktop name"
+                    maxLength={40}
+                    aria-label={`Rename ${desktop.name}`}
+                  />
+                  <button type="submit" aria-label="Save desktop name">
+                    <Icon name="check" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Cancel rename"
+                    onClick={() => setEditingDesktopId(null)}
+                  >
+                    <Icon name="close" />
+                  </button>
+                </form>
+              );
+            }
+            return (
+              <div
+                key={desktop.id}
+                className={active ? "desktop-item active" : "desktop-item"}
+                data-desktop-id={desktop.id}
+              >
+                <button
+                  type="button"
+                  className="desktop-select"
+                  aria-label={`Open ${desktop.name}`}
+                  onClick={() => void selectDesktop(desktop.id)}
+                  onDoubleClick={() => beginRenameDesktop(desktop.id)}
+                >
+                  <span className={`desktop-glyph ${desktop.color}`}>
+                    <Icon name="desktop" />
+                  </span>
+                  <span className="desktop-copy">
+                    <strong>{desktop.name}</strong>
+                    <small>
+                      {tabCount} tabs · {linkCount} saved
+                    </small>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="desktop-rename-button"
+                  aria-label={`Rename ${desktop.name}`}
+                  title={`Rename ${desktop.name}`}
+                  onClick={() => beginRenameDesktop(desktop.id)}
+                >
+                  <Icon name="edit" />
+                </button>
+                {active ? <span className="active-dot" /> : <span className="desktop-dot-spacer" />}
+              </div>
+            );
+          })}
+        </div>
+        {addingDesktop && (
+          <form className="add-desktop-form" onSubmit={addDesktop}>
+            <input
+              ref={newDesktopInputRef}
+              value={desktopName}
+              onChange={(event) => setDesktopName(event.target.value)}
+              placeholder={`Desk ${workspace.desktops.length + 1}`}
+              maxLength={40}
+            />
+            <button type="submit" aria-label="Create desktop">
+              <Icon name="check" />
+            </button>
+            <button type="button" aria-label="Cancel" onClick={() => setAddingDesktop(false)}>
+              <Icon name="close" />
+            </button>
+          </form>
+        )}
 
         <button type="button" className="panel-search" onClick={openCommandPalette}>
           <Icon name="search" />
@@ -2330,81 +2459,6 @@ export function LatticeApp() {
           </button>
         </div>
 
-        <div className="section-label">
-          <span>Desktops</span>
-          <button type="button" onClick={() => setAddingDesktop(true)} aria-label="Add desktop">
-            <Icon name="plus" />
-          </button>
-        </div>
-        <div className="desktop-list">
-          {workspace.desktops.map((desktop) => {
-            const tabCount = snapshot.tabs.filter(
-              (tab) => tabDesktops[tab.id] === desktop.id,
-            ).length;
-            const linkCount = links.filter((link) =>
-              link.desktopId ? link.desktopId === desktop.id : link.folder === desktop.name,
-            ).length;
-            return (
-              <button
-                type="button"
-                key={desktop.id}
-                className={
-                  desktop.id === workspace.activeDesktopId ? "desktop-item active" : "desktop-item"
-                }
-                onClick={() => void selectDesktop(desktop.id)}
-              >
-                <span className={`desktop-glyph ${desktop.color}`}>
-                  <Icon name="desktop" />
-                </span>
-                <span className="desktop-copy">
-                  <strong>{desktop.name}</strong>
-                  <small>
-                    {tabCount} tabs · {linkCount} saved
-                  </small>
-                </span>
-                {desktop.id === workspace.activeDesktopId && <span className="active-dot" />}
-              </button>
-            );
-          })}
-        </div>
-        {addingDesktop && (
-          <form className="add-desktop-form" onSubmit={addDesktop}>
-            <input
-              value={desktopName}
-              onChange={(event) => setDesktopName(event.target.value)}
-              placeholder="Desktop name"
-              maxLength={40}
-            />
-            <button type="submit" aria-label="Create desktop">
-              <Icon name="check" />
-            </button>
-            <button type="button" aria-label="Cancel" onClick={() => setAddingDesktop(false)}>
-              <Icon name="close" />
-            </button>
-          </form>
-        )}
-        {editingDesktopId && (
-          <form className="add-desktop-form rename-desktop-form" onSubmit={submitDesktopRename}>
-            <input
-              value={editingDesktopName}
-              onChange={(event) => setEditingDesktopName(event.target.value)}
-              placeholder="Desktop name"
-              maxLength={40}
-              aria-label="Rename desktop"
-            />
-            <button type="submit" aria-label="Save desktop name">
-              <Icon name="check" />
-            </button>
-            <button
-              type="button"
-              aria-label="Cancel rename"
-              onClick={() => setEditingDesktopId(null)}
-            >
-              <Icon name="close" />
-            </button>
-          </form>
-        )}
-
         <div className="section-label library-label">
           <span>Library</span>
         </div>
@@ -2459,7 +2513,7 @@ export function LatticeApp() {
         <header className="tab-strip">
           <div className="desktop-context">
             <span className={`context-dot ${activeDesktop?.color ?? "violet"}`} />
-            {activeDesktop?.name ?? "Research"}
+            {activeDesktop?.name ?? "Desk 1"}
           </div>
           <div className="tabs-viewport">
             {desktopTabs.map((tab) => (

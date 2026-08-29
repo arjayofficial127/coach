@@ -15,13 +15,13 @@ describe("workspace preferences", () => {
   it("keeps valid desktops and repairs a missing active desktop", () => {
     const result = parseWorkspacePreferences(
       JSON.stringify({
-        version: 1,
+        version: 2,
         activeDesktopId: "missing",
         desktops: [{ id: "desk", name: "  Focus  ", color: "cyan" }],
       }),
     );
     expect(result).toEqual({
-      version: 1,
+      version: 2,
       activeDesktopId: "desk",
       desktops: [{ id: "desk", name: "Focus", color: "cyan" }],
     });
@@ -31,7 +31,7 @@ describe("workspace preferences", () => {
     expect(renameDesktop(DEFAULT_WORKSPACE, "build", "  Making things  ").desktops[1]?.name).toBe(
       "Making things",
     );
-    expect(renameDesktop(DEFAULT_WORKSPACE, "build", "Research")).toBe(DEFAULT_WORKSPACE);
+    expect(renameDesktop(DEFAULT_WORKSPACE, "build", "Desk 1")).toBe(DEFAULT_WORKSPACE);
     expect(renameDesktop(DEFAULT_WORKSPACE, "build", "   ")).toBe(DEFAULT_WORKSPACE);
   });
 
@@ -68,7 +68,7 @@ describe("workspace preferences", () => {
 
   it("keeps at least one desktop", () => {
     const researchDesktop = DEFAULT_WORKSPACE.desktops[0];
-    if (!researchDesktop) throw new Error("Expected the default Research desktop");
+    if (!researchDesktop) throw new Error("Expected the default first desktop");
     const single = {
       ...DEFAULT_WORKSPACE,
       activeDesktopId: "research",
@@ -78,5 +78,22 @@ describe("workspace preferences", () => {
       deleted: false,
       reason: "last-desktop",
     });
+  });
+
+  it("migrates only untouched legacy desktop names to generic defaults", () => {
+    const result = parseWorkspacePreferences(
+      JSON.stringify({
+        version: 1,
+        activeDesktopId: "research",
+        desktops: [
+          { id: "research", name: "Research", color: "violet" },
+          { id: "build", name: "My work", color: "cyan" },
+          { id: "inspiration", name: "Inspiration", color: "amber" },
+        ],
+      }),
+    );
+
+    expect(result.version).toBe(2);
+    expect(result.desktops.map((desktop) => desktop.name)).toEqual(["Desk 1", "My work", "Desk 3"]);
   });
 });

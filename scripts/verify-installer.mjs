@@ -311,6 +311,10 @@ if (
   smoke.navigation?.heading !== "Let's focus on what matters." ||
   JSON.stringify(smoke.navigation?.dashboardCards) !==
     JSON.stringify(["recent-thread", "canvas", "today-focus", "reading-queue"]) ||
+  JSON.stringify(smoke.navigation?.desktopNames) !==
+    JSON.stringify(["Desk 1", "Desk 2", "Desk 3"]) ||
+  !smoke.navigation?.desktopsBeforeNavigate ||
+  !smoke.navigation?.inlineRenameRoundTrip ||
   smoke.navigation?.readingPreviewCount < 1 ||
   smoke.navigation?.privacyPromise !== "Private by design. Always local." ||
   !smoke.navigation?.focusBarThemed ||
