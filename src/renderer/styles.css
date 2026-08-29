@@ -7402,7 +7402,7 @@ kbd {
 }
 
 .lattice-shell.new-tab-sizing-invalidated .new-tab-content {
-  grid-template-rows: var(--coach-chrome-height) minmax(0, 1fr);
+  grid-template-rows: var(--coach-chrome-height) 50px minmax(0, 1fr) 24px;
 }
 
 .lattice-shell.new-tab-sizing-invalidated > .workspace-panel {
