@@ -795,7 +795,7 @@ kbd {
 .desktop-item {
   position: relative;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 22px 8px;
+  grid-template-columns: 34px minmax(0, 1fr) 22px;
   min-height: 46px;
   align-items: center;
   gap: 5px;
