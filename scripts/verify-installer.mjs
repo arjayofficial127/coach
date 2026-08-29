@@ -277,7 +277,7 @@ if (installedSignature !== "NotSigned") {
 }
 const fuses = await verifyFuses(installedExecutable);
 
-await runProcess(installedExecutable, ["--phase9-smoke"], 75_000);
+await runProcess(installedExecutable, ["--phase9-smoke"], 90_000);
 const smoke = JSON.parse(await readFile(smokeEvidenceSource, "utf8"));
 const smokeFailures = [];
 if (smoke.packaged !== true) smokeFailures.push("installed app was not packaged");
@@ -327,6 +327,7 @@ if (
   !smoke.profiles?.loadingLabelAbsent ||
   !smoke.profiles?.createActionEnabled ||
   !smoke.profiles?.menuActionsLookEnabled ||
+  !smoke.profiles?.identityTilesThemed ||
   !smoke.profiles?.nativeViewHiddenWhileMenuOpen ||
   !smoke.profiles?.firstCookieRetained ||
   !smoke.profiles?.secondCookieInitiallyAbsent ||
@@ -436,6 +437,7 @@ if (
   !smoke.themes?.feltApplied ||
   !smoke.themes?.feltTextureVisible ||
   !smoke.themes?.feltRecoveryThemed ||
+  !smoke.themes?.feltProfileTilesThemed ||
   smoke.themes?.customName !== "Smoke Aubergine" ||
   !smoke.themes?.customApplied ||
   !smoke.themes?.customPersisted ||

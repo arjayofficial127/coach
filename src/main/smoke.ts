@@ -84,6 +84,7 @@ export interface PhaseNineSmokeEvidence {
     loadingLabelAbsent: boolean;
     createActionEnabled: boolean;
     menuActionsLookEnabled: boolean;
+    identityTilesThemed: boolean;
     nativeViewHiddenWhileMenuOpen: boolean;
     firstCookieRetained: boolean;
     secondCookieInitiallyAbsent: boolean;
@@ -261,6 +262,7 @@ export interface PhaseNineSmokeEvidence {
     feltApplied: boolean;
     feltTextureVisible: boolean;
     feltRecoveryThemed: boolean;
+    feltProfileTilesThemed: boolean;
     customName: string;
     customApplied: boolean;
     customPersisted: boolean;
@@ -1506,6 +1508,17 @@ export async function runPhaseNineSmoke(
         const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
         recoveryIsLight = red > 220 && green > 220 && blue > 220;
       }
+      const identityTileIsThemed = (selector) => {
+        const element = document.querySelector(selector);
+        if (!(element instanceof HTMLElement) || !context) return false;
+        const style = getComputedStyle(element);
+        context.clearRect(0, 0, 1, 1);
+        context.fillStyle = style.backgroundColor;
+        context.fillRect(0, 0, 1, 1);
+        const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
+        return red > 200 && green > 200 && blue > 200
+          && style.backgroundImage.includes("linear-gradient");
+      };
       return {
         applied: shell?.getAttribute("data-theme") === "paper-felt",
         textureVisible: surface instanceof HTMLElement && getComputedStyle(surface).backgroundImage.includes("radial-gradient"),
@@ -1517,12 +1530,15 @@ export async function runPhaseNineSmoke(
           && getComputedStyle(recoveryAction).backgroundColor !== "rgba(0, 0, 0, 0)"
           && recoveryDismiss instanceof HTMLButtonElement
           && getComputedStyle(recoveryDismiss).backgroundColor === "rgba(0, 0, 0, 0)",
+        profileTilesThemed: identityTileIsThemed(".settings-profile-avatar")
+          && identityTileIsThemed(".profile-button"),
         nativeTitleBarSynced: shell?.getAttribute("data-titlebar-theme") === "paper-felt"
       };
     })()`)) as {
       applied: boolean;
       textureVisible: boolean;
       recoveryThemed: boolean;
+      profileTilesThemed: boolean;
       nativeTitleBarSynced: boolean;
     };
 
@@ -1963,12 +1979,28 @@ export async function runPhaseNineSmoke(
     while (Date.now() < profileMenuDeadline && runtime.isVisible()) await delay(25);
     const profilesDom = (await window.webContents.executeJavaScript(`(() => {
       const actions = [...document.querySelectorAll(".profile-actions button, .profile-picture-actions > button")];
+      const identityTiles = [...document.querySelectorAll(".profile-avatar")];
+      const identityTilesThemed = identityTiles.length === 3 && identityTiles.every((tile) => {
+        if (!(tile instanceof HTMLElement)) return false;
+        const style = getComputedStyle(tile);
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) return false;
+        context.fillStyle = style.backgroundColor;
+        context.fillRect(0, 0, 1, 1);
+        const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
+        return red > 200 && green > 200 && blue > 200
+          && style.backgroundImage.includes("linear-gradient");
+      });
       return {
         profileCount: document.querySelectorAll(".profile-list > button").length,
         activeProfileName: document.querySelector(".profile-menu-header strong")?.textContent ?? "",
         profileMenuVisible: Boolean(document.querySelector(".profile-menu")),
         privacyExplanationVisible: document.querySelector(".profile-privacy-note")?.textContent?.includes("never stores your Google") ?? false,
         loadingLabelAbsent: !document.querySelector(".profile-menu-header")?.textContent?.includes("Loading profiles"),
+        identityTilesThemed,
         menuActionsLookEnabled: actions.length === 3 && actions.every((action) => {
           if (!(action instanceof HTMLButtonElement) || action.disabled) return false;
           const style = getComputedStyle(action);
@@ -1981,6 +2013,7 @@ export async function runPhaseNineSmoke(
       profileMenuVisible: boolean;
       privacyExplanationVisible: boolean;
       loadingLabelAbsent: boolean;
+      identityTilesThemed: boolean;
       menuActionsLookEnabled: boolean;
     };
     const nativeViewHiddenWhileProfileMenuOpen = !runtime.isVisible();
@@ -2251,6 +2284,7 @@ export async function runPhaseNineSmoke(
         feltApplied: feltTheme.applied,
         feltTextureVisible: feltTheme.textureVisible,
         feltRecoveryThemed: feltTheme.recoveryThemed,
+        feltProfileTilesThemed: feltTheme.profileTilesThemed,
         ...themeSmoke,
         nativeTitleBarSynced: feltTheme.nativeTitleBarSynced && themeSmoke.nativeTitleBarSynced,
       },

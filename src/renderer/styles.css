@@ -155,11 +155,26 @@ svg {
 }
 
 .profile-button {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: #242331;
-  box-shadow: none;
-  color: #b9b5d2;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line-strong));
+  background-color: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  background-image: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--accent) 16%, var(--surface-3)),
+    color-mix(in srgb, var(--accent) 7%, var(--surface-2))
+  );
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--bg) 24%, transparent);
+  color: var(--accent-strong);
   font-size: 12px;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.profile-button:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--line-strong));
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .profile-button img,
@@ -228,10 +243,15 @@ svg {
   flex: 0 0 auto;
   place-items: center;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line-strong));
   border-radius: 10px;
-  background: linear-gradient(145deg, #343143, #242331);
-  color: #d7d3eb;
+  background-color: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  background-image: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--accent) 16%, var(--surface-3)),
+    color-mix(in srgb, var(--accent) 7%, var(--surface-2))
+  );
+  color: var(--accent-strong);
   font-size: 10px;
   font-weight: 750;
 }
@@ -2135,10 +2155,15 @@ kbd {
   height: 36px;
   place-items: center;
   overflow: hidden;
-  border: 1px solid var(--line-strong);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line-strong));
   border-radius: 11px;
-  background: linear-gradient(145deg, #343143, #242331);
-  color: #d7d3eb;
+  background-color: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  background-image: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--accent) 16%, var(--surface-3)),
+    color-mix(in srgb, var(--accent) 7%, var(--surface-2))
+  );
+  color: var(--accent-strong);
   font-size: 10px;
   font-weight: 750;
 }

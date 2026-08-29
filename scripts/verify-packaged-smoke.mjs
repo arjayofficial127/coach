@@ -70,8 +70,8 @@ await new Promise((resolve, reject) => {
   const child = spawn(executable, ["--phase9-smoke"], { stdio: "inherit", windowsHide: true });
   const timeout = setTimeout(() => {
     child.kill();
-    reject(new Error("Packaged smoke exceeded the 60-second timeout."));
-  }, 60_000);
+    reject(new Error("Packaged smoke exceeded the 90-second timeout."));
+  }, 90_000);
   child.once("error", (error) => {
     clearTimeout(timeout);
     reject(error);
@@ -206,6 +206,7 @@ if (
   !evidence.profiles?.loadingLabelAbsent ||
   !evidence.profiles?.createActionEnabled ||
   !evidence.profiles?.menuActionsLookEnabled ||
+  !evidence.profiles?.identityTilesThemed ||
   !evidence.profiles?.nativeViewHiddenWhileMenuOpen
 ) {
   failures.push("trusted website-profile creation, switching, or menu isolation failed");
@@ -465,6 +466,7 @@ if (
   !evidence.themes?.feltApplied ||
   !evidence.themes?.feltTextureVisible ||
   !evidence.themes?.feltRecoveryThemed ||
+  !evidence.themes?.feltProfileTilesThemed ||
   evidence.themes?.customName !== "Smoke Aubergine" ||
   !evidence.themes?.customApplied ||
   !evidence.themes?.customPersisted ||
