@@ -869,6 +869,36 @@ kbd {
   text-align: left;
 }
 
+.desktop-name-row {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.desktop-rename-button {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--subtle);
+  opacity: 0.55;
+}
+
+.desktop-rename-button:hover,
+.desktop-rename-button:focus-visible {
+  background: var(--accent-soft);
+  color: var(--accent);
+  opacity: 1;
+}
+
+.desktop-rename-button svg {
+  width: 9px;
+  height: 9px;
+}
+
 .desktop-name-button:hover,
 .desktop-name-button:focus-visible {
   color: var(--accent);

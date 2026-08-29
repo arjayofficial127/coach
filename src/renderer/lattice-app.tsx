@@ -2668,18 +2668,31 @@ export function LatticeApp() {
                     </span>
                   </button>
                   <span className="desktop-copy">
-                    <button
-                      type="button"
-                      className="desktop-name-button"
-                      aria-label={`Open ${desktop.name} dashboard`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void selectDesktop(desktop.id);
-                      }}
-                    >
-                      <strong>{desktop.name}</strong>
-                      <Icon name="edit" />
-                    </button>
+                    <span className="desktop-name-row">
+                      <button
+                        type="button"
+                        className="desktop-name-button"
+                        aria-label={`Open ${desktop.name} dashboard`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void selectDesktop(desktop.id);
+                        }}
+                      >
+                        <strong>{desktop.name}</strong>
+                      </button>
+                      <button
+                        type="button"
+                        className="desktop-rename-button"
+                        aria-label={`Rename ${desktop.name}`}
+                        title={`Rename ${desktop.name}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          beginRenameDesktop(desktop.id);
+                        }}
+                      >
+                        <Icon name="edit" />
+                      </button>
+                    </span>
                     <button
                       type="button"
                       className="desktop-summary-button"
