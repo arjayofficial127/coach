@@ -2671,11 +2671,10 @@ export function LatticeApp() {
                     <button
                       type="button"
                       className="desktop-name-button"
-                      aria-label={`Rename ${desktop.name}`}
-                      title={`Rename ${desktop.name}`}
+                      aria-label={`Open ${desktop.name} dashboard`}
                       onClick={(event) => {
                         event.stopPropagation();
-                        beginRenameDesktop(desktop.id);
+                        void selectDesktop(desktop.id);
                       }}
                     >
                       <strong>{desktop.name}</strong>
