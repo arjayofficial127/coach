@@ -249,6 +249,18 @@ export interface PhaseNineSmokeEvidence {
     restoreTabsEnabled: boolean;
     nativeViewHidden: boolean;
   };
+  themes: {
+    optionCount: number;
+    defaultTheme: string;
+    feltApplied: boolean;
+    feltTextureVisible: boolean;
+    customName: string;
+    customApplied: boolean;
+    customPersisted: boolean;
+    customProfileScoped: boolean;
+    undoRestored: boolean;
+    returnedToDark: boolean;
+  };
   note: {
     vaultPath: string;
     disposableVault: boolean;
@@ -312,6 +324,8 @@ interface SettingsDomResult {
   heading: string;
   privacyText: string;
   restoreTabsEnabled: boolean;
+  themeOptionCount: number;
+  activeTheme: string;
 }
 
 interface CanvasDomResult {
@@ -1437,13 +1451,28 @@ export async function runPhaseNineSmoke(
       settingsDom = (await window.webContents.executeJavaScript(`(() => ({
         heading: document.querySelector(".settings-header h1")?.textContent?.trim() ?? "",
         privacyText: document.querySelector("[data-settings-privacy] p")?.textContent?.trim() ?? "",
-        restoreTabsEnabled: document.querySelector('[role="switch"][aria-label="Restore tabs on launch"]')?.getAttribute("aria-checked") === "true"
+        restoreTabsEnabled: document.querySelector('[role="switch"][aria-label="Restore tabs on launch"]')?.getAttribute("aria-checked") === "true",
+        themeOptionCount: document.querySelectorAll("[data-theme-option]").length,
+        activeTheme: document.querySelector(".lattice-shell")?.getAttribute("data-theme") ?? ""
       }))()`)) as SettingsDomResult;
       if (settingsDom.heading === "Settings" && settingsDom.privacyText) break;
       await delay(25);
     }
     if (!settingsDom) throw new Error("The Phase 8 settings UI did not become ready.");
     const nativeViewHiddenForSettings = !runtime.isVisible();
+
+    const feltTheme = (await window.webContents.executeJavaScript(`(async () => {
+      const button = document.querySelector('[data-theme-option="paper-felt"]');
+      if (!(button instanceof HTMLButtonElement)) throw new Error("Paper Felt theme missing");
+      button.click();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const shell = document.querySelector(".lattice-shell");
+      const surface = document.querySelector(".trusted-surface");
+      return {
+        applied: shell?.getAttribute("data-theme") === "paper-felt",
+        textureVisible: surface instanceof HTMLElement && getComputedStyle(surface).backgroundImage.includes("repeating-linear-gradient")
+      };
+    })()`)) as { applied: boolean; textureVisible: boolean };
 
     // Chromium only exposes composed surfaces while the owning window is shown. Keep
     // the smoke window out of the taskbar and avoid taking focus.
@@ -1456,6 +1485,84 @@ export async function runPhaseNineSmoke(
     const shellScreenshot = shellImage.toPNG();
     const shellScreenshotPath = path.join(smokeRoot, "phase-9-shell.png");
     await writeFile(shellScreenshotPath, shellScreenshot);
+
+    const themeSmoke = (await window.webContents.executeJavaScript(`(async () => {
+      const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+      const clickTheme = async (id) => {
+        const button = document.querySelector('[data-theme-option="' + id + '"]');
+        if (!(button instanceof HTMLButtonElement)) throw new Error(id + " theme missing");
+        button.click();
+        await wait(75);
+      };
+      const setInput = (selector, value) => {
+        const input = document.querySelector(selector);
+        if (!(input instanceof HTMLInputElement)) throw new Error(selector + " missing");
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+        setter?.call(input, value);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      };
+      const saveCustom = async () => {
+        const save = [...document.querySelectorAll("button")].find(
+          (candidate) => candidate.textContent?.trim() === "Save custom theme",
+        );
+        if (!(save instanceof HTMLButtonElement)) throw new Error("Save custom theme missing");
+        save.click();
+        await wait(100);
+      };
+
+      await clickTheme("custom");
+      setInput('input[aria-label="Custom theme name"]', "Smoke Aubergine");
+      setInput('input[aria-label="Background color"]', "#211723");
+      setInput('input[aria-label="Cards color"]', "#342338");
+      setInput('input[aria-label="Text color"]', "#fff3f8");
+      setInput('input[aria-label="Muted text color"]', "#c6aebd");
+      setInput('input[aria-label="Accent color"]', "#ef7aaa");
+      await wait(75);
+      await saveCustom();
+
+      const customApplied = document.querySelector(".lattice-shell")?.getAttribute("data-theme-name") === "Smoke Aubergine";
+      const initialStorageKey = Object.keys(localStorage).find((key) => {
+        if (!key.startsWith("lattice.settings.v2.profile.")) return false;
+        const stored = JSON.parse(localStorage.getItem(key) ?? "null");
+        return stored?.customTheme?.name === "Smoke Aubergine";
+      });
+
+      const undo = document.querySelector(".recovery-bar > button:not(.recovery-dismiss)");
+      if (!(undo instanceof HTMLButtonElement)) throw new Error("Theme Undo missing");
+      undo.click();
+      await wait(75);
+      const undoRestored = document.querySelector(".lattice-shell")?.getAttribute("data-theme-name") === "Deep Teal";
+
+      setInput('input[aria-label="Custom theme name"]', "Smoke Aubergine");
+      setInput('input[aria-label="Accent color"]', "#ef7aaa");
+      await wait(50);
+      await saveCustom();
+      await clickTheme("lattice-dark");
+      const dismiss = document.querySelector('button[aria-label="Dismiss recovery action"]');
+      if (dismiss instanceof HTMLButtonElement) dismiss.click();
+      await wait(50);
+
+      const finalStorageKey = Object.keys(localStorage).find((key) => {
+        if (!key.startsWith("lattice.settings.v2.profile.")) return false;
+        const stored = JSON.parse(localStorage.getItem(key) ?? "null");
+        return stored?.customTheme?.name === "Smoke Aubergine";
+      });
+      return {
+        customName: "Smoke Aubergine",
+        customApplied,
+        customPersisted: Boolean(initialStorageKey && finalStorageKey),
+        customProfileScoped: Boolean(finalStorageKey?.startsWith("lattice.settings.v2.profile.")),
+        undoRestored,
+        returnedToDark: document.querySelector(".lattice-shell")?.getAttribute("data-theme") === "lattice-dark"
+      };
+    })()`)) as {
+      customName: string;
+      customApplied: boolean;
+      customPersisted: boolean;
+      customProfileScoped: boolean;
+      undoRestored: boolean;
+      returnedToDark: boolean;
+    };
 
     await window.webContents.executeJavaScript(`(() => {
       const pages = [...document.querySelectorAll("button.library-row")]
@@ -1929,6 +2036,13 @@ export async function runPhaseNineSmoke(
         settingsPrivacyText: settingsDom.privacyText,
         restoreTabsEnabled: settingsDom.restoreTabsEnabled,
         nativeViewHidden: nativeViewHiddenForSettings,
+      },
+      themes: {
+        optionCount: settingsDom.themeOptionCount,
+        defaultTheme: settingsDom.activeTheme,
+        feltApplied: feltTheme.applied,
+        feltTextureVisible: feltTheme.textureVisible,
+        ...themeSmoke,
       },
       note: {
         vaultPath: shellProbe.vault.displayPath,

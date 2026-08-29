@@ -1,4 +1,12 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type {
   BrowserPrivacySummary,
   BrowserSnapshot,
@@ -40,9 +48,15 @@ import {
   reconcileRestoredSession,
 } from "./session-model";
 import {
+  type CustomThemePreferences,
+  DEFAULT_CUSTOM_THEME,
   DEFAULT_SETTINGS,
+  MAX_CUSTOM_THEME_NAME_LENGTH,
+  normalizeCustomTheme,
   parseSettingsPreferences,
   type SettingsPreferences,
+  THEME_CATALOG,
+  type ThemeId,
 } from "./settings-model";
 import {
   createDesktop,
@@ -56,7 +70,8 @@ import {
 
 const WORKSPACE_STORAGE_KEY = "lattice.workspace.v1";
 const SESSION_STORAGE_KEY = "lattice.session.v1";
-const SETTINGS_STORAGE_KEY = "lattice.settings.v1";
+const SETTINGS_STORAGE_KEY = "lattice.settings.v2";
+const LEGACY_SETTINGS_STORAGE_KEY = "lattice.settings.v1";
 const emptySnapshot: BrowserSnapshot = { activeTabId: "", tabs: [] };
 const emptyReferenceIndex: VaultReferenceIndex = {
   generatedAt: "",
@@ -108,6 +123,17 @@ const railItems: Array<{ id: Surface; label: string; icon: IconName }> = [
   { id: "apps", label: "Runnable apps", icon: "timer" },
   { id: "library", label: "Saved links", icon: "bookmark" },
   { id: "settings", label: "Settings", icon: "settings" },
+];
+
+const customThemeColorFields: Array<{
+  key: Exclude<keyof CustomThemePreferences, "name">;
+  label: string;
+}> = [
+  { key: "background", label: "Background" },
+  { key: "surface", label: "Cards" },
+  { key: "text", label: "Text" },
+  { key: "muted", label: "Muted text" },
+  { key: "accent", label: "Accent" },
 ];
 
 function displayHost(url: string): string {
@@ -164,13 +190,14 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 function loadProfileShellState(state: ProfileState, profileId: string): ProfileShellState {
+  const storedSettings =
+    readProfileStorage(localStorage, SETTINGS_STORAGE_KEY, state, profileId) ??
+    readProfileStorage(localStorage, LEGACY_SETTINGS_STORAGE_KEY, state, profileId);
   return {
     workspace: parseWorkspacePreferences(
       readProfileStorage(localStorage, WORKSPACE_STORAGE_KEY, state, profileId),
     ),
-    settings: parseSettingsPreferences(
-      readProfileStorage(localStorage, SETTINGS_STORAGE_KEY, state, profileId),
-    ),
+    settings: parseSettingsPreferences(storedSettings),
     focusIntention: parseFocusPreferences(
       readProfileStorage(localStorage, FOCUS_STORAGE_KEY, state, profileId),
     ).intention,
@@ -246,6 +273,8 @@ export function LatticeApp() {
   const canvasDirtyRef = useRef(false);
   const [workspace, setWorkspace] = useState<WorkspacePreferences>(DEFAULT_WORKSPACE);
   const [settings, setSettings] = useState<SettingsPreferences>(DEFAULT_SETTINGS);
+  const [customThemeDraft, setCustomThemeDraft] =
+    useState<CustomThemePreferences>(DEFAULT_CUSTOM_THEME);
   const [focusIntention, setFocusIntention] = useState("");
   const [runnableApps, setRunnableApps] = useState<RunnableAppsState>(DEFAULT_RUNNABLE_APPS_STATE);
   const [profileState, setProfileState] = useState<ProfileState | null>(null);
@@ -294,6 +323,22 @@ export function LatticeApp() {
   const [clearingData, setClearingData] = useState(false);
   const [confirmClearAvatar, setConfirmClearAvatar] = useState(false);
   const [recoveryNotice, setRecoveryNotice] = useState<RecoveryNotice | null>(null);
+
+  const customThemeDirty = useMemo(
+    () => JSON.stringify(customThemeDraft) !== JSON.stringify(settings.customTheme),
+    [customThemeDraft, settings.customTheme],
+  );
+  const previewCustomTheme =
+    settings.activeTheme === "custom" && surface === "settings"
+      ? customThemeDraft
+      : settings.customTheme;
+  const shellThemeStyle = {
+    "--custom-background": previewCustomTheme.background,
+    "--custom-surface": previewCustomTheme.surface,
+    "--custom-text": previewCustomTheme.text,
+    "--custom-muted": previewCustomTheme.muted,
+    "--custom-accent": previewCustomTheme.accent,
+  } as CSSProperties;
 
   const clearRecovery = () => {
     if (recoveryTimerRef.current !== null) window.clearTimeout(recoveryTimerRef.current);
@@ -506,6 +551,10 @@ export function LatticeApp() {
       localStorage.removeItem(profileStorageKey(SESSION_STORAGE_KEY, profileId));
     }
   }, [profileState, sessionReady, settings]);
+
+  useEffect(() => {
+    setCustomThemeDraft(settings.customTheme);
+  }, [settings.customTheme]);
 
   useEffect(() => {
     if (!profileState || !sessionReady) return;
@@ -1164,6 +1213,44 @@ export function LatticeApp() {
     offerRecovery(message, () => setSettings((current) => ({ ...current, restoreTabs: previous })));
   };
 
+  const selectTheme = (themeId: ThemeId) => {
+    if (themeId === settings.activeTheme) return;
+    const previous = settings;
+    const selected = THEME_CATALOG.find((theme) => theme.id === themeId);
+    const message = `${themeId === "custom" ? settings.customTheme.name : selected?.name} theme applied`;
+    setSettings({ ...settings, activeTheme: themeId });
+    setStatus(message);
+    offerRecovery(message, () => {
+      setSettings(previous);
+      setCustomThemeDraft(previous.customTheme);
+    });
+  };
+
+  const applyCustomTheme = () => {
+    const previous = settings;
+    const normalized = normalizeCustomTheme(customThemeDraft);
+    const next: SettingsPreferences = {
+      ...settings,
+      activeTheme: "custom",
+      customTheme: normalized,
+    };
+    setCustomThemeDraft(normalized);
+    setSettings(next);
+    const message = `${normalized.name} theme saved for this profile`;
+    setStatus(message);
+    offerRecovery(message, () => {
+      setSettings(previous);
+      setCustomThemeDraft(previous.customTheme);
+    });
+  };
+
+  const resetCustomThemeDraft = () => {
+    const previous = customThemeDraft;
+    setCustomThemeDraft(DEFAULT_CUSTOM_THEME);
+    setStatus("Custom palette reset in preview");
+    offerRecovery("Custom palette reset in preview", () => setCustomThemeDraft(previous));
+  };
+
   const clearWebsiteData = async () => {
     if (!confirmClearData) {
       setConfirmClearData(true);
@@ -1637,7 +1724,18 @@ export function LatticeApp() {
   }, []);
 
   return (
-    <div className={focusMode ? "lattice-shell focus-mode" : "lattice-shell"}>
+    <div
+      className={`lattice-shell${focusMode ? " focus-mode" : ""}${
+        settings.activeTheme === "lattice-dark" ? "" : " theme-adaptive"
+      }`}
+      data-theme={settings.activeTheme}
+      data-theme-name={
+        settings.activeTheme === "custom"
+          ? previewCustomTheme.name
+          : THEME_CATALOG.find((theme) => theme.id === settings.activeTheme)?.name
+      }
+      style={shellThemeStyle}
+    >
       <nav className="activity-rail" aria-label="Primary navigation">
         <button
           className="brand-mark"
@@ -2780,6 +2878,141 @@ export function LatticeApp() {
                     >
                       <span />
                     </button>
+                  </section>
+
+                  <section className="settings-card theme-settings-card" data-settings-theme>
+                    <div className="settings-card-icon violet">
+                      <Icon name="sparkle" />
+                    </div>
+                    <div className="settings-card-copy">
+                      <span className="settings-kicker">Appearance</span>
+                      <h2>Theme</h2>
+                      <p>
+                        Choose a calm built-in look or shape a named palette for this website
+                        profile. Theme changes never affect the pages you visit.
+                      </p>
+                    </div>
+                    <span className="settings-badge theme-current-badge" data-current-theme>
+                      {settings.activeTheme === "custom"
+                        ? settings.customTheme.name
+                        : THEME_CATALOG.find((theme) => theme.id === settings.activeTheme)?.name}
+                    </span>
+
+                    <fieldset className="theme-option-grid">
+                      <legend className="sr-only">Lattice theme</legend>
+                      {THEME_CATALOG.map((theme) => {
+                        const selected = settings.activeTheme === theme.id;
+                        const displayName =
+                          theme.id === "custom" ? settings.customTheme.name : theme.name;
+                        return (
+                          <button
+                            type="button"
+                            key={theme.id}
+                            className={selected ? "theme-option selected" : "theme-option"}
+                            data-theme-option={theme.id}
+                            aria-pressed={selected}
+                            onClick={() => selectTheme(theme.id)}
+                          >
+                            <span className={`theme-preview ${theme.id}`} aria-hidden="true">
+                              <i />
+                              <i />
+                              <i />
+                            </span>
+                            <span className="theme-option-copy">
+                              <strong>{displayName}</strong>
+                              <small>{theme.description}</small>
+                            </span>
+                            <span className="theme-selection-mark" aria-hidden="true">
+                              {selected && <Icon name="check" />}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </fieldset>
+
+                    {settings.activeTheme === "custom" && (
+                      <div className="custom-theme-editor" data-custom-theme-editor>
+                        <div className="custom-theme-heading">
+                          <div>
+                            <span className="settings-kicker">Named custom theme</span>
+                            <strong>Make it yours</strong>
+                          </div>
+                          <span
+                            className={
+                              customThemeDirty ? "theme-live-state dirty" : "theme-live-state"
+                            }
+                          >
+                            {customThemeDirty
+                              ? "Live preview · not saved"
+                              : "Saved for this profile"}
+                          </span>
+                        </div>
+
+                        <label className="custom-theme-name">
+                          <span>Theme name</span>
+                          <input
+                            type="text"
+                            maxLength={MAX_CUSTOM_THEME_NAME_LENGTH}
+                            value={customThemeDraft.name}
+                            onChange={(event) =>
+                              setCustomThemeDraft((current) => ({
+                                ...current,
+                                name: event.target.value,
+                              }))
+                            }
+                            aria-label="Custom theme name"
+                          />
+                        </label>
+
+                        <div className="custom-color-grid">
+                          {customThemeColorFields.map((field) => (
+                            <label key={field.key}>
+                              <span>{field.label}</span>
+                              <span className="custom-color-control">
+                                <input
+                                  type="color"
+                                  value={customThemeDraft[field.key]}
+                                  onChange={(event) =>
+                                    setCustomThemeDraft((current) => ({
+                                      ...current,
+                                      [field.key]: event.target.value,
+                                    }))
+                                  }
+                                  aria-label={`${field.label} color`}
+                                />
+                                <code>{customThemeDraft[field.key]}</code>
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+
+                        <div className="custom-theme-actions">
+                          <button
+                            type="button"
+                            className="settings-action primary"
+                            disabled={!customThemeDirty}
+                            onClick={applyCustomTheme}
+                          >
+                            Save custom theme
+                          </button>
+                          <button
+                            type="button"
+                            className="settings-action"
+                            disabled={!customThemeDirty}
+                            onClick={() => setCustomThemeDraft(settings.customTheme)}
+                          >
+                            Revert preview
+                          </button>
+                          <button
+                            type="button"
+                            className="settings-cancel"
+                            onClick={resetCustomThemeDraft}
+                          >
+                            Reset palette
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </section>
 
                   <section className="settings-card" data-settings-privacy>

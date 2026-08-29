@@ -2197,6 +2197,307 @@ kbd {
   font-weight: 650;
 }
 
+.theme-settings-card {
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.theme-current-badge {
+  align-self: center;
+  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.theme-option-grid,
+.custom-theme-editor {
+  grid-column: 1 / -1;
+}
+
+.theme-option-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 5px;
+  border: 0;
+  padding: 0;
+}
+
+.theme-option {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 58px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  padding: 9px;
+  color: var(--muted);
+  text-align: left;
+  transition:
+    border-color 150ms ease,
+    transform 150ms ease,
+    background 150ms ease;
+}
+
+.theme-option:hover {
+  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  background: var(--surface-2);
+  transform: translateY(-1px);
+}
+
+.theme-option.selected {
+  border-color: color-mix(in srgb, var(--accent) 62%, transparent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.theme-preview {
+  position: relative;
+  display: block;
+  width: 58px;
+  height: 42px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 8px;
+  background: #0b0b10;
+  box-shadow: 0 5px 13px rgba(0, 0, 0, 0.18);
+}
+
+.theme-preview::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 12px;
+  background: #17171f;
+  content: "";
+}
+
+.theme-preview i {
+  position: absolute;
+  left: 18px;
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  background: #8b7cf6;
+}
+
+.theme-preview i:nth-child(1) {
+  top: 9px;
+  width: 27px;
+}
+
+.theme-preview i:nth-child(2) {
+  top: 18px;
+  width: 20px;
+  background: #797886;
+}
+
+.theme-preview i:nth-child(3) {
+  top: 27px;
+  width: 31px;
+  background: #242430;
+}
+
+.theme-preview.paper-felt {
+  border-color: rgba(72, 59, 43, 0.19);
+  background:
+    repeating-linear-gradient(11deg, rgba(91, 74, 54, 0.035) 0 1px, transparent 1px 5px), #e8dfd0;
+}
+
+.theme-preview.paper-felt::before {
+  background: rgba(214, 201, 181, 0.9);
+}
+
+.theme-preview.paper-felt i:nth-child(1) {
+  background: #6d5bc6;
+}
+
+.theme-preview.paper-felt i:nth-child(2) {
+  background: #776e63;
+}
+
+.theme-preview.paper-felt i:nth-child(3) {
+  background: #cfc1ad;
+}
+
+.theme-preview.custom {
+  border-color: color-mix(in srgb, var(--custom-text) 18%, transparent);
+  background: var(--custom-background);
+}
+
+.theme-preview.custom::before,
+.theme-preview.custom i:nth-child(3) {
+  background: var(--custom-surface);
+}
+
+.theme-preview.custom i:nth-child(1) {
+  background: var(--custom-accent);
+}
+
+.theme-preview.custom i:nth-child(2) {
+  background: var(--custom-muted);
+}
+
+.theme-option-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.theme-option-copy strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 9px;
+  font-weight: 670;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-option-copy small {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 7px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.theme-selection-mark {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  color: white;
+}
+
+.theme-option.selected .theme-selection-mark {
+  border-color: transparent;
+  background: var(--accent);
+}
+
+.theme-selection-mark svg {
+  width: 11px;
+  height: 11px;
+}
+
+.custom-theme-editor {
+  display: grid;
+  gap: 13px;
+  margin-top: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+  padding: 14px;
+}
+
+.custom-theme-heading,
+.custom-theme-actions,
+.custom-color-control {
+  display: flex;
+  align-items: center;
+}
+
+.custom-theme-heading {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.custom-theme-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.custom-theme-heading strong {
+  color: var(--text);
+  font-size: 11px;
+}
+
+.theme-live-state {
+  border: 1px solid color-mix(in srgb, var(--green) 25%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--green) 8%, transparent);
+  padding: 5px 8px;
+  color: var(--green);
+  font-size: 7px;
+  font-weight: 650;
+}
+
+.theme-live-state.dirty {
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.custom-theme-name,
+.custom-color-grid > label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 620;
+}
+
+.custom-theme-name input {
+  height: 34px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 0 10px;
+  outline: 0;
+  color: var(--text);
+}
+
+.custom-color-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.custom-color-control {
+  height: 34px;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 4px 7px;
+}
+
+.custom-color-control input {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0;
+}
+
+.custom-color-control input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.custom-color-control input::-webkit-color-swatch {
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+}
+
+.custom-color-control code {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 7px;
+  text-overflow: ellipsis;
+}
+
+.custom-theme-actions {
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
 .empty-library > div {
   display: flex;
   gap: 8px;
@@ -5826,4 +6127,288 @@ kbd {
 .lattice-shell.focus-mode > .activity-rail,
 .lattice-shell.focus-mode > .workspace-panel {
   display: none;
+}
+
+/* Theme contract: built-ins and future named themes only need to resolve these semantic tokens. */
+.lattice-shell[data-theme="paper-felt"] {
+  color-scheme: light;
+  --bg: #e8dfd0;
+  --rail: rgba(218, 207, 190, 0.92);
+  --panel: rgba(239, 232, 220, 0.9);
+  --surface: rgba(249, 245, 237, 0.91);
+  --surface-2: rgba(236, 227, 214, 0.92);
+  --surface-3: #d9ccb8;
+  --canvas: #eee6da;
+  --field: rgba(255, 252, 246, 0.92);
+  --line: rgba(61, 50, 38, 0.12);
+  --line-strong: rgba(61, 50, 38, 0.2);
+  --text: #2b2722;
+  --muted: #71685d;
+  --subtle: #8e8375;
+  --accent: #6755be;
+  --accent-strong: #5544ab;
+  --accent-soft: rgba(103, 85, 190, 0.13);
+  --green: #367c5e;
+  --shadow: 0 20px 60px rgba(71, 56, 38, 0.16);
+  --theme-texture:
+    repeating-linear-gradient(
+      14deg,
+      rgba(79, 62, 43, 0.025) 0,
+      rgba(79, 62, 43, 0.025) 1px,
+      transparent 1px,
+      transparent 5px
+    ),
+    repeating-linear-gradient(
+      98deg,
+      rgba(255, 255, 255, 0.13) 0,
+      rgba(255, 255, 255, 0.13) 1px,
+      transparent 1px,
+      transparent 7px
+    ),
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.36), transparent 36%);
+}
+
+.lattice-shell[data-theme="custom"] {
+  --bg: var(--custom-background);
+  --rail: color-mix(in srgb, var(--custom-background) 88%, var(--custom-surface));
+  --panel: color-mix(in srgb, var(--custom-background) 72%, var(--custom-surface));
+  --surface: var(--custom-surface);
+  --surface-2: color-mix(in srgb, var(--custom-text) 6%, var(--custom-surface));
+  --surface-3: color-mix(in srgb, var(--custom-text) 12%, var(--custom-surface));
+  --canvas: color-mix(in srgb, var(--custom-background) 82%, var(--custom-surface));
+  --field: color-mix(in srgb, var(--custom-background) 58%, var(--custom-surface));
+  --line: color-mix(in srgb, var(--custom-text) 9%, transparent);
+  --line-strong: color-mix(in srgb, var(--custom-text) 16%, transparent);
+  --text: var(--custom-text);
+  --muted: var(--custom-muted);
+  --subtle: color-mix(in srgb, var(--custom-muted) 74%, var(--custom-background));
+  --accent: var(--custom-accent);
+  --accent-strong: color-mix(in srgb, var(--custom-accent) 88%, var(--custom-text));
+  --accent-soft: color-mix(in srgb, var(--custom-accent) 16%, transparent);
+  --green: color-mix(in srgb, #75d4a8 72%, var(--custom-accent));
+  --shadow: 0 20px 60px color-mix(in srgb, var(--custom-background) 62%, transparent);
+  --theme-texture: radial-gradient(
+    circle at 18% 10%,
+    color-mix(in srgb, var(--custom-accent) 8%, transparent),
+    transparent 38%
+  );
+}
+
+.lattice-shell.theme-adaptive {
+  background-color: var(--bg);
+  background-image: var(--theme-texture);
+  color: var(--text);
+}
+
+.lattice-shell.theme-adaptive .activity-rail,
+.lattice-shell.theme-adaptive .workspace-panel,
+.lattice-shell.theme-adaptive .content-shell,
+.lattice-shell.theme-adaptive .tab-strip,
+.lattice-shell.theme-adaptive .browser-toolbar,
+.lattice-shell.theme-adaptive .surface-toolbar,
+.lattice-shell.theme-adaptive .status-bar {
+  border-color: var(--line);
+  background-color: var(--panel);
+  color: var(--text);
+}
+
+.lattice-shell.theme-adaptive .activity-rail {
+  background-color: var(--rail);
+}
+
+.lattice-shell.theme-adaptive .content-shell {
+  background-color: var(--bg);
+}
+
+.lattice-shell.theme-adaptive .tab-strip,
+.lattice-shell.theme-adaptive .web-stage {
+  background: var(--canvas);
+}
+
+.lattice-shell.theme-adaptive .trusted-surface {
+  background-color: var(--canvas);
+  background-image:
+    radial-gradient(
+      circle at 50% 8%,
+      color-mix(in srgb, var(--accent) 9%, transparent),
+      transparent 34%
+    ),
+    var(--theme-texture);
+  scrollbar-color: var(--subtle) var(--canvas);
+}
+
+.lattice-shell.theme-adaptive .trusted-surface::-webkit-scrollbar-track {
+  background: var(--canvas);
+}
+
+.lattice-shell.theme-adaptive .trusted-surface::-webkit-scrollbar-thumb {
+  border-color: var(--canvas);
+  background: var(--subtle);
+}
+
+.lattice-shell.theme-adaptive
+  :where(
+    .profile-menu,
+    .workspace-menu,
+    .browser-actions-menu,
+    .command-palette,
+    .capture-panel,
+    .run-correction-form,
+    .wealth-correction-form,
+    .idea-correction-form,
+    .snapshot-correction-form
+  ) {
+  border-color: var(--line-strong);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  box-shadow: var(--shadow);
+  color: var(--text);
+}
+
+.lattice-shell.theme-adaptive
+  :where(
+    .panel-search,
+    .desktop-item,
+    .library-row,
+    .browser-tab,
+    .settings-card,
+    .link-card,
+    .resume-card,
+    .quick-card,
+    .canvas-create-form,
+    .canvas-page-card,
+    .canvas-object,
+    .app-catalog-item,
+    .pomodoro-card,
+    .run-history,
+    .daily-capture,
+    .now-card,
+    .daily-flow-list,
+    .journal-item,
+    .wealth-metrics,
+    .wealth-goals-card,
+    .wealth-next-move,
+    .wealth-net-worth-card,
+    .wealth-entry-form,
+    .wealth-entry,
+    .earning-idea-form,
+    .earning-idea,
+    .net-worth-form,
+    .net-worth-history > article
+  ) {
+  border-color: var(--line);
+  background-color: color-mix(in srgb, var(--surface) 91%, transparent);
+}
+
+.lattice-shell.lattice-shell.theme-adaptive
+  :where(input:not([type="color"]), textarea, select, .omnibox, .custom-color-control) {
+  border-color: var(--line-strong);
+  background-color: var(--field);
+  color: var(--text);
+}
+
+.lattice-shell.lattice-shell.theme-adaptive :where(h1, h2, h3, h4, strong, b) {
+  color: var(--text);
+}
+
+.lattice-shell.lattice-shell.theme-adaptive
+  :where(p, small, time, q, label, .eyebrow, .settings-kicker) {
+  color: var(--muted);
+}
+
+.lattice-shell.theme-adaptive
+  :where(
+    .rail-button,
+    .icon-button,
+    .navigation-row,
+    .library-row,
+    .desktop-item,
+    .browser-tab,
+    .new-tab-button,
+    .focus-toolbar-button,
+    .surface-toolbar-actions button,
+    .focus-session-actions button,
+    .save-page-button,
+    .settings-action,
+    .settings-cancel,
+    .canvas-back,
+    .canvas-toolbar button,
+    .app-catalog-item,
+    .daily-flow-tabs button,
+    .wealth-lab-tabs button
+  ) {
+  color: var(--muted);
+}
+
+.lattice-shell.theme-adaptive
+  :where(
+    .rail-button:hover,
+    .icon-button:hover,
+    .navigation-row:hover,
+    .library-row:hover,
+    .desktop-item:hover,
+    .browser-tab:hover,
+    .focus-toolbar-button:hover,
+    .surface-toolbar-actions button:hover,
+    .save-page-button:hover
+  ) {
+  background-color: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--text);
+}
+
+.lattice-shell.theme-adaptive
+  :where(
+    .rail-button.active,
+    .navigation-row.active,
+    .library-row.active,
+    .desktop-item.active,
+    .browser-tab.active,
+    .app-catalog-item.active,
+    .daily-flow-tabs button.active,
+    .wealth-lab-tabs button.active,
+    .theme-option.selected
+  ) {
+  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  background-color: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.lattice-shell.theme-adaptive
+  :where(
+    .primary-action,
+    .settings-action.primary,
+    .canvas-save.dirty,
+    .pomodoro-starter button[type="submit"],
+    .daily-capture > button,
+    .wealth-entry-form > button,
+    .earning-idea-form > button,
+    .net-worth-form > button
+  ) {
+  border-color: transparent;
+  background: var(--accent);
+  color: white;
+}
+
+.lattice-shell.theme-adaptive .profile-menu-backdrop,
+.lattice-shell.theme-adaptive .command-backdrop {
+  background: color-mix(in srgb, var(--bg) 52%, transparent);
+}
+
+.lattice-shell[data-theme="paper-felt"] :where(.activity-rail, .workspace-panel) {
+  background-image: var(--theme-texture);
+  background-blend-mode: soft-light;
+}
+
+.lattice-shell[data-theme="paper-felt"] .brand-mark {
+  border-color: rgba(72, 59, 43, 0.18);
+  box-shadow: 0 8px 22px rgba(79, 62, 43, 0.14);
+}
+
+@media (max-width: 1180px) {
+  .theme-option-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .custom-color-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }

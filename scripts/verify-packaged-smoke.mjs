@@ -453,6 +453,20 @@ if (
 if (!evidence.privacy.nativeViewHidden) {
   failures.push("native website view remained visible beneath trusted Settings");
 }
+if (
+  evidence.themes?.optionCount !== 3 ||
+  evidence.themes?.defaultTheme !== "lattice-dark" ||
+  !evidence.themes?.feltApplied ||
+  !evidence.themes?.feltTextureVisible ||
+  evidence.themes?.customName !== "Smoke Aubergine" ||
+  !evidence.themes?.customApplied ||
+  !evidence.themes?.customPersisted ||
+  !evidence.themes?.customProfileScoped ||
+  !evidence.themes?.undoRestored ||
+  !evidence.themes?.returnedToDark
+) {
+  failures.push("profile-scoped Dark, Paper Felt, or named Custom theme workflow failed");
+}
 if (!evidence.note.disposableVault) failures.push("note was not written to a disposable vault");
 if (!evidence.note.obsidianDirectoryPresent)
   failures.push("disposable vault had no .obsidian marker directory");

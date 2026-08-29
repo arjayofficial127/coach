@@ -424,6 +424,20 @@ if (
 ) {
   smokeFailures.push("installed JSON Canvas page workflow failed");
 }
+if (
+  smoke.themes?.optionCount !== 3 ||
+  smoke.themes?.defaultTheme !== "lattice-dark" ||
+  !smoke.themes?.feltApplied ||
+  !smoke.themes?.feltTextureVisible ||
+  smoke.themes?.customName !== "Smoke Aubergine" ||
+  !smoke.themes?.customApplied ||
+  !smoke.themes?.customPersisted ||
+  !smoke.themes?.customProfileScoped ||
+  !smoke.themes?.undoRestored ||
+  !smoke.themes?.returnedToDark
+) {
+  smokeFailures.push("installed theme selection, customization, persistence, or Undo failed");
+}
 if (smokeFailures.length > 0) {
   throw new Error(`Installed application smoke failed:\n- ${smokeFailures.join("\n- ")}`);
 }
