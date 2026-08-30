@@ -1702,6 +1702,32 @@ kbd {
   gap: 3px;
 }
 
+.dashboard-toolbar-customize {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  padding: 0 13px;
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.dashboard-toolbar-customize:hover,
+.dashboard-toolbar-customize[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.dashboard-toolbar-customize svg {
+  width: 14px;
+  height: 14px;
+}
+
 .surface-back {
   display: inline-flex;
   height: 31px;

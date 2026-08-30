@@ -359,6 +359,7 @@ export function LatticeApp() {
   const [profileName, setProfileName] = useState("");
   const [profileBusy, setProfileBusy] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  const [dashboardCustomizing, setDashboardCustomizing] = useState(false);
   const [requestedCanvasPageId, setRequestedCanvasPageId] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<BrowserSnapshot>(emptySnapshot);
   const [tabDesktops, setTabDesktops] = useState<Record<string, string>>({});
@@ -3228,27 +3229,43 @@ export function LatticeApp() {
                   }
                 />
                 <span>
-                  <strong>{surfaceDetails[surface].label}</strong>
-                  <small>{surfaceDetails[surface].description}</small>
+                  <strong>
+                    {surface === "dashboard"
+                      ? `Dashboard — ${activeDesktop?.name ?? "Desktop 1"}`
+                      : surfaceDetails[surface].label}
+                  </strong>
+                  {surface !== "dashboard" && <small>{surfaceDetails[surface].description}</small>}
                 </span>
               </span>
             </div>
-            <div className="surface-toolbar-actions">
-              <button type="button" onClick={() => void showBrowser()}>
-                <Icon name="globe" />
-                Browse
-              </button>
+            {surface === "dashboard" ? (
               <button
                 type="button"
-                className="focus-toolbar-button"
-                aria-pressed={focusMode}
-                onClick={toggleDistractionFree}
+                className="dashboard-toolbar-customize"
+                aria-expanded={dashboardCustomizing}
+                onClick={() => setDashboardCustomizing((open) => !open)}
               >
-                <Icon name="sparkle" />
-                Focus view
-                <kbd>⌃⇧F</kbd>
+                <Icon name="settings" />
+                Customize
               </button>
-            </div>
+            ) : (
+              <div className="surface-toolbar-actions">
+                <button type="button" onClick={() => void showBrowser()}>
+                  <Icon name="globe" />
+                  Browse
+                </button>
+                <button
+                  type="button"
+                  className="focus-toolbar-button"
+                  aria-pressed={focusMode}
+                  onClick={toggleDistractionFree}
+                >
+                  <Icon name="sparkle" />
+                  Focus view
+                  <kbd>⌃⇧F</kbd>
+                </button>
+              </div>
+            )}
           </header>
         )}
 
@@ -3456,6 +3473,8 @@ export function LatticeApp() {
               <DashboardSurface
                 greeting={greeting}
                 desktopName={activeDesktop?.name ?? "Workspace"}
+                customizing={dashboardCustomizing}
+                onCustomizingChange={setDashboardCustomizing}
                 openTabs={desktopTabs}
                 activeTabId={snapshot.activeTabId}
                 tabPreviews={dashboardTabPreviews}

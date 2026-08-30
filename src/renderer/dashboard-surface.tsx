@@ -196,6 +196,8 @@ interface DashboardSurfaceProps {
   onOpenApp: (id: RunnableAppId) => void;
   onOpenCanvas: (id: string) => void;
   onSearchTabContents: (tabIds: string[], query: string) => Promise<string[]>;
+  customizing: boolean;
+  onCustomizingChange: (open: boolean) => void;
 }
 
 function displayHost(url: string) {
@@ -285,9 +287,11 @@ export function DashboardSurface({
   onOpenApp,
   onOpenCanvas,
   onSearchTabContents,
+  customizing,
+  onCustomizingChange,
 }: DashboardSurfaceProps) {
   const initialPreferences = useMemo(readPreferences, []);
-  const [customizing, setCustomizing] = useState(false);
+  const setCustomizing = onCustomizingChange;
   const [searchSettingsOpen, setSearchSettingsOpen] = useState(false);
   const searchSettingsRef = useRef<HTMLDivElement>(null);
   const [sectionOverflowOpen, setSectionOverflowOpen] = useState(false);
@@ -592,7 +596,7 @@ export function DashboardSurface({
         {activeSection !== "overview" && sectionHeader("message", "Custom message", sectionCounts.message)}
         <span className="dashboard-widget-kicker">{greeting}</span>
         <h2>{headline}</h2>
-        <p>{message}</p>
+        <p>{message.trim() || "Review what matters across your workspace"}</p>
       </article>
     ),
     "recently-closed": (
@@ -787,9 +791,6 @@ export function DashboardSurface({
             <h1>Your workspace at a glance.</h1>
           )}
         </div>
-        <button type="button" onClick={() => setCustomizing((value) => !value)}>
-          <Icon name="settings" /> Customize
-        </button>
       </header>
 
       <div ref={searchSettingsRef} className="dashboard-global-search">
