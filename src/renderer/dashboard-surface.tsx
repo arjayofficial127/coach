@@ -724,15 +724,17 @@ export function DashboardSurface({
           aria-label={`Search ${desktopName}`}
           onChange={(event) => setSearchQuery(event.target.value)}
         />
-        {contentSearchPending && <span className="dashboard-searching">Searching pages…</span>}
-        <button
-          type="button"
-          aria-label="Search filters"
-          aria-expanded={searchSettingsOpen}
-          onClick={() => setSearchSettingsOpen((value) => !value)}
-        >
-          <Icon name="filter" />
-        </button>
+        <div className="dashboard-search-actions">
+          {contentSearchPending && <span className="dashboard-searching">Searching pages…</span>}
+          <button
+            type="button"
+            aria-label="Search filters"
+            aria-expanded={searchSettingsOpen}
+            onClick={() => setSearchSettingsOpen((value) => !value)}
+          >
+            <Icon name="filter" />
+          </button>
+        </div>
         {searchSettingsOpen && (
           <aside className="dashboard-search-settings">
             <strong>Search settings</strong>
