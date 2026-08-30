@@ -448,8 +448,6 @@ export function DashboardSurface({
     ...order.filter((id) => id !== "highlights" && enabled[id]),
   ];
   const expanded = activeSection !== "overview";
-  const visibleSelectedTab =
-    filteredOpenTabs.find((tab) => tab.id === selectedTab?.id) ?? filteredOpenTabs[0] ?? null;
   const displayedOpenTabs = expanded
     ? orderedOpenTabs
     : orderedOpenTabs.slice(0, OVERVIEW_OPEN_TAB_LIMIT);
@@ -938,40 +936,6 @@ export function DashboardSurface({
             ))}
           </div>
         </section>
-      )}
-
-      {(activeSection === "overview" || activeSection === "open-tabs") && visibleSelectedTab && (
-        <aside className="dashboard-tab-detail">
-          {tabPreviews[visibleSelectedTab.id] && (
-            <img
-              className="dashboard-tab-detail-preview"
-              src={tabPreviews[visibleSelectedTab.id]}
-              alt=""
-            />
-          )}
-          <SiteIcon
-            url={visibleSelectedTab.url}
-            title={visibleSelectedTab.title || "New tab"}
-            icons={siteIcons}
-            explicitIcon={visibleSelectedTab.siteIconDataUrl}
-          />
-          <div>
-            <strong>{visibleSelectedTab.title || "New tab"}</strong>
-            <small>
-              {visibleSelectedTab.url === "about:blank" ? "Blank tab" : visibleSelectedTab.url}
-            </small>
-          </div>
-          <button
-            type="button"
-            onClick={() => toggleHighlight(visibleSelectedTab.url)}
-            aria-label="Toggle highlight"
-          >
-            {highlightedUrls.includes(visibleSelectedTab.url) ? "★ Highlighted" : "☆ Highlight"}
-          </button>
-          <button type="button" onClick={() => onOpenTab(visibleSelectedTab)}>
-            Open tab
-          </button>
-        </aside>
       )}
 
       <section className="dashboard-widget-grid">
