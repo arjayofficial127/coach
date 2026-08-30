@@ -9200,6 +9200,34 @@ kbd {
   user-select: none;
 }
 
+.dashboard-preview-state {
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
+}
+
+.dashboard-preview-state.loading::before {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 0 auto 7px;
+  border: 2px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  content: "";
+  animation: dashboard-preview-spin 700ms linear infinite;
+}
+
+.dashboard-preview-state.failed {
+  color: var(--subtle);
+}
+
+@keyframes dashboard-preview-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .dashboard-tab-name {
   display: grid;
   min-width: 0;

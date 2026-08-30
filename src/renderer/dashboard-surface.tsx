@@ -160,6 +160,7 @@ interface DashboardSurfaceProps {
   openTabs: BrowserState[];
   activeTabId: string;
   tabPreviews: Record<string, string>;
+  tabPreviewStatuses: Record<string, "loading" | "ready" | "failed">;
   recentlyClosed: DashboardClosedTab[];
   history: DashboardHistoryItem[];
   savedLinks: SavedLinkRecord[];
@@ -248,6 +249,7 @@ export function DashboardSurface({
   openTabs,
   activeTabId,
   tabPreviews,
+  tabPreviewStatuses,
   recentlyClosed,
   history,
   savedLinks,
@@ -859,6 +861,10 @@ export function DashboardSurface({
                 <span className="dashboard-tab-preview">
                   {tabPreviews[tab.id] ? (
                     <img src={tabPreviews[tab.id]} alt="" />
+                  ) : tabPreviewStatuses[tab.id] === "loading" ? (
+                    <span className="dashboard-preview-state loading">Loading preview…</span>
+                  ) : tabPreviewStatuses[tab.id] === "failed" ? (
+                    <span className="dashboard-preview-state failed">Preview unavailable</span>
                   ) : (
                     <Icon name={tab.url === "about:blank" ? "sparkle" : "globe"} />
                   )}

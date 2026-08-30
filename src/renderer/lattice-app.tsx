@@ -371,6 +371,9 @@ export function LatticeApp() {
   const [recentlyClosedTabs, setRecentlyClosedTabs] = useState<DashboardClosedTab[]>([]);
   const [browserHistory, setBrowserHistory] = useState<DashboardHistoryItem[]>([]);
   const [dashboardTabPreviews, setDashboardTabPreviews] = useState<Record<string, string>>({});
+  const [dashboardTabPreviewStatuses, setDashboardTabPreviewStatuses] = useState<
+    Record<string, "loading" | "ready" | "failed">
+  >({});
   const [referenceIndex, setReferenceIndex] = useState<VaultReferenceIndex>(emptyReferenceIndex);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [captureDescription, setCaptureDescription] = useState("");
@@ -595,27 +598,34 @@ export function LatticeApp() {
     if (surface !== "dashboard") return;
     let cancelled = false;
     const previewTabs = desktopTabs;
-    const capture = async () => {
-      const entries = await Promise.all(
-        previewTabs.map(
-          async (tab) => [tab.id, await window.lattice.browser.captureTabPreview(tab.id)] as const,
-        ),
-      );
-      if (cancelled) return;
-      setDashboardTabPreviews((current) => ({
-        ...current,
-        ...Object.fromEntries(
-          entries.filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
-        ),
-      }));
-    };
-    void capture();
-    const retries = [700, 1_800, 3_500].map((delay) =>
-      window.setTimeout(() => void capture(), delay),
-    );
+    const alreadyCaptured = new Set(Object.keys(dashboardTabPreviews));
+    void (async () => {
+      for (const tab of previewTabs) {
+        if (cancelled) return;
+        if (alreadyCaptured.has(tab.id)) {
+          setDashboardTabPreviewStatuses((current) => ({ ...current, [tab.id]: "ready" }));
+          continue;
+        }
+        setDashboardTabPreviewStatuses((current) => ({ ...current, [tab.id]: "loading" }));
+        try {
+          const preview = await window.lattice.browser.captureTabPreview(tab.id);
+          if (cancelled) return;
+          if (preview) {
+            alreadyCaptured.add(tab.id);
+            setDashboardTabPreviews((current) => ({ ...current, [tab.id]: preview }));
+            setDashboardTabPreviewStatuses((current) => ({ ...current, [tab.id]: "ready" }));
+          } else {
+            setDashboardTabPreviewStatuses((current) => ({ ...current, [tab.id]: "failed" }));
+          }
+        } catch {
+          if (!cancelled) {
+            setDashboardTabPreviewStatuses((current) => ({ ...current, [tab.id]: "failed" }));
+          }
+        }
+      }
+    })();
     return () => {
       cancelled = true;
-      retries.forEach((retry) => window.clearTimeout(retry));
     };
   }, [desktopTabs, surface]);
   const filteredLinks = useMemo(() => {
@@ -3428,6 +3438,7 @@ export function LatticeApp() {
                 openTabs={desktopTabs}
                 activeTabId={snapshot.activeTabId}
                 tabPreviews={dashboardTabPreviews}
+                tabPreviewStatuses={dashboardTabPreviewStatuses}
                 recentlyClosed={recentlyClosedTabs.filter(
                   (item) => item.desktopId === workspace.activeDesktopId,
                 )}
