@@ -8882,7 +8882,33 @@ kbd {
 }
 
 .dashboard-v2-header {
-  margin-bottom: 18px;
+  position: relative;
+  display: block;
+  margin-bottom: 20px;
+}
+
+.dashboard-hero-content {
+  min-width: 0;
+}
+
+.dashboard-v2-header .dashboard-eyebrow {
+  margin: 0 0 11px 2px;
+}
+
+.dashboard-v2-header .dashboard-message-widget {
+  min-height: 276px;
+  width: 100%;
+  box-sizing: border-box;
+  border-color: color-mix(in srgb, var(--accent) 16%, var(--line));
+  border-radius: 24px;
+  padding: 25px clamp(24px, 4vw, 46px) 30px;
+  background:
+    radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 37%),
+    radial-gradient(circle at 72% 100%, color-mix(in srgb, var(--accent-soft) 78%, transparent), transparent 44%),
+    linear-gradient(136deg, color-mix(in srgb, var(--surface) 94%, white), color-mix(in srgb, var(--accent-soft) 38%, var(--surface)));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 72%, transparent),
+    0 20px 48px color-mix(in srgb, var(--text) 8%, transparent);
 }
 
 .dashboard-eyebrow {
@@ -9078,6 +9104,26 @@ kbd {
   background: var(--surface);
   padding: 0 12px;
   color: var(--text);
+}
+
+.dashboard-v2-header > button {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: 0;
+  min-height: 38px;
+  border-color: color-mix(in srgb, var(--line) 82%, white);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  padding: 0 14px;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 72%, transparent),
+    0 8px 22px color-mix(in srgb, var(--text) 6%, transparent);
+  backdrop-filter: blur(16px) saturate(1.15);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .dashboard-v2-header > button:hover,
@@ -9587,25 +9633,32 @@ kbd {
 }
 
 .dashboard-message-widget h2 {
-  max-width: 360px;
-  margin: 10px 0;
-  font-family: Georgia, serif;
-  font-size: clamp(28px, 3vw, 44px);
+  max-width: 560px;
+  margin: 11px 0 13px;
+  font-family: ui-serif, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-size: clamp(30px, 3.2vw, 48px);
+  font-weight: 600;
   letter-spacing: -0.055em;
+  line-height: 0.98;
 }
 
 .dashboard-message-widget p {
-  max-width: 360px;
+  max-width: 480px;
   margin: 0;
   color: var(--muted);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  font-size: 16px;
+  font-weight: 450;
+  letter-spacing: -0.012em;
   line-height: 1.55;
 }
 
 .dashboard-widget-kicker {
   color: var(--accent-strong);
-  font-size: 9px;
-  font-weight: 750;
-  letter-spacing: 0.12em;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
 }
 

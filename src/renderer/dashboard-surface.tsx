@@ -699,7 +699,7 @@ export function DashboardSurface({
   return (
     <div className="trusted-surface dashboard-surface-v2">
       <header className="dashboard-v2-header">
-        <div>
+        <div className="dashboard-hero-content">
           <span className="eyebrow dashboard-eyebrow">
             <Icon name="desktop" />
             <span>Overview · {desktopName}</span>
