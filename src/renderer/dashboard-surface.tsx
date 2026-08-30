@@ -704,7 +704,11 @@ export function DashboardSurface({
             <Icon name="desktop" />
             <span>Overview · {desktopName}</span>
           </span>
-          <h1>Your workspace at a glance.</h1>
+          {activeSection === "overview" && enabled.message ? (
+            widgets.message
+          ) : (
+            <h1>Your workspace at a glance.</h1>
+          )}
         </div>
         <button type="button" onClick={() => setCustomizing((value) => !value)}>
           <Icon name="settings" /> Customize
@@ -943,6 +947,7 @@ export function DashboardSurface({
           .filter(
             (id) =>
               id !== "highlights" &&
+              !(id === "message" && activeSection === "overview") &&
               enabled[id] &&
               (activeSection === "overview"
                 ? !normalizedQuery || sectionCounts[id] > 0
