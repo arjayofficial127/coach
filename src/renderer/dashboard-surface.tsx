@@ -142,6 +142,8 @@ const SECTION_ICONS: Record<DashboardSectionId, IconName> = {
   "canvas-pages": "folder",
 };
 
+const OVERVIEW_OPEN_TAB_LIMIT = 5;
+
 interface DashboardSurfaceProps {
   greeting: string;
   desktopName: string;
@@ -419,7 +421,9 @@ export function DashboardSurface({
   const expanded = activeSection !== "overview";
   const visibleSelectedTab =
     filteredOpenTabs.find((tab) => tab.id === selectedTab?.id) ?? filteredOpenTabs[0] ?? null;
-  const displayedOpenTabs = expanded ? filteredOpenTabs : filteredOpenTabs.slice(0, 5);
+  const displayedOpenTabs = expanded
+    ? filteredOpenTabs
+    : filteredOpenTabs.slice(0, OVERVIEW_OPEN_TAB_LIMIT);
 
   const sectionHeader = (id: DashboardWidgetId, title: string, count: number) => (
     <header className="dashboard-section-header">
