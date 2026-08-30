@@ -9268,27 +9268,58 @@ kbd {
   text-align: center;
 }
 
-.dashboard-tab-strip > .dashboard-new-tab-inline,
-.dashboard-tab-list > .dashboard-new-tab-inline {
+.dashboard-new-tab-header {
+  position: relative;
+  width: 25px;
+  height: 24px;
   display: grid;
-  min-width: 44px;
-  min-height: 44px;
   place-items: center;
-  border: 1px dashed color-mix(in srgb, var(--accent) 42%, var(--line));
-  border-radius: 12px;
-  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--canvas);
   color: var(--accent-strong);
 }
 
-.dashboard-tab-strip > .dashboard-new-tab-inline:hover,
-.dashboard-tab-list > .dashboard-new-tab-inline:hover {
-  border-style: solid;
-  background: color-mix(in srgb, var(--accent-soft) 75%, var(--surface));
+.dashboard-new-tab-header:hover {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--line));
+  background: var(--accent-soft);
 }
 
-.dashboard-new-tab-inline svg {
-  width: 18px;
-  height: 18px;
+.dashboard-new-tab-header svg {
+  width: 16px;
+  height: 16px;
+}
+
+.dashboard-tab-view-toggle {
+  position: relative;
+}
+
+.dashboard-tab-view-toggle::after {
+  position: absolute;
+  z-index: 4;
+  top: calc(100% + 7px);
+  right: 0;
+  width: max-content;
+  max-width: 190px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--text) 14%, transparent);
+  padding: 6px 8px;
+  color: var(--muted);
+  content: "Switch between grid and list views";
+  font-size: 10px;
+  line-height: 1.2;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-3px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.dashboard-tab-view-toggle:hover::after,
+.dashboard-tab-view-toggle:focus-within::after {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .dashboard-tab-tools {

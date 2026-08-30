@@ -754,6 +754,14 @@ export function DashboardSurface({
               Open tabs
             </button>
             <div className="dashboard-tab-tools">
+              <button
+                className="dashboard-new-tab-header"
+                type="button"
+                onClick={onNewTab}
+                aria-label="Open new tab"
+              >
+                <Icon name="plus" />
+              </button>
               <div className="dashboard-tab-view-toggle">
                 <button
                   type="button"
@@ -787,14 +795,6 @@ export function DashboardSurface({
             </div>
           </header>
           <div className={tabViewMode === "grid" ? "dashboard-tab-strip" : "dashboard-tab-list"}>
-            <button
-              className="dashboard-new-tab-inline"
-              type="button"
-              onClick={onNewTab}
-              aria-label="Open new tab"
-            >
-              <Icon name="plus" />
-            </button>
             {displayedOpenTabs.map((tab) => (
               <button
                 className={`dashboard-tab-card ${tab.id === selectedTab?.id ? "selected" : ""}`}
