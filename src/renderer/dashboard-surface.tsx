@@ -14,6 +14,7 @@ export interface DashboardHistoryItem {
   title: string;
   url: string;
   visitedAt: string;
+  siteIconDataUrl?: string | null;
 }
 
 type DashboardWidgetId =
@@ -117,6 +118,7 @@ interface DashboardSurfaceProps {
   desktopName: string;
   openTabs: BrowserState[];
   activeTabId: string;
+  tabPreviews: Record<string, string>;
   recentlyClosed: DashboardClosedTab[];
   history: DashboardHistoryItem[];
   savedLinks: SavedLinkRecord[];
@@ -137,6 +139,51 @@ function displayHost(url: string) {
   }
 }
 
+const DASHBOARD_SITE_ICONS_KEY = "coach.dashboard.site-icons.v1";
+
+function domainKey(url: string) {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function readSiteIcons(): Record<string, string> {
+  try {
+    const value = JSON.parse(localStorage.getItem(DASHBOARD_SITE_ICONS_KEY) ?? "{}") as unknown;
+    if (!value || typeof value !== "object") return {};
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter((entry): entry is [string, string] =>
+          Boolean(entry[0] && typeof entry[1] === "string" && entry[1].startsWith("data:image/")),
+        )
+        .slice(-200),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function SiteIcon({
+  url,
+  title,
+  icons,
+  explicitIcon,
+}: {
+  url: string;
+  title: string;
+  icons: Record<string, string>;
+  explicitIcon?: string | null;
+}) {
+  const icon = explicitIcon || icons[domainKey(url)];
+  return (
+    <span className="dashboard-site-icon" aria-hidden="true">
+      {icon ? <img src={icon} alt="" /> : <span>{(title.trim()[0] || "↗").toUpperCase()}</span>}
+    </span>
+  );
+}
+
 function shortTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Recently";
@@ -148,6 +195,7 @@ export function DashboardSurface({
   desktopName,
   openTabs,
   activeTabId,
+  tabPreviews,
   recentlyClosed,
   history,
   savedLinks,
@@ -168,6 +216,7 @@ export function DashboardSurface({
   const [order, setOrder] = useState(initialPreferences.order);
   const [highlightedUrls, setHighlightedUrls] = useState(initialPreferences.highlightedUrls);
   const [groupDescriptions, setGroupDescriptions] = useState(initialPreferences.groupDescriptions);
+  const [siteIcons, setSiteIcons] = useState(readSiteIcons);
   const selectedTab = openTabs.find((tab) => tab.id === selectedTabId) ?? openTabs[0] ?? null;
 
   useEffect(() => {
@@ -183,6 +232,18 @@ export function DashboardSurface({
       }),
     );
   }, [enabled, groupDescriptions, headline, highlightedUrls, message, order]);
+
+  useEffect(() => {
+    const discovered = [...openTabs, ...recentlyClosed.map((item) => item.tab), ...history]
+      .map((item) => [domainKey(item.url), item.siteIconDataUrl] as const)
+      .filter((entry): entry is readonly [string, string] => Boolean(entry[0] && entry[1]));
+    if (discovered.length === 0) return;
+    setSiteIcons((current) => {
+      const next = { ...current, ...Object.fromEntries(discovered) };
+      localStorage.setItem(DASHBOARD_SITE_ICONS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, [history, openTabs, recentlyClosed]);
 
   const highlightedItems = useMemo(() => {
     const candidates = [
@@ -247,7 +308,12 @@ export function DashboardSurface({
               type="button"
               onClick={() => onRestoreClosed(item)}
             >
-              <Icon name="reload" />
+              <SiteIcon
+                url={item.tab.url}
+                title={item.tab.title || "New tab"}
+                icons={siteIcons}
+                explicitIcon={item.tab.siteIconDataUrl}
+              />
               <span>
                 <strong>{item.tab.title || "New tab"}</strong>
                 <small>{displayHost(item.tab.url)}</small>
@@ -270,7 +336,12 @@ export function DashboardSurface({
         <div className="dashboard-list">
           {history.slice(0, 7).map((item) => (
             <button key={item.id} type="button" onClick={() => onOpenUrl(item.url)}>
-              <Icon name="globe" />
+              <SiteIcon
+                url={item.url}
+                title={item.title}
+                icons={siteIcons}
+                explicitIcon={item.siteIconDataUrl}
+              />
               <span>
                 <strong>{item.title}</strong>
                 <small>{displayHost(item.url)}</small>
@@ -293,7 +364,7 @@ export function DashboardSurface({
         <div className="dashboard-list">
           {highlightedItems.map((item) => (
             <button key={item.url} type="button" onClick={() => onOpenUrl(item.url)}>
-              <Icon name="sparkle" />
+              <SiteIcon url={item.url} title={item.title} icons={siteIcons} />
               <span>
                 <strong>{item.title}</strong>
                 <small>{displayHost(item.url)}</small>
@@ -316,7 +387,7 @@ export function DashboardSurface({
         <div className="dashboard-list">
           {highlightedItems.slice(0, 6).map((item) => (
             <button key={item.url} type="button" onClick={() => onOpenUrl(item.url)}>
-              <Icon name="bookmark" />
+              <SiteIcon url={item.url} title={item.title} icons={siteIcons} />
               <span>
                 <strong>{item.title}</strong>
                 <small>{displayHost(item.url)}</small>
@@ -348,6 +419,7 @@ export function DashboardSurface({
               {groupLinks.slice(0, 4).map((link) => (
                 <div className="dashboard-saved-link" key={link.id}>
                   <button type="button" onClick={() => onOpenUrl(link.url)}>
+                    <SiteIcon url={link.url} title={link.title} icons={siteIcons} />
                     <span>
                       <strong>{link.title}</strong>
                       <small>{link.description || displayHost(link.url)}</small>
@@ -440,7 +512,7 @@ export function DashboardSurface({
           <span>{openTabs.length}</span>
         </header>
         <div className="dashboard-tab-strip">
-          {openTabs.map((tab) => (
+          {openTabs.slice(0, 5).map((tab) => (
             <button
               className={tab.id === selectedTab?.id ? "selected" : ""}
               key={tab.id}
@@ -448,9 +520,21 @@ export function DashboardSurface({
               onClick={() => setSelectedTabId(tab.id)}
             >
               <span className="dashboard-tab-preview">
-                <Icon name={tab.url === "about:blank" ? "sparkle" : "globe"} />
+                {tabPreviews[tab.id] ? (
+                  <img src={tabPreviews[tab.id]} alt="" />
+                ) : (
+                  <Icon name={tab.url === "about:blank" ? "sparkle" : "globe"} />
+                )}
               </span>
-              <strong>{tab.title || "New tab"}</strong>
+              <strong className="dashboard-tab-name">
+                <SiteIcon
+                  url={tab.url}
+                  title={tab.title || "New tab"}
+                  icons={siteIcons}
+                  explicitIcon={tab.siteIconDataUrl}
+                />
+                <span>{tab.title || "New tab"}</span>
+              </strong>
               <small>{tab.url === "about:blank" ? "Ready to browse" : displayHost(tab.url)}</small>
             </button>
           ))}
@@ -463,9 +547,12 @@ export function DashboardSurface({
 
       {selectedTab && (
         <aside className="dashboard-tab-detail">
-          <span>
-            <Icon name="globe" />
-          </span>
+          <SiteIcon
+            url={selectedTab.url}
+            title={selectedTab.title || "New tab"}
+            icons={siteIcons}
+            explicitIcon={selectedTab.siteIconDataUrl}
+          />
           <div>
             <strong>{selectedTab.title || "New tab"}</strong>
             <small>{selectedTab.url === "about:blank" ? "Blank tab" : selectedTab.url}</small>

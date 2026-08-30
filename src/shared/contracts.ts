@@ -8,6 +8,7 @@ export const IPC = {
   browserForward: "browser:forward",
   browserReload: "browser:reload",
   browserSnapshot: "browser:snapshot",
+  browserCaptureTabPreview: "browser:capture-tab-preview",
   browserCreateTab: "browser:create-tab",
   browserSwitchTab: "browser:switch-tab",
   browserCloseTab: "browser:close-tab",
@@ -80,6 +81,7 @@ export interface BrowserState {
   canGoBack: boolean;
   canGoForward: boolean;
   error: string | null;
+  siteIconDataUrl?: string | null;
 }
 
 export interface BrowserSnapshot {
@@ -319,6 +321,7 @@ export interface LatticeApi {
     forward(): Promise<void>;
     reload(): Promise<void>;
     snapshot(): Promise<BrowserSnapshot>;
+    captureTabPreview(tabId: string): Promise<string | null>;
     createTab(input?: string): Promise<BrowserSnapshot>;
     switchTab(tabId: string): Promise<BrowserSnapshot>;
     closeTab(tabId: string): Promise<BrowserSnapshot>;

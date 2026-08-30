@@ -366,6 +366,7 @@ export function LatticeApp() {
   const [canvasPages, setCanvasPages] = useState<CanvasPageSummary[]>([]);
   const [recentlyClosedTabs, setRecentlyClosedTabs] = useState<DashboardClosedTab[]>([]);
   const [browserHistory, setBrowserHistory] = useState<DashboardHistoryItem[]>([]);
+  const [dashboardTabPreviews, setDashboardTabPreviews] = useState<Record<string, string>>({});
   const [referenceIndex, setReferenceIndex] = useState<VaultReferenceIndex>(emptyReferenceIndex);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [captureDescription, setCaptureDescription] = useState("");
@@ -565,8 +566,9 @@ export function LatticeApp() {
   const activeDesktop =
     workspace.desktops.find((desktop) => desktop.id === workspace.activeDesktopId) ??
     DEFAULT_WORKSPACE.desktops[0];
-  const desktopTabs = snapshot.tabs.filter(
-    (tab) => tabDesktops[tab.id] === workspace.activeDesktopId,
+  const desktopTabs = useMemo(
+    () => snapshot.tabs.filter((tab) => tabDesktops[tab.id] === workspace.activeDesktopId),
+    [snapshot.tabs, tabDesktops, workspace.activeDesktopId],
   );
   const contextualTab =
     activeTab && tabDesktops[activeTab.id] === workspace.activeDesktopId ? activeTab : null;
@@ -578,11 +580,32 @@ export function LatticeApp() {
       title: displayTitle(activeTab),
       url: activeTab.url,
       visitedAt: new Date().toISOString(),
+      siteIconDataUrl: activeTab.siteIconDataUrl ?? null,
     };
     setBrowserHistory((current) =>
       [item, ...current.filter((entry) => entry.url !== item.url)].slice(0, 100),
     );
   }, [activeTab]);
+  useEffect(() => {
+    if (surface !== "dashboard") return;
+    let cancelled = false;
+    const previewTabs = desktopTabs.slice(0, 5);
+    void Promise.all(
+      previewTabs.map(
+        async (tab) => [tab.id, await window.lattice.browser.captureTabPreview(tab.id)] as const,
+      ),
+    ).then((entries) => {
+      if (cancelled) return;
+      setDashboardTabPreviews(
+        Object.fromEntries(
+          entries.filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
+        ),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [desktopTabs, surface]);
   const filteredLinks = useMemo(() => {
     const query = libraryQuery.trim().toLowerCase();
     return links.filter((link) => {
@@ -3387,6 +3410,7 @@ export function LatticeApp() {
                 desktopName={activeDesktop?.name ?? "Workspace"}
                 openTabs={desktopTabs}
                 activeTabId={snapshot.activeTabId}
+                tabPreviews={dashboardTabPreviews}
                 recentlyClosed={recentlyClosedTabs}
                 history={browserHistory}
                 savedLinks={visibleLinks}

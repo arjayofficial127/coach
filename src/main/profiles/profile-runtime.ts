@@ -98,6 +98,10 @@ export class ProfileRuntime {
     return this.activeRuntime().snapshot();
   }
 
+  captureTabPreview(tabId: string): Promise<string | null> {
+    return this.activeRuntime().captureTabPreview(tabId);
+  }
+
   createTab(input?: string): Promise<BrowserSnapshot> {
     return this.activeRuntime().createTab(input);
   }

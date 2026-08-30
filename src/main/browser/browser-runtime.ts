@@ -8,7 +8,7 @@ import type {
   WebContents,
   WebPreferences,
 } from "electron";
-import { app, WebContentsView } from "electron";
+import { app, nativeImage, WebContentsView } from "electron";
 import type {
   BrowserBounds,
   BrowserPrivacySummary,
@@ -129,6 +129,18 @@ export class BrowserRuntime {
       activeTabId: this.activeTabId,
       tabs: [...this.tabs.values()].map((tab) => ({ ...tab.state })),
     };
+  }
+
+  async captureTabPreview(tabId: string): Promise<string | null> {
+    const tab = this.tabs.get(tabId);
+    if (!tab || tab.contents.isDestroyed() || tab.state.url === "about:blank") return null;
+    try {
+      const image = await tab.contents.capturePage();
+      if (image.isEmpty()) return null;
+      return image.resize({ width: 480, quality: "good" }).toDataURL();
+    } catch {
+      return null;
+    }
   }
 
   setBounds(requested: BrowserBounds): void {
@@ -374,6 +386,7 @@ export class BrowserRuntime {
         canGoBack: false,
         canGoForward: false,
         error: null,
+        siteIconDataUrl: null,
       },
     };
     this.allContents.push(contents);
@@ -488,6 +501,11 @@ export class BrowserRuntime {
       tab.state.title = title;
       this.emitState(tab);
     });
+    tab.contents.on("page-favicon-updated", (_event, favicons) => {
+      const favicon = favicons.find((candidate) => /^https?:\/\//i.test(candidate));
+      if (!favicon) return;
+      void this.captureSiteIcon(tab, favicon, tab.contents.getURL());
+    });
     tab.contents.on("did-fail-load", (_event, code, description, url, isMainFrame) => {
       if (isMainFrame && code !== -3) {
         tab.state.error = `${description} (${code}) while loading ${url}`;
@@ -508,8 +526,38 @@ export class BrowserRuntime {
     tab.state.title = url;
     tab.state.loading = true;
     tab.state.error = null;
+    tab.state.siteIconDataUrl = null;
     this.emitState(tab);
     await tab.contents.loadURL(url);
+  }
+
+  private async captureSiteIcon(
+    tab: TabRecord,
+    faviconUrl: string,
+    pageUrl: string,
+  ): Promise<void> {
+    try {
+      const response = await tab.contents.session.fetch(faviconUrl);
+      if (!response.ok) return;
+      const mimeType = response.headers.get("content-type")?.split(";")[0]?.trim();
+      if (!mimeType?.startsWith("image/")) return;
+      const bytes = Buffer.from(await response.arrayBuffer());
+      if (
+        bytes.length === 0 ||
+        bytes.length > 512_000 ||
+        tab.contents.isDestroyed() ||
+        tab.contents.getURL() !== pageUrl
+      )
+        return;
+      const image = nativeImage.createFromBuffer(bytes);
+      if (image.isEmpty()) return;
+      tab.state.siteIconDataUrl = image
+        .resize({ width: 32, height: 32, quality: "good" })
+        .toDataURL();
+      this.emitState(tab);
+    } catch {
+      // A missing or blocked favicon must never affect page navigation.
+    }
   }
 
   private activate(tabId: string): void {

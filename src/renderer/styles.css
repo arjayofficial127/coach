@@ -8941,8 +8941,7 @@ kbd {
 
 .dashboard-tab-strip {
   display: grid;
-  grid-auto-columns: minmax(150px, 1fr);
-  grid-auto-flow: column;
+  grid-template-columns: repeat(6, minmax(118px, 1fr));
   gap: 8px;
   overflow-x: auto;
   padding-bottom: 3px;
@@ -8969,12 +8968,67 @@ kbd {
 }
 
 .dashboard-tab-preview {
+  overflow: hidden;
   display: grid;
   min-height: 58px;
   place-items: center;
   border-radius: 8px;
   background: linear-gradient(145deg, var(--surface-2), var(--canvas));
   color: var(--accent);
+}
+
+.dashboard-tab-preview > img {
+  width: 100%;
+  height: 100%;
+  min-height: 58px;
+  display: block;
+  object-fit: cover;
+  object-position: top center;
+  pointer-events: none;
+  user-select: none;
+}
+
+.dashboard-tab-name {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+
+.dashboard-tab-name > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-site-icon {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--accent-strong);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.dashboard-site-icon img {
+  width: 14px;
+  height: 14px;
+  display: block;
+  object-fit: contain;
+}
+
+.dashboard-tab-name .dashboard-site-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
 }
 
 .dashboard-tab-strip strong,
@@ -9029,6 +9083,18 @@ kbd {
   border-radius: 9px;
   background: var(--surface);
   color: var(--accent);
+}
+
+.dashboard-tab-detail > .dashboard-site-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+.dashboard-tab-detail > .dashboard-site-icon img {
+  width: 18px;
+  height: 18px;
 }
 
 .dashboard-tab-detail > div {
@@ -9196,6 +9262,10 @@ kbd {
 }
 
 .dashboard-saved-link > button {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
   min-width: 0;
   background: transparent;
   padding: 6px;

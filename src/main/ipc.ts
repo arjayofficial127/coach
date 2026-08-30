@@ -104,6 +104,7 @@ export interface BrowserController {
   forward(): void;
   reload(): void;
   snapshot(): BrowserSnapshot;
+  captureTabPreview(tabId: string): Promise<string | null>;
   createTab(input?: string): Promise<BrowserSnapshot>;
   switchTab(tabId: string): BrowserSnapshot;
   closeTab(tabId: string): BrowserSnapshot;
@@ -162,6 +163,9 @@ export function registerIpc(
   handle(IPC.browserForward, () => browser.forward());
   handle(IPC.browserReload, () => browser.reload());
   handle(IPC.browserSnapshot, () => browser.snapshot());
+  handle(IPC.browserCaptureTabPreview, (_event, payload) =>
+    browser.captureTabPreview(tabIdSchema.parse(payload)),
+  );
   handle(IPC.browserCreateTab, (_event, payload) =>
     browser.createTab(z.string().optional().parse(payload)),
   );
