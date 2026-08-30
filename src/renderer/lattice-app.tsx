@@ -595,20 +595,25 @@ export function LatticeApp() {
     if (surface !== "dashboard") return;
     let cancelled = false;
     const previewTabs = desktopTabs;
-    void Promise.all(
-      previewTabs.map(
-        async (tab) => [tab.id, await window.lattice.browser.captureTabPreview(tab.id)] as const,
-      ),
-    ).then((entries) => {
-      if (cancelled) return;
-      setDashboardTabPreviews(
-        Object.fromEntries(
-          entries.filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
+    const capture = async () => {
+      const entries = await Promise.all(
+        previewTabs.map(
+          async (tab) => [tab.id, await window.lattice.browser.captureTabPreview(tab.id)] as const,
         ),
       );
-    });
+      if (cancelled) return;
+      setDashboardTabPreviews((current) => ({
+        ...current,
+        ...Object.fromEntries(
+          entries.filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
+        ),
+      }));
+    };
+    void capture();
+    const retry = window.setTimeout(() => void capture(), 700);
     return () => {
       cancelled = true;
+      window.clearTimeout(retry);
     };
   }, [desktopTabs, surface]);
   const filteredLinks = useMemo(() => {
