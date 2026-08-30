@@ -11,10 +11,10 @@ import type {
 import { app, nativeImage, WebContentsView } from "electron";
 import type {
   BrowserBounds,
-  LiveTabPreviewBounds,
   BrowserPrivacySummary,
   BrowserSnapshot,
   BrowserState,
+  LiveTabPreviewBounds,
   ShellCommand,
 } from "../../shared/contracts";
 import { IPC } from "../../shared/contracts";
@@ -209,6 +209,42 @@ export class BrowserRuntime {
       }),
     );
     return matches.filter((tabId): tabId is string => tabId !== null);
+  }
+
+  async loadSiteIcons(urls: string[]): Promise<Record<string, string>> {
+    const uniqueSites = new Map<string, string>();
+    for (const value of urls) {
+      try {
+        const url = new URL(value);
+        if (!/^https?:$/.test(url.protocol)) continue;
+        uniqueSites.set(url.hostname.toLowerCase(), new URL("/favicon.ico", url.origin).toString());
+      } catch {
+        // Invalid URLs are rejected at IPC; keep this method safe for direct callers too.
+      }
+    }
+
+    const resolved = await Promise.all(
+      [...uniqueSites].map(async ([hostname, faviconUrl]) => {
+        try {
+          const response = await this.remoteSession.fetch(faviconUrl);
+          if (!response.ok) return null;
+          const bytes = Buffer.from(await response.arrayBuffer());
+          if (bytes.length === 0 || bytes.length > 512_000) return null;
+          const image = nativeImage.createFromBuffer(bytes);
+          if (image.isEmpty()) return null;
+          return [
+            hostname,
+            image.resize({ width: 32, height: 32, quality: "good" }).toDataURL(),
+          ] as const;
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    return Object.fromEntries(
+      resolved.filter((entry): entry is readonly [string, string] => entry !== null),
+    );
   }
 
   setBounds(requested: BrowserBounds): void {
@@ -628,7 +664,9 @@ export class BrowserRuntime {
       this.emitState(tab);
     });
     tab.contents.on("page-favicon-updated", (_event, favicons) => {
-      const favicon = favicons.find((candidate) => /^https?:\/\//i.test(candidate));
+      const favicon = favicons.find((candidate) =>
+        /^(?:https?:\/\/|data:image\/)/i.test(candidate),
+      );
       if (!favicon) return;
       void this.captureSiteIcon(tab, favicon, tab.contents.getURL());
     });
@@ -665,19 +703,20 @@ export class BrowserRuntime {
     pageUrl: string,
   ): Promise<void> {
     try {
-      const response = await tab.contents.session.fetch(faviconUrl);
-      if (!response.ok) return;
-      const mimeType = response.headers.get("content-type")?.split(";")[0]?.trim();
-      if (!mimeType?.startsWith("image/")) return;
-      const bytes = Buffer.from(await response.arrayBuffer());
-      if (
-        bytes.length === 0 ||
-        bytes.length > 512_000 ||
-        tab.contents.isDestroyed() ||
-        tab.contents.getURL() !== pageUrl
-      )
-        return;
-      const image = nativeImage.createFromBuffer(bytes);
+      let image = nativeImage.createEmpty();
+      if (faviconUrl.startsWith("data:image/")) {
+        if (faviconUrl.length > 700_000) return;
+        image = nativeImage.createFromDataURL(faviconUrl);
+      } else {
+        const response = await tab.contents.session.fetch(faviconUrl);
+        if (!response.ok) return;
+        const mimeType = response.headers.get("content-type")?.split(";")[0]?.trim();
+        if (!mimeType?.startsWith("image/")) return;
+        const bytes = Buffer.from(await response.arrayBuffer());
+        if (bytes.length === 0 || bytes.length > 512_000) return;
+        image = nativeImage.createFromBuffer(bytes);
+      }
+      if (tab.contents.isDestroyed() || tab.contents.getURL() !== pageUrl) return;
       if (image.isEmpty()) return;
       tab.state.siteIconDataUrl = image
         .resize({ width: 32, height: 32, quality: "good" })

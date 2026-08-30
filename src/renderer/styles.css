@@ -1612,6 +1612,13 @@ kbd {
   height: 11px;
 }
 
+.favicon img {
+  width: 13px;
+  height: 13px;
+  display: block;
+  object-fit: contain;
+}
+
 .tab-title {
   overflow: hidden;
   font-size: 10px;
@@ -1773,8 +1780,9 @@ kbd {
 }
 
 .dashboard-surface-toolbar .dashboard-toolbar-greeting {
-  grid-area: greeting;
-  margin: 13px 0 3px;
+  grid-area: 2 / 1 / 3 / -1;
+  margin: 18px 0 5px;
+  text-align: center;
 }
 
 .dashboard-surface-toolbar .dashboard-toolbar-customize {
@@ -1794,17 +1802,24 @@ kbd {
 }
 
 .surface-location .dashboard-toolbar-greeting {
-  color: var(--accent-strong);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.11em;
+  color: color-mix(in srgb, var(--accent-strong) 82%, var(--text));
+  font-family: "Segoe UI Variable Display", "Segoe UI", Inter, sans-serif;
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
+}
+
+.dashboard-toolbar-stack {
+  display: grid;
 }
 
 .dashboard-toolbar-message {
   display: grid;
-  gap: 2px;
-  padding: 1px 0 2px;
+  justify-items: center;
+  gap: 5px;
+  padding: 0 0 4px;
+  text-align: center;
 }
 
 .dashboard-toolbar-message h1,
@@ -1815,30 +1830,50 @@ kbd {
   white-space: nowrap;
 }
 
+.dashboard-toolbar-message h1,
+.dashboard-toolbar-message p {
+  max-width: 100%;
+  white-space: normal;
+  text-wrap: balance;
+}
+
 .surface-location .dashboard-toolbar-message h1 {
+  max-width: min(920px, 90vw);
   color: var(--text);
-  font-family: ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-  font-size: 19px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
+  background: linear-gradient(
+    105deg,
+    var(--text) 18%,
+    color-mix(in srgb, var(--accent-strong) 72%, var(--text)) 58%,
+    var(--text) 88%
+  );
+  background-clip: text;
+  font-family: "Segoe UI Variable Display", "Segoe UI", Inter, sans-serif;
+  font-size: clamp(25px, 2.4vw, 36px);
+  font-weight: 680;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .surface-location .dashboard-toolbar-message p {
   color: var(--muted);
-  font-size: 10px;
-  line-height: 1.35;
+  font-family: "Segoe UI Variable Text", "Segoe UI", Inter, sans-serif;
+  font-size: 11px;
+  font-weight: 470;
+  letter-spacing: 0.01em;
+  line-height: 1.45;
 }
 
 .dashboard-toolbar-content {
-  grid-area: content;
+  grid-area: 3 / 1 / 4 / -1;
   width: 100%;
 }
 
 .dashboard-toolbar-controls {
   display: grid;
-  gap: 10px;
-  margin-top: 16px;
+  gap: 11px;
+  margin-top: 20px;
 }
 
 .dashboard-toolbar-controls .dashboard-section-tabs {
@@ -9173,15 +9208,46 @@ kbd {
   z-index: 30;
   isolation: isolate;
   display: grid;
+  width: min(1040px, calc(100% - 32px));
+  box-sizing: border-box;
+  justify-self: center;
   grid-template-columns: 22px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
-  border-radius: 13px;
-  background: var(--surface);
-  padding: 7px 8px 7px 13px;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 4%, transparent);
+  min-height: 54px;
+  margin-bottom: 0;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-radius: 17px;
+  background:
+    radial-gradient(
+      circle at 92% 20%,
+      color-mix(in srgb, var(--accent) 10%, transparent),
+      transparent 24%
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--surface) 96%, transparent),
+      var(--field, var(--surface))
+    );
+  padding: 8px 9px 8px 16px;
+  cursor: text;
+  box-shadow:
+    0 12px 34px color-mix(in srgb, var(--accent) 8%, transparent),
+    inset 0 1px color-mix(in srgb, white 20%, transparent);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.dashboard-global-search:hover,
+.dashboard-global-search:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
+  box-shadow:
+    0 16px 42px color-mix(in srgb, var(--accent) 15%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent),
+    inset 0 1px color-mix(in srgb, white 26%, transparent);
+  transform: translateY(-1px);
 }
 
 .dashboard-global-search > svg {
@@ -9197,7 +9263,9 @@ kbd {
   background: transparent;
   padding: 7px 0;
   color: var(--text);
-  font: inherit;
+  font-family: "Segoe UI Variable Text", "Segoe UI", Inter, sans-serif;
+  font-size: 14px;
+  font-weight: 470;
 }
 
 .dashboard-search-actions {
@@ -9208,12 +9276,13 @@ kbd {
 }
 
 .dashboard-search-actions > button {
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
-  border-radius: 9px;
-  background: var(--surface-2);
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-2) 88%, var(--accent-soft));
   color: var(--muted);
 }
 
@@ -9294,10 +9363,15 @@ kbd {
   position: relative;
   z-index: 15;
   display: flex;
-  gap: 7px;
-  margin-bottom: 14px;
-  overflow-x: auto;
-  padding: 1px 1px 4px;
+  width: min(1100px, 100%);
+  box-sizing: border-box;
+  justify-self: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 0;
+  overflow: visible;
+  padding: 1px;
   scrollbar-width: none;
 }
 
@@ -9307,17 +9381,17 @@ kbd {
 
 .dashboard-section-tabs > button,
 .dashboard-section-overflow > button {
-  min-height: 34px;
+  min-height: 30px;
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 9px;
   background: var(--surface);
-  padding: 0 9px;
+  padding: 0 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 10.5px;
 }
 
 .dashboard-section-tabs > button:hover,
@@ -9330,8 +9404,8 @@ kbd {
 }
 
 .dashboard-section-tabs svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
 .dashboard-section-overflow {
@@ -9391,12 +9465,12 @@ kbd {
 }
 
 .dashboard-section-tabs em {
-  min-width: 20px;
+  min-width: 18px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent) 9%, var(--surface-2));
-  padding: 2px 6px;
+  padding: 1px 5px;
   color: var(--accent-strong);
-  font-size: 9px;
+  font-size: 8px;
   font-style: normal;
   text-align: center;
 }
@@ -9453,11 +9527,25 @@ kbd {
 }
 
 .dashboard-open-tabs {
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--surface);
-  padding: 14px;
-  box-shadow: 0 12px 32px color-mix(in srgb, var(--text) 5%, transparent);
+  position: relative;
+  margin-bottom: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--line));
+  border-radius: 20px;
+  background:
+    radial-gradient(
+      circle at 92% 0%,
+      color-mix(in srgb, var(--accent) 8%, transparent),
+      transparent 30%
+    ),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--surface) 98%, var(--accent-soft)),
+      var(--surface)
+    );
+  padding: 16px;
+  box-shadow:
+    0 20px 54px color-mix(in srgb, var(--text) 7%, transparent),
+    inset 0 1px color-mix(in srgb, white 26%, transparent);
 }
 
 .dashboard-section-header > button {
@@ -9465,6 +9553,7 @@ kbd {
   color: var(--text);
   font: inherit;
   font-weight: 750;
+  letter-spacing: -0.025em;
   text-align: left;
 }
 
@@ -9743,7 +9832,9 @@ kbd {
   opacity: 0;
   pointer-events: none;
   transform: translateY(-3px);
-  transition: opacity 120ms ease, transform 120ms ease;
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
 }
 
 .dashboard-tab-view-toggle:hover::after,
@@ -9906,7 +9997,7 @@ kbd {
 .dashboard-widget-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .dashboard-widget-slot.saved-links,
@@ -9962,11 +10053,55 @@ kbd {
 .dashboard-widget {
   min-height: 250px;
   height: 100%;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--surface);
-  padding: 14px;
-  box-shadow: 0 10px 26px color-mix(in srgb, var(--text) 4%, transparent);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 13%, var(--line));
+  border-radius: 18px;
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      color-mix(in srgb, var(--accent) 7%, transparent),
+      transparent 32%
+    ),
+    linear-gradient(
+      150deg,
+      color-mix(in srgb, var(--surface) 98%, var(--accent-soft)),
+      var(--surface)
+    );
+  padding: 16px;
+  box-shadow:
+    0 15px 40px color-mix(in srgb, var(--text) 5%, transparent),
+    inset 0 1px color-mix(in srgb, white 24%, transparent);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.dashboard-widget::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 20px;
+  width: 38%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--accent) 68%, white),
+    transparent
+  );
+  opacity: 0.75;
+}
+
+.dashboard-widget:hover {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+  box-shadow:
+    0 20px 50px color-mix(in srgb, var(--accent) 9%, transparent),
+    inset 0 1px color-mix(in srgb, white 30%, transparent);
+  transform: translateY(-1px);
 }
 
 .dashboard-widget > header {
@@ -9979,8 +10114,16 @@ kbd {
   flex-direction: column;
   justify-content: center;
   background:
-    radial-gradient(circle at 85% 20%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 36%),
-    linear-gradient(145deg, var(--surface), color-mix(in srgb, var(--accent-soft) 55%, var(--surface)));
+    radial-gradient(
+      circle at 85% 20%,
+      color-mix(in srgb, var(--accent) 20%, transparent),
+      transparent 36%
+    ),
+    linear-gradient(
+      145deg,
+      var(--surface),
+      color-mix(in srgb, var(--accent-soft) 55%, var(--surface))
+    );
 }
 
 .dashboard-message-widget h2 {
@@ -10027,8 +10170,9 @@ kbd {
   grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  border-radius: 8px;
-  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
   padding: 7px;
   color: var(--text);
   text-align: left;
@@ -10037,7 +10181,8 @@ kbd {
 .dashboard-list > button:hover,
 .dashboard-tile-grid > button:hover,
 .dashboard-saved-link:hover {
-  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 18%, var(--line));
+  background: color-mix(in srgb, var(--accent-soft) 72%, var(--surface));
 }
 
 .dashboard-list svg,
@@ -10078,7 +10223,12 @@ kbd {
 .dashboard-tile-grid > button {
   min-height: 70px;
   grid-template-columns: 28px minmax(0, 1fr);
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--accent) 12%, var(--line));
+  background: linear-gradient(
+    145deg,
+    var(--surface),
+    color-mix(in srgb, var(--accent-soft) 30%, var(--surface))
+  );
 }
 
 .dashboard-saved-groups {
@@ -10087,9 +10237,10 @@ kbd {
 
 .dashboard-saved-groups > section {
   min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 9px;
+  border: 1px solid color-mix(in srgb, var(--accent) 12%, var(--line));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--surface) 82%, var(--accent-soft));
+  padding: 11px;
 }
 
 .dashboard-saved-groups > section > header {
@@ -10144,6 +10295,7 @@ kbd {
   border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
   border-radius: 16px;
   background: var(--field, var(--panel));
+  opacity: 1;
   padding: 14px;
   box-shadow: 0 24px 70px color-mix(in srgb, #000 28%, transparent);
 }
@@ -10267,6 +10419,10 @@ kbd {
 @media (max-width: 760px) {
   .dashboard-surface-v2 {
     padding-inline: 14px;
+  }
+
+  .dashboard-global-search {
+    width: 100%;
   }
 
   .dashboard-widget-grid,

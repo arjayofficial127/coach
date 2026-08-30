@@ -3,6 +3,12 @@ import { createPortal } from "react-dom";
 import type { BrowserState, CanvasPageSummary, SavedLinkRecord } from "../shared/contracts";
 import { Icon, type IconName } from "./icon";
 import { RUNNABLE_APP_CATALOG, type RunnableAppId } from "./runnable-apps-model";
+import {
+  readSiteIcons,
+  SITE_ICONS_UPDATED_EVENT,
+  saveSiteIcons,
+  siteIconDomainKey,
+} from "./site-icon-cache";
 
 export interface DashboardClosedTab {
   tab: BrowserState;
@@ -199,6 +205,7 @@ interface DashboardSurfaceProps {
   onOpenApp: (id: RunnableAppId) => void;
   onOpenCanvas: (id: string) => void;
   onSearchTabContents: (tabIds: string[], query: string) => Promise<string[]>;
+  onRenameDesktop: (name: string) => boolean;
   customizing: boolean;
   onCustomizingChange: (open: boolean) => void;
 }
@@ -208,32 +215,6 @@ function displayHost(url: string) {
     return new URL(url).hostname.replace(/^www\./, "");
   } catch {
     return url;
-  }
-}
-
-const DASHBOARD_SITE_ICONS_KEY = "coach.dashboard.site-icons.v1";
-
-function domainKey(url: string) {
-  try {
-    return new URL(url).hostname.toLowerCase();
-  } catch {
-    return "";
-  }
-}
-
-function readSiteIcons(): Record<string, string> {
-  try {
-    const value = JSON.parse(localStorage.getItem(DASHBOARD_SITE_ICONS_KEY) ?? "{}") as unknown;
-    if (!value || typeof value !== "object") return {};
-    return Object.fromEntries(
-      Object.entries(value)
-        .filter((entry): entry is [string, string] =>
-          Boolean(entry[0] && typeof entry[1] === "string" && entry[1].startsWith("data:image/")),
-        )
-        .slice(-200),
-    );
-  } catch {
-    return {};
   }
 }
 
@@ -248,7 +229,7 @@ function SiteIcon({
   icons: Record<string, string>;
   explicitIcon?: string | null;
 }) {
-  const icon = explicitIcon || icons[domainKey(url)];
+  const icon = explicitIcon || icons[siteIconDomainKey(url)];
   return (
     <span className="dashboard-site-icon" aria-hidden="true">
       {icon ? <img src={icon} alt="" /> : <span>{(title.trim()[0] || "↗").toUpperCase()}</span>}
@@ -292,6 +273,7 @@ export function DashboardSurface({
   onOpenApp,
   onOpenCanvas,
   onSearchTabContents,
+  onRenameDesktop,
   customizing,
   onCustomizingChange,
 }: DashboardSurfaceProps) {
@@ -308,6 +290,7 @@ export function DashboardSurface({
   const [selectedTabId, setSelectedTabId] = useState(activeTabId);
   const [headline, setHeadline] = useState(initialPreferences.headline);
   const [message, setMessage] = useState(initialPreferences.message);
+  const [desktopNameDraft, setDesktopNameDraft] = useState(desktopName);
   const [enabled, setEnabled] = useState(initialPreferences.enabled);
   const [order, setOrder] = useState(initialPreferences.order);
   const [sectionOrder, setSectionOrder] = useState(initialPreferences.sectionOrder);
@@ -319,6 +302,10 @@ export function DashboardSurface({
   const [draggedWidgetId, setDraggedWidgetId] = useState<DashboardWidgetId | null>(null);
   const [groupDescriptions, setGroupDescriptions] = useState(initialPreferences.groupDescriptions);
   const [siteIcons, setSiteIcons] = useState(readSiteIcons);
+
+  useEffect(() => {
+    setDesktopNameDraft(desktopName);
+  }, [desktopName]);
   const [searchOpenTabContents, setSearchOpenTabContents] = useState(
     initialPreferences.searchOpenTabContents,
   );
@@ -430,15 +417,20 @@ export function DashboardSurface({
 
   useEffect(() => {
     const discovered = [...openTabs, ...recentlyClosed.map((item) => item.tab), ...history]
-      .map((item) => [domainKey(item.url), item.siteIconDataUrl] as const)
+      .map((item) => [siteIconDomainKey(item.url), item.siteIconDataUrl] as const)
       .filter((entry): entry is readonly [string, string] => Boolean(entry[0] && entry[1]));
     if (discovered.length === 0) return;
     setSiteIcons((current) => {
       const next = { ...current, ...Object.fromEntries(discovered) };
-      localStorage.setItem(DASHBOARD_SITE_ICONS_KEY, JSON.stringify(next));
-      return next;
+      return saveSiteIcons(next);
     });
   }, [history, openTabs, recentlyClosed]);
+
+  useEffect(() => {
+    const sync = () => setSiteIcons(readSiteIcons());
+    window.addEventListener(SITE_ICONS_UPDATED_EVENT, sync);
+    return () => window.removeEventListener(SITE_ICONS_UPDATED_EVENT, sync);
+  }, []);
 
   const highlightedItems = useMemo(() => {
     const candidates = [
@@ -468,7 +460,10 @@ export function DashboardSurface({
     return [...filteredOpenTabs].sort((a, b) => {
       const pinnedDelta = Number(pinnedTabIds.includes(b.id)) - Number(pinnedTabIds.includes(a.id));
       if (pinnedDelta) return pinnedDelta;
-      return (positions.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (positions.get(b.id) ?? Number.MAX_SAFE_INTEGER);
+      return (
+        (positions.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (positions.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+      );
     });
   }, [filteredOpenTabs, pinnedTabIds, tabOrder]);
   const filteredRecentlyClosed = recentlyClosed.filter((item) =>
@@ -603,7 +598,8 @@ export function DashboardSurface({
   const widgets: Record<DashboardWidgetId, ReactNode> = {
     message: (
       <article className="dashboard-widget dashboard-message-widget">
-        {activeSection !== "overview" && sectionHeader("message", "Custom message", sectionCounts.message)}
+        {activeSection !== "overview" &&
+          sectionHeader("message", "Custom message", sectionCounts.message)}
         {showGreeting && <span className="dashboard-widget-kicker">{greeting}</span>}
         <h2>{headline}</h2>
         <p>{message.trim() || "Review what matters across your workspace"}</p>
@@ -787,17 +783,6 @@ export function DashboardSurface({
     ),
   };
 
-  const toolbarMessage =
-    toolbarContentTarget && activeSection === "overview" && enabled.message
-      ? createPortal(
-          <div className="dashboard-toolbar-message">
-            <h1>{headline}</h1>
-            <p>{message.trim() || "Review what matters across your workspace"}</p>
-          </div>,
-          toolbarContentTarget,
-        )
-      : null;
-
   const dashboardControls = (
     <>
       <div ref={searchSettingsRef} className="dashboard-global-search">
@@ -892,30 +877,41 @@ export function DashboardSurface({
     </>
   );
 
-  const toolbarControls = toolbarContentTarget
-    ? createPortal(<div className="dashboard-toolbar-controls">{dashboardControls}</div>, toolbarContentTarget)
+  const toolbarContent = toolbarContentTarget
+    ? createPortal(
+        <div className="dashboard-toolbar-stack">
+          {enabled.message && (
+            <div className="dashboard-toolbar-message">
+              <h1>{headline}</h1>
+              <p>{message.trim() || "Review what matters across your workspace"}</p>
+            </div>
+          )}
+          <div className="dashboard-toolbar-controls">{dashboardControls}</div>
+        </div>,
+        toolbarContentTarget,
+      )
     : null;
 
   return (
     <div className="trusted-surface dashboard-surface-v2">
-      {toolbarMessage}
-      {toolbarControls}
-      {!toolbarContentTarget && <div className="dashboard-top-section">
-      {!(toolbarContentTarget && activeSection === "overview" && enabled.message) && (
-        <header className="dashboard-v2-header">
-          <div className="dashboard-hero-content">
-            {activeSection === "overview" && enabled.message ? (
-              widgets.message
-            ) : (
-              <h1>Your workspace at a glance.</h1>
-            )}
-          </div>
-        </header>
-      )}
+      {toolbarContent}
+      {!toolbarContentTarget && (
+        <div className="dashboard-top-section">
+          {!(toolbarContentTarget && activeSection === "overview" && enabled.message) && (
+            <header className="dashboard-v2-header">
+              <div className="dashboard-hero-content">
+                {activeSection === "overview" && enabled.message ? (
+                  widgets.message
+                ) : (
+                  <h1>Your workspace at a glance.</h1>
+                )}
+              </div>
+            </header>
+          )}
 
-      {!toolbarContentTarget && dashboardControls}
-      </div>
-      }
+          {!toolbarContentTarget && dashboardControls}
+        </div>
+      )}
 
       {(activeSection === "overview" || activeSection === "open-tabs") && (
         <section className="dashboard-open-tabs">
@@ -1003,6 +999,7 @@ export function DashboardSurface({
                   {tab.url === "about:blank" ? "Ready to browse" : displayHost(tab.url)}
                 </small>
                 <span className="dashboard-tab-actions">
+                  {/* biome-ignore lint/a11y/useSemanticElements: a real button cannot be nested inside the tab-card button */}
                   <span
                     role="button"
                     tabIndex={0}
@@ -1012,24 +1009,40 @@ export function DashboardSurface({
                       event.stopPropagation();
                       togglePinned(tab.id);
                     }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      togglePinned(tab.id);
+                    }}
                   >
                     <Icon name="bookmark" />
                   </span>
+                  {/* biome-ignore lint/a11y/useSemanticElements: a real button cannot be nested inside the tab-card button */}
                   <span
                     role="button"
                     tabIndex={0}
                     className="dashboard-tab-action"
-                    aria-label={highlightedUrls.includes(tab.url) ? "Remove favorite" : "Add favorite"}
+                    aria-label={
+                      highlightedUrls.includes(tab.url) ? "Remove favorite" : "Add favorite"
+                    }
                     onClick={(event) => {
+                      event.stopPropagation();
+                      toggleHighlight(tab.url);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
                       event.stopPropagation();
                       toggleHighlight(tab.url);
                     }}
                   >
                     {highlightedUrls.includes(tab.url) ? "★" : "☆"}
                   </span>
-                  <span className="dashboard-tab-drag" aria-label="Drag to reorder">
+                  <span className="dashboard-tab-drag" role="img" aria-label="Drag to reorder">
                     <Icon name="move" />
                   </span>
+                  {/* biome-ignore lint/a11y/useSemanticElements: a real button cannot be nested inside the tab-card button */}
                   <span
                     role="button"
                     tabIndex={0}
@@ -1039,15 +1052,28 @@ export function DashboardSurface({
                       event.stopPropagation();
                       onOpenTab(tab);
                     }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onOpenTab(tab);
+                    }}
                   >
                     <Icon name="arrow-right" />
                   </span>
+                  {/* biome-ignore lint/a11y/useSemanticElements: a real button cannot be nested inside the tab-card button */}
                   <span
                     role="button"
                     tabIndex={0}
                     className="dashboard-tab-action"
                     aria-label="Close tab"
                     onClick={(event) => {
+                      event.stopPropagation();
+                      onCloseTab(tab);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
                       event.stopPropagation();
                       onCloseTab(tab);
                     }}
@@ -1073,6 +1099,7 @@ export function DashboardSurface({
                 : activeSection === id),
           )
           .map((id) => (
+            // biome-ignore lint/a11y/noStaticElementInteractions: this visual widget slot is also a drag-and-drop target
             <div
               key={id}
               className={`dashboard-widget-slot ${id}${activeSection === id ? " single-section" : ""}${
@@ -1105,91 +1132,120 @@ export function DashboardSurface({
           ))}
       </section>
 
-      {customizing && createPortal(
-        <aside ref={customizerRef} className="dashboard-customizer" aria-label="Customize dashboard">
-          <header>
-            <strong>Customize dashboard</strong>
-            <button type="button" onClick={() => setCustomizing(false)}>
-              <Icon name="close" />
-            </button>
-          </header>
-          <label>
-            Headline
-            <input value={headline} onChange={(event) => setHeadline(event.target.value)} />
-          </label>
-          <label>
-            Supporting text
-            <textarea value={message} onChange={(event) => setMessage(event.target.value)} />
-          </label>
-          {savedGroups.length > 0 && (
-            <section className="dashboard-group-editor">
-              <strong>Saved-link group descriptions</strong>
-              {savedGroups.map(([name]) => (
-                <label key={name}>
-                  {name}
-                  <input
-                    value={groupDescriptions[name] ?? ""}
-                    maxLength={240}
-                    placeholder="Describe what belongs in this group"
-                    onChange={(event) =>
-                      setGroupDescriptions((current) => ({
-                        ...current,
-                        [name]: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-              ))}
-            </section>
-          )}
-          <section className="dashboard-customizer-sections">
-            <strong>Section tabs</strong>
-            <small>Drag to choose the first three tabs shown beside Overview.</small>
-            <div className="dashboard-customizer-list">
-              {sectionOrder.map((id) => (
-                <div
-                  key={id}
-                  onDragOver={(event) => {
-                    if (draggedSectionId) event.preventDefault();
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    moveSection(id);
-                  }}
-                >
-                  {id === "open-tabs" ? (
-                    <span className="dashboard-customizer-fixed">On</span>
-                  ) : (
-                    <button
-                      type="button"
-                      aria-pressed={enabled[id]}
-                      onClick={() => {
-                        if (activeSection === id && enabled[id]) setActiveSection("overview");
-                        setEnabled((current) => ({ ...current, [id]: !current[id] }));
-                      }}
-                    >
-                      {enabled[id] ? "On" : "Off"}
-                    </button>
-                  )}
-                  <span>{SECTION_LABELS[id]}</span>
-                  <span
-                    className="dashboard-customizer-drag"
-                    role="img"
-                    aria-label={`Drag ${SECTION_LABELS[id]} to reorder section tabs`}
-                    title="Drag to reorder section tabs"
-                    draggable
-                    onDragStart={() => setDraggedSectionId(id)}
-                    onDragEnd={() => setDraggedSectionId(null)}
+      {customizing &&
+        createPortal(
+          <aside
+            ref={customizerRef}
+            className="dashboard-customizer"
+            aria-label="Customize dashboard"
+          >
+            <header>
+              <strong>Customize dashboard</strong>
+              <button type="button" onClick={() => setCustomizing(false)}>
+                <Icon name="close" />
+              </button>
+            </header>
+            <label>
+              Desktop name
+              <input
+                value={desktopNameDraft}
+                maxLength={40}
+                onChange={(event) => setDesktopNameDraft(event.target.value)}
+                onBlur={() => {
+                  const nextName = desktopNameDraft.trim();
+                  if (!nextName || nextName === desktopName) {
+                    setDesktopNameDraft(desktopName);
+                    return;
+                  }
+                  if (!onRenameDesktop(nextName)) {
+                    setDesktopNameDraft(desktopName);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  event.currentTarget.blur();
+                }}
+              />
+            </label>
+            <label>
+              Headline
+              <input value={headline} onChange={(event) => setHeadline(event.target.value)} />
+            </label>
+            <label>
+              Supporting text
+              <textarea value={message} onChange={(event) => setMessage(event.target.value)} />
+            </label>
+            {savedGroups.length > 0 && (
+              <section className="dashboard-group-editor">
+                <strong>Saved-link group descriptions</strong>
+                {savedGroups.map(([name]) => (
+                  <label key={name}>
+                    {name}
+                    <input
+                      value={groupDescriptions[name] ?? ""}
+                      maxLength={240}
+                      placeholder="Describe what belongs in this group"
+                      onChange={(event) =>
+                        setGroupDescriptions((current) => ({
+                          ...current,
+                          [name]: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                ))}
+              </section>
+            )}
+            <section className="dashboard-customizer-sections">
+              <strong>Section tabs</strong>
+              <small>Drag to reorder the dashboard section tabs.</small>
+              <div className="dashboard-customizer-list">
+                {sectionOrder.map((id) => (
+                  // biome-ignore lint/a11y/noStaticElementInteractions: this settings row is also a drag-and-drop target
+                  <div
+                    key={id}
+                    onDragOver={(event) => {
+                      if (draggedSectionId) event.preventDefault();
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      moveSection(id);
+                    }}
                   >
-                    <Icon name="move" />
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
-        </aside>,
-        document.querySelector<HTMLElement>(".lattice-shell") ?? document.body,
-      )}
+                    {id === "open-tabs" ? (
+                      <span className="dashboard-customizer-fixed">On</span>
+                    ) : (
+                      <button
+                        type="button"
+                        aria-pressed={enabled[id]}
+                        onClick={() => {
+                          if (activeSection === id && enabled[id]) setActiveSection("overview");
+                          setEnabled((current) => ({ ...current, [id]: !current[id] }));
+                        }}
+                      >
+                        {enabled[id] ? "On" : "Off"}
+                      </button>
+                    )}
+                    <span>{SECTION_LABELS[id]}</span>
+                    <span
+                      className="dashboard-customizer-drag"
+                      role="img"
+                      aria-label={`Drag ${SECTION_LABELS[id]} to reorder section tabs`}
+                      title="Drag to reorder section tabs"
+                      draggable
+                      onDragStart={() => setDraggedSectionId(id)}
+                      onDragEnd={() => setDraggedSectionId(null)}
+                    >
+                      <Icon name="move" />
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </aside>,
+          document.querySelector<HTMLElement>(".lattice-shell") ?? document.body,
+        )}
     </div>
   );
 }

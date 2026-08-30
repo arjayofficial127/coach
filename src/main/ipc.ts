@@ -2,9 +2,9 @@ import { app, type BrowserWindow, type IpcMainInvokeEvent, ipcMain, shell } from
 import { z } from "zod";
 import type {
   BrowserBounds,
-  LiveTabPreviewBounds,
   BrowserPrivacySummary,
   BrowserSnapshot,
+  LiveTabPreviewBounds,
   ProfileState,
   ProfileSwitchResult,
 } from "../shared/contracts";
@@ -71,6 +71,17 @@ const tabContentSearchSchema = z
     query: z.string().trim().min(1).max(200),
   })
   .strict();
+const siteIconUrlsSchema = z
+  .array(
+    z
+      .string()
+      .url()
+      .max(2048)
+      .refine((value) => /^https?:\/\//i.test(value), {
+        message: "Only HTTP(S) URLs can provide site icons.",
+      }),
+  )
+  .max(48);
 const profileIdSchema = z.string().uuid();
 const createProfileSchema = z.object({
   name: z.string().trim().min(1).max(40),
@@ -114,6 +125,7 @@ export interface BrowserController {
   snapshot(): BrowserSnapshot;
   captureTabPreview(tabId: string): Promise<string | null>;
   searchTabContents(tabIds: string[], query: string): Promise<string[]>;
+  loadSiteIcons(urls: string[]): Promise<Record<string, string>>;
   createTab(input?: string): Promise<BrowserSnapshot>;
   switchTab(tabId: string): BrowserSnapshot;
   closeTab(tabId: string): BrowserSnapshot;
@@ -186,6 +198,9 @@ export function registerIpc(
     const input = tabContentSearchSchema.parse(payload);
     return browser.searchTabContents(input.tabIds, input.query);
   });
+  handle(IPC.browserLoadSiteIcons, (_event, payload) =>
+    browser.loadSiteIcons(siteIconUrlsSchema.parse(payload)),
+  );
   handle(IPC.browserCreateTab, (_event, payload) =>
     browser.createTab(z.string().optional().parse(payload)),
   );

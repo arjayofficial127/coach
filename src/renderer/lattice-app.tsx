@@ -82,6 +82,12 @@ import {
   type ThemeId,
 } from "./settings-model";
 import {
+  readSiteIcons,
+  SITE_ICONS_UPDATED_EVENT,
+  saveSiteIcons,
+  siteIconDomainKey,
+} from "./site-icon-cache";
+import {
   archiveDesktop,
   createDesktop,
   DEFAULT_WORKSPACE,
@@ -360,9 +366,15 @@ export function LatticeApp() {
   const [profileBusy, setProfileBusy] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [dashboardCustomizing, setDashboardCustomizing] = useState(false);
-  const [dashboardToolbarContentTarget, setDashboardToolbarContentTarget] = useState<HTMLDivElement | null>(null);
+  const [dashboardToolbarContentTarget, setDashboardToolbarContentTarget] =
+    useState<HTMLDivElement | null>(null);
   const [requestedCanvasPageId, setRequestedCanvasPageId] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<BrowserSnapshot>(emptySnapshot);
+  const [siteIcons, setSiteIcons] = useState(readSiteIcons);
+  const requestedSiteIconDomains = useRef(new Set<string>());
+  const siteIconAttempts = useRef(new Map<string, number>());
+  const siteIconRetryTimers = useRef(new Set<number>());
+  const [siteIconRetryGeneration, setSiteIconRetryGeneration] = useState(0);
   const [tabDesktops, setTabDesktops] = useState<Record<string, string>>({});
   const desktopLocationsRef = useRef<
     Record<string, { kind: "dashboard" } | { kind: "tab"; tabId: string }>
@@ -375,10 +387,10 @@ export function LatticeApp() {
   const [canvasPages, setCanvasPages] = useState<CanvasPageSummary[]>([]);
   const [recentlyClosedTabs, setRecentlyClosedTabs] = useState<DashboardClosedTab[]>([]);
   const [browserHistory, setBrowserHistory] = useState<DashboardHistoryItem[]>([]);
-  const [dashboardTabPreviews, setDashboardTabPreviews] = useState<Record<string, string>>({});
-  const [dashboardTabPreviewStatuses, setDashboardTabPreviewStatuses] = useState<
-    Record<string, "loading" | "ready" | "failed">
-  >({});
+  const [dashboardTabPreviews] = useState<Record<string, string>>({});
+  const [dashboardTabPreviewStatuses] = useState<Record<string, "loading" | "ready" | "failed">>(
+    {},
+  );
   const [referenceIndex, setReferenceIndex] = useState<VaultReferenceIndex>(emptyReferenceIndex);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [captureDescription, setCaptureDescription] = useState("");
@@ -605,31 +617,47 @@ export function LatticeApp() {
     let resizeObserver: ResizeObserver;
     const updateLivePreviews = () => {
       frame = 0;
-      const elements = [
-        ...document.querySelectorAll<HTMLElement>("[data-live-tab-preview]"),
-      ];
-      elements.forEach((element) => resizeObserver.observe(element));
+      if (document.querySelector(".dashboard-customizer, .dashboard-search-settings")) {
+        void window.lattice.browser.setLivePreviews([]);
+        return;
+      }
+      const elements = [...document.querySelectorAll<HTMLElement>("[data-live-tab-preview]")];
+      elements.forEach((element) => {
+        resizeObserver.observe(element);
+      });
+      document
+        .querySelectorAll<HTMLElement>(".dashboard-surface-toolbar, .dashboard-surface-v2")
+        .forEach((element) => {
+          resizeObserver.observe(element);
+        });
+      const toolbarBounds = document
+        .querySelector<HTMLElement>(".dashboard-surface-toolbar")
+        ?.getBoundingClientRect();
+      const surfaceBounds = document
+        .querySelector<HTMLElement>(".dashboard-surface-v2")
+        ?.getBoundingClientRect();
+      const previewViewport = {
+        left: Math.max(0, surfaceBounds?.left ?? 0),
+        top: Math.max(0, surfaceBounds?.top ?? 0, toolbarBounds?.bottom ?? 0),
+        right: Math.min(window.innerWidth, surfaceBounds?.right ?? window.innerWidth),
+        bottom: Math.min(window.innerHeight, surfaceBounds?.bottom ?? window.innerHeight),
+      };
       const previews = elements
         .map((element) => {
           const tabId = element.dataset.liveTabPreview;
           const bounds = element.getBoundingClientRect();
-          if (
-            !tabId ||
-            bounds.width < 2 ||
-            bounds.height < 2 ||
-            bounds.bottom <= 0 ||
-            bounds.top >= window.innerHeight ||
-            bounds.right <= 0 ||
-            bounds.left >= window.innerWidth
-          )
-            return null;
+          const left = Math.max(bounds.left, previewViewport.left);
+          const top = Math.max(bounds.top, previewViewport.top);
+          const right = Math.min(bounds.right, previewViewport.right);
+          const bottom = Math.min(bounds.bottom, previewViewport.bottom);
+          if (!tabId || right - left < 2 || bottom - top < 2) return null;
           return {
             tabId,
             bounds: {
-              x: bounds.left,
-              y: bounds.top,
-              width: bounds.width,
-              height: bounds.height,
+              x: left,
+              y: top,
+              width: right - left,
+              height: bottom - top,
             },
           };
         })
@@ -913,6 +941,92 @@ export function LatticeApp() {
   useEffect(() => {
     setCustomThemeDraft(settings.customTheme);
   }, [settings.customTheme]);
+
+  useEffect(() => {
+    const sync = () => setSiteIcons(readSiteIcons());
+    window.addEventListener(SITE_ICONS_UPDATED_EVENT, sync);
+    return () => window.removeEventListener(SITE_ICONS_UPDATED_EVENT, sync);
+  }, []);
+
+  useEffect(() => {
+    const retryWhenOnline = () => {
+      requestedSiteIconDomains.current.clear();
+      siteIconAttempts.current.clear();
+      setSiteIconRetryGeneration((current) => current + 1);
+    };
+    window.addEventListener("online", retryWhenOnline);
+    return () => {
+      window.removeEventListener("online", retryWhenOnline);
+      for (const timer of siteIconRetryTimers.current) window.clearTimeout(timer);
+      siteIconRetryTimers.current.clear();
+    };
+  }, []);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the retry generation intentionally re-runs favicon discovery after a delayed or online retry
+  useEffect(() => {
+    const discovered = Object.fromEntries(
+      snapshot.tabs
+        .map((tab) => [siteIconDomainKey(tab.url), tab.siteIconDataUrl] as const)
+        .filter((entry): entry is readonly [string, string] => Boolean(entry[0] && entry[1])),
+    );
+    const knownIcons = { ...siteIcons, ...discovered };
+    if (Object.keys(discovered).some((hostname) => siteIcons[hostname] !== discovered[hostname])) {
+      setSiteIcons(saveSiteIcons(knownIcons));
+    }
+
+    const missingUrls = [
+      ...snapshot.tabs.map((tab) => tab.url),
+      ...links.map((link) => link.url),
+    ].filter((url) => {
+      const hostname = siteIconDomainKey(url);
+      if (!hostname || knownIcons[hostname] || requestedSiteIconDomains.current.has(hostname)) {
+        return false;
+      }
+      requestedSiteIconDomains.current.add(hostname);
+      return true;
+    });
+    for (let offset = 0; offset < missingUrls.length; offset += 48) {
+      const batch = missingUrls.slice(offset, offset + 48);
+      for (const url of batch) {
+        const hostname = siteIconDomainKey(url);
+        siteIconAttempts.current.set(hostname, (siteIconAttempts.current.get(hostname) ?? 0) + 1);
+      }
+      const scheduleRetry = (urls: string[]) => {
+        const retryable = urls.filter((url) => {
+          const hostname = siteIconDomainKey(url);
+          return hostname && (siteIconAttempts.current.get(hostname) ?? 0) < 3;
+        });
+        if (retryable.length === 0) return;
+        const attempt = Math.max(
+          ...retryable.map((url) => siteIconAttempts.current.get(siteIconDomainKey(url)) ?? 1),
+        );
+        const timer = window.setTimeout(
+          () => {
+            siteIconRetryTimers.current.delete(timer);
+            for (const url of retryable) {
+              requestedSiteIconDomains.current.delete(siteIconDomainKey(url));
+            }
+            setSiteIconRetryGeneration((current) => current + 1);
+          },
+          attempt === 1 ? 1_500 : 5_000,
+        );
+        siteIconRetryTimers.current.add(timer);
+      };
+      void window.lattice.browser
+        .loadSiteIcons(batch)
+        .then((loaded) => {
+          const loadedHosts = new Set(Object.keys(loaded));
+          for (const hostname of loadedHosts) siteIconAttempts.current.delete(hostname);
+          if (loadedHosts.size > 0) {
+            setSiteIcons((current) => saveSiteIcons({ ...current, ...loaded }));
+          }
+          scheduleRetry(batch.filter((url) => !loadedHosts.has(siteIconDomainKey(url))));
+        })
+        .catch(() => {
+          scheduleRetry(batch);
+        });
+    }
+  }, [links, siteIconRetryGeneration, siteIcons, snapshot.tabs]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1380,6 +1494,18 @@ export function LatticeApp() {
         setWorkspace((current) => renameDesktop(current, renamedDesktopId, previousName)),
       );
     }
+  };
+
+  const renameActiveDesktopFromDashboard = (name: string) => {
+    const desktopId = workspace.activeDesktopId;
+    const next = renameDesktop(workspace, desktopId, name);
+    if (next === workspace) {
+      setStatus("Choose a unique desktop name");
+      return false;
+    }
+    setWorkspace(next);
+    setStatus("Desktop renamed; existing Obsidian folders were left untouched");
+    return true;
   };
 
   const closeAllTabs = async () => {
@@ -3116,7 +3242,12 @@ export function LatticeApp() {
               >
                 <button className="tab-select" type="button" onClick={() => void switchTab(tab)}>
                   <span className="favicon">
-                    {tab.url === "about:blank" ? (
+                    {tab.siteIconDataUrl || siteIcons[siteIconDomainKey(tab.url)] ? (
+                      <img
+                        src={tab.siteIconDataUrl || siteIcons[siteIconDomainKey(tab.url)]}
+                        alt=""
+                      />
+                    ) : tab.url === "about:blank" ? (
                       <Icon name="sparkle" />
                     ) : (
                       displayHost(tab.url).slice(0, 1).toUpperCase()
@@ -3250,7 +3381,9 @@ export function LatticeApp() {
         )}
 
         {surface !== "browser" && surface !== "home" && (
-          <header className={`surface-toolbar ${surface === "dashboard" ? "dashboard-surface-toolbar" : ""}`}>
+          <header
+            className={`surface-toolbar ${surface === "dashboard" ? "dashboard-surface-toolbar" : ""}`}
+          >
             <div className="surface-toolbar-context">
               {surface !== "dashboard" && (
                 <button type="button" className="surface-back" onClick={showDashboard}>
@@ -3277,12 +3410,17 @@ export function LatticeApp() {
                 <span>
                   <strong>
                     {surface === "dashboard"
-    ? `Dashboard - ${activeDesktop?.name ?? "Desktop 1"}`
+                      ? `Dashboard - ${activeDesktop?.name ?? "Desktop 1"}`
                       : surfaceDetails[surface].label}
                   </strong>
-                  {surface === "dashboard" && <small className="dashboard-toolbar-greeting">{greeting}</small>}
                   {surface === "dashboard" && (
-                    <div className="dashboard-toolbar-content" ref={setDashboardToolbarContentTarget} />
+                    <small className="dashboard-toolbar-greeting">{greeting}</small>
+                  )}
+                  {surface === "dashboard" && (
+                    <div
+                      className="dashboard-toolbar-content"
+                      ref={setDashboardToolbarContentTarget}
+                    />
                   )}
                   {surface !== "dashboard" && <small>{surfaceDetails[surface].description}</small>}
                 </span>
@@ -3527,6 +3665,7 @@ export function LatticeApp() {
                 desktopName={activeDesktop?.name ?? "Workspace"}
                 customizing={dashboardCustomizing}
                 onCustomizingChange={setDashboardCustomizing}
+                onRenameDesktop={renameActiveDesktopFromDashboard}
                 openTabs={desktopTabs}
                 activeTabId={snapshot.activeTabId}
                 tabPreviews={dashboardTabPreviews}

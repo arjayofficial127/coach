@@ -107,6 +107,10 @@ export class ProfileRuntime {
     return this.activeRuntime().searchTabContents(tabIds, query);
   }
 
+  loadSiteIcons(urls: string[]): Promise<Record<string, string>> {
+    return this.activeRuntime().loadSiteIcons(urls);
+  }
+
   createTab(input?: string): Promise<BrowserSnapshot> {
     return this.activeRuntime().createTab(input);
   }
