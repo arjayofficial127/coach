@@ -9268,6 +9268,29 @@ kbd {
   text-align: center;
 }
 
+.dashboard-tab-strip > .dashboard-new-tab-inline,
+.dashboard-tab-list > .dashboard-new-tab-inline {
+  display: grid;
+  min-width: 44px;
+  min-height: 44px;
+  place-items: center;
+  border: 1px dashed color-mix(in srgb, var(--accent) 42%, var(--line));
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.dashboard-tab-strip > .dashboard-new-tab-inline:hover,
+.dashboard-tab-list > .dashboard-new-tab-inline:hover {
+  border-style: solid;
+  background: color-mix(in srgb, var(--accent-soft) 75%, var(--surface));
+}
+
+.dashboard-new-tab-inline svg {
+  width: 18px;
+  height: 18px;
+}
+
 .dashboard-tab-tools {
   display: inline-flex;
   align-items: center;

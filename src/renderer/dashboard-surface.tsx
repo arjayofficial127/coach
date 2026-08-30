@@ -142,7 +142,7 @@ const SECTION_ICONS: Record<DashboardSectionId, IconName> = {
   "canvas-pages": "folder",
 };
 
-const OVERVIEW_OPEN_TAB_LIMIT = 5;
+const OVERVIEW_OPEN_TAB_LIMIT = 3;
 
 interface DashboardSurfaceProps {
   greeting: string;
@@ -787,6 +787,14 @@ export function DashboardSurface({
             </div>
           </header>
           <div className={tabViewMode === "grid" ? "dashboard-tab-strip" : "dashboard-tab-list"}>
+            <button
+              className="dashboard-new-tab-inline"
+              type="button"
+              onClick={onNewTab}
+              aria-label="Open new tab"
+            >
+              <Icon name="plus" />
+            </button>
             {displayedOpenTabs.map((tab) => (
               <button
                 className={`dashboard-tab-card ${tab.id === selectedTab?.id ? "selected" : ""}`}
@@ -818,14 +826,6 @@ export function DashboardSurface({
                 </small>
               </button>
             ))}
-            <button
-              className="dashboard-new-tab dashboard-tab-card"
-              type="button"
-              onClick={onNewTab}
-            >
-              <Icon name="plus" />
-              <span>New tab</span>
-            </button>
           </div>
         </section>
       )}
