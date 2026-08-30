@@ -76,7 +76,17 @@ async function createMainWindow(): Promise<void> {
     browserRuntime,
   );
 
-  mainWindow.once("ready-to-show", () => mainWindow?.show());
+  const revealMainWindow = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (!mainWindow.isVisible()) mainWindow.show();
+  };
+  mainWindow.once("ready-to-show", revealMainWindow);
+  mainWindow.webContents.on("did-fail-load", (_event, code, description, url) =>
+    console.error(`[startup] renderer load failed: ${code} ${description} ${url}`),
+  );
+  mainWindow.webContents.on("render-process-gone", (_event, details) =>
+    console.error(`[startup] renderer process gone: ${details.reason}`),
+  );
   mainWindow.on("close", () => {
     browserRuntime?.close();
   });
@@ -92,6 +102,7 @@ async function createMainWindow(): Promise<void> {
   } else {
     await mainWindow.loadURL("lattice://app/index.html");
   }
+  revealMainWindow();
 }
 
 app.whenReady().then(async () => {
@@ -115,7 +126,11 @@ app.whenReady().then(async () => {
     return;
   }
 
-  await createMainWindow();
+  try {
+    await createMainWindow();
+  } catch (error) {
+    console.error("[startup] main window failed", error);
+  }
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       void createMainWindow();
