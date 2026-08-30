@@ -230,7 +230,6 @@ export class BrowserRuntime {
         if (this.livePreviewIds.has(id)) {
           this.setPreviewScrollLock(tab, false);
           tab.view.setVisible(false);
-          tab.contents.setZoomFactor(1);
           this.livePreviewLayouts.delete(id);
         }
         continue;
@@ -272,7 +271,10 @@ export class BrowserRuntime {
   setVisible(visible: boolean): void {
     this.visible = visible;
     if (visible && this.livePreviewIds.size > 0) this.setLivePreviews([]);
-    if (!this.closed) this.activeTab().view.setVisible(visible);
+    if (!this.closed) {
+      if (visible) this.activeTab().contents.setZoomFactor(1);
+      this.activeTab().view.setVisible(visible);
+    }
   }
 
   back(): void {
@@ -717,6 +719,7 @@ export class BrowserRuntime {
     const script = locked
       ? `(() => {
           const key = "__latticePreviewScrollLock";
+          const styleId = "__latticePreviewScrollbarStyle";
           const previous = window[key];
           if (previous) {
             window.removeEventListener("wheel", previous.block, true);
@@ -728,6 +731,13 @@ export class BrowserRuntime {
             if (window.scrollX !== 0 || window.scrollY !== 0) window.scrollTo(0, 0);
           };
           window[key] = { block, reset };
+          let style = document.getElementById(styleId);
+          if (!style) {
+            style = document.createElement("style");
+            style.id = styleId;
+            style.textContent = "html, body { scrollbar-width: none !important; } ::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }";
+            (document.head || document.documentElement).appendChild(style);
+          }
           window.addEventListener("wheel", block, { capture: true, passive: false });
           window.addEventListener("touchmove", block, { capture: true, passive: false });
           window.addEventListener("scroll", reset, true);
@@ -735,11 +745,13 @@ export class BrowserRuntime {
         })()`
       : `(() => {
           const key = "__latticePreviewScrollLock";
+          const styleId = "__latticePreviewScrollbarStyle";
           const current = window[key];
           if (!current) return;
           window.removeEventListener("wheel", current.block, true);
           window.removeEventListener("touchmove", current.block, true);
           window.removeEventListener("scroll", current.reset, true);
+          document.getElementById(styleId)?.remove();
           delete window[key];
         })()`;
     void tab.contents.executeJavaScript(script, true).catch(() => undefined);
