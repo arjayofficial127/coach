@@ -8944,7 +8944,8 @@ kbd {
 
 .dashboard-global-search {
   position: relative;
-  z-index: 3;
+  z-index: 30;
+  isolation: isolate;
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr) auto;
   align-items: center;
@@ -9004,7 +9005,7 @@ kbd {
 
 .dashboard-search-settings {
   position: absolute;
-  z-index: 5;
+  z-index: 31;
   top: calc(100% + 8px);
   right: 0;
   width: min(360px, calc(100vw - 40px));

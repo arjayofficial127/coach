@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import type { BrowserState, CanvasPageSummary, SavedLinkRecord } from "../shared/contracts";
 import { Icon, type IconName } from "./icon";
 import { RUNNABLE_APP_CATALOG, type RunnableAppId } from "./runnable-apps-model";
@@ -266,6 +266,7 @@ export function DashboardSurface({
   const initialPreferences = useMemo(readPreferences, []);
   const [customizing, setCustomizing] = useState(false);
   const [searchSettingsOpen, setSearchSettingsOpen] = useState(false);
+  const searchSettingsRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSection, setActiveSection] = useState<DashboardSectionId>("overview");
   const [tabViewMode, setTabViewMode] = useState<"grid" | "list">("grid");
@@ -289,6 +290,23 @@ export function DashboardSurface({
     initialPreferences.searchScope,
   );
   const selectedTab = openTabs.find((tab) => tab.id === selectedTabId) ?? openTabs[0] ?? null;
+
+  useEffect(() => {
+    if (!searchSettingsOpen) return;
+    const closeWhenOutside = (event: PointerEvent) => {
+      if (searchSettingsRef.current?.contains(event.target as Node)) return;
+      setSearchSettingsOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSearchSettingsOpen(false);
+    };
+    document.addEventListener("pointerdown", closeWhenOutside, true);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeWhenOutside, true);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [searchSettingsOpen]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -715,7 +733,7 @@ export function DashboardSurface({
         </button>
       </header>
 
-      <div className="dashboard-global-search">
+      <div ref={searchSettingsRef} className="dashboard-global-search">
         <Icon name="search" />
         <input
           value={searchQuery}
