@@ -43,6 +43,8 @@ interface TabRecord {
   view: WebContentsView;
   contents: WebContents;
   state: BrowserState;
+  previewDataUrl: string | null;
+  previewCapture: Promise<string | null> | null;
 }
 
 export class BrowserRuntime {
@@ -134,12 +136,30 @@ export class BrowserRuntime {
   async captureTabPreview(tabId: string): Promise<string | null> {
     const tab = this.tabs.get(tabId);
     if (!tab || tab.contents.isDestroyed() || tab.state.url === "about:blank") return null;
-    try {
-      const image = await tab.contents.capturePage();
-      if (image.isEmpty()) return null;
-      return image.resize({ width: 480, quality: "good" }).toDataURL();
-    } catch {
+    if (tab.previewDataUrl) return tab.previewDataUrl;
+    if (tab.previewCapture) return tab.previewCapture;
+    // An inactive WebContentsView can finish navigation a little after the
+    // dashboard opens. Capture only its first rendered frame and cache it;
+    // subsequent dashboard visits reuse that preview without refreshing it.
+    tab.previewCapture = (async () => {
+      for (const delay of [0, 220, 850, 1_800]) {
+        if (delay) await new Promise<void>((resolve) => setTimeout(resolve, delay));
+        if (tab.contents.isDestroyed()) return null;
+        try {
+          const image = await tab.contents.capturePage();
+          if (image.isEmpty()) continue;
+          tab.previewDataUrl = image.resize({ width: 480, quality: "good" }).toDataURL();
+          return tab.previewDataUrl;
+        } catch {
+          // A frame may not exist yet; try again while the page completes its first load.
+        }
+      }
       return null;
+    })();
+    try {
+      return await tab.previewCapture;
+    } finally {
+      tab.previewCapture = null;
     }
   }
 
@@ -412,6 +432,8 @@ export class BrowserRuntime {
         error: null,
         siteIconDataUrl: null,
       },
+      previewDataUrl: null,
+      previewCapture: null,
     };
     this.allContents.push(contents);
     this.window.contentView.addChildView(view);
@@ -553,6 +575,8 @@ export class BrowserRuntime {
     tab.state.loading = true;
     tab.state.error = null;
     tab.state.siteIconDataUrl = null;
+    tab.previewDataUrl = null;
+    tab.previewCapture = null;
     this.emitState(tab);
     await tab.contents.loadURL(url);
   }
