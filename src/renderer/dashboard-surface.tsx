@@ -30,6 +30,7 @@ type DashboardWidgetId =
 
 type DashboardSectionId = "overview" | "open-tabs" | DashboardWidgetId;
 type DashboardSearchScope = "titles" | "all";
+type DashboardTabId = Exclude<DashboardSectionId, "overview">;
 
 const DEFAULT_ORDER: DashboardWidgetId[] = [
   "message",
@@ -42,6 +43,17 @@ const DEFAULT_ORDER: DashboardWidgetId[] = [
   "canvas-pages",
 ];
 
+const DEFAULT_SECTION_ORDER: DashboardTabId[] = [
+  "open-tabs",
+  "history",
+  "saved-links",
+  "message",
+  "recently-closed",
+  "favorites",
+  "runnable-apps",
+  "canvas-pages",
+];
+
 const DASHBOARD_STORAGE_KEY = "coach.dashboard.v1";
 
 interface DashboardPreferences {
@@ -49,6 +61,7 @@ interface DashboardPreferences {
   message: string;
   enabled: Record<DashboardWidgetId, boolean>;
   order: DashboardWidgetId[];
+  sectionOrder: DashboardTabId[];
   highlightedUrls: string[];
   pinnedTabIds: string[];
   tabOrder: string[];
@@ -66,6 +79,7 @@ function defaultPreferences(): DashboardPreferences {
       boolean
     >,
     order: [...DEFAULT_ORDER],
+    sectionOrder: [...DEFAULT_SECTION_ORDER],
     highlightedUrls: [],
     pinnedTabIds: [],
     tabOrder: [],
@@ -87,6 +101,11 @@ function readPreferences(): DashboardPreferences {
           DEFAULT_ORDER.includes(id as DashboardWidgetId),
         )
       : [];
+    const parsedSectionOrder = Array.isArray(parsed.sectionOrder)
+      ? parsed.sectionOrder.filter((id): id is DashboardTabId =>
+          DEFAULT_SECTION_ORDER.includes(id as DashboardTabId),
+        )
+      : [];
     return {
       headline:
         typeof parsed.headline === "string" ? parsed.headline.slice(0, 120) : fallback.headline,
@@ -95,6 +114,10 @@ function readPreferences(): DashboardPreferences {
         DEFAULT_ORDER.map((id) => [id, parsed.enabled?.[id] ?? true]),
       ) as Record<DashboardWidgetId, boolean>,
       order: [...parsedOrder, ...DEFAULT_ORDER.filter((id) => !parsedOrder.includes(id))],
+      sectionOrder: [
+        ...parsedSectionOrder,
+        ...DEFAULT_SECTION_ORDER.filter((id) => !parsedSectionOrder.includes(id)),
+      ],
       highlightedUrls: Array.isArray(parsed.highlightedUrls)
         ? parsed.highlightedUrls
             .filter((url): url is string => typeof url === "string")
@@ -267,6 +290,8 @@ export function DashboardSurface({
   const [customizing, setCustomizing] = useState(false);
   const [searchSettingsOpen, setSearchSettingsOpen] = useState(false);
   const searchSettingsRef = useRef<HTMLDivElement>(null);
+  const [sectionOverflowOpen, setSectionOverflowOpen] = useState(false);
+  const sectionOverflowRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSection, setActiveSection] = useState<DashboardSectionId>("overview");
   const [tabViewMode, setTabViewMode] = useState<"grid" | "list">("grid");
@@ -277,10 +302,13 @@ export function DashboardSurface({
   const [message, setMessage] = useState(initialPreferences.message);
   const [enabled, setEnabled] = useState(initialPreferences.enabled);
   const [order, setOrder] = useState(initialPreferences.order);
+  const [sectionOrder, setSectionOrder] = useState(initialPreferences.sectionOrder);
   const [highlightedUrls, setHighlightedUrls] = useState(initialPreferences.highlightedUrls);
   const [pinnedTabIds, setPinnedTabIds] = useState(initialPreferences.pinnedTabIds);
   const [tabOrder, setTabOrder] = useState(initialPreferences.tabOrder);
   const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
+  const [draggedSectionId, setDraggedSectionId] = useState<DashboardTabId | null>(null);
+  const [draggedWidgetId, setDraggedWidgetId] = useState<DashboardWidgetId | null>(null);
   const [groupDescriptions, setGroupDescriptions] = useState(initialPreferences.groupDescriptions);
   const [siteIcons, setSiteIcons] = useState(readSiteIcons);
   const [searchOpenTabContents, setSearchOpenTabContents] = useState(
@@ -309,6 +337,23 @@ export function DashboardSurface({
   }, [searchSettingsOpen]);
 
   useEffect(() => {
+    if (!sectionOverflowOpen) return;
+    const closeWhenOutside = (event: PointerEvent) => {
+      if (sectionOverflowRef.current?.contains(event.target as Node)) return;
+      setSectionOverflowOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSectionOverflowOpen(false);
+    };
+    document.addEventListener("pointerdown", closeWhenOutside, true);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeWhenOutside, true);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [sectionOverflowOpen]);
+
+  useEffect(() => {
     localStorage.setItem(
       DASHBOARD_STORAGE_KEY,
       JSON.stringify({
@@ -316,6 +361,7 @@ export function DashboardSurface({
         message,
         enabled,
         order,
+        sectionOrder,
         highlightedUrls,
         pinnedTabIds,
         tabOrder,
@@ -335,6 +381,7 @@ export function DashboardSurface({
     order,
     searchOpenTabContents,
     searchScope,
+    sectionOrder,
   ]);
 
   useEffect(() => {
@@ -460,11 +507,10 @@ export function DashboardSurface({
     "runnable-apps": filteredRunnableApps.length,
     "canvas-pages": filteredCanvasPages.length,
   };
-  const visibleSectionIds: DashboardSectionId[] = [
-    "overview",
-    "open-tabs",
-    ...order.filter((id) => id !== "highlights" && enabled[id]),
-  ];
+  const visibleTabIds = sectionOrder.filter((id) => id === "open-tabs" || enabled[id]);
+  const visibleSectionIds: DashboardSectionId[] = ["overview", ...visibleTabIds];
+  const primarySectionIds: DashboardSectionId[] = ["overview", ...visibleTabIds.slice(0, 3)];
+  const overflowSectionIds = visibleTabIds.slice(3);
   const expanded = activeSection !== "overview";
   const displayedOpenTabs = expanded
     ? orderedOpenTabs
@@ -512,19 +558,32 @@ export function DashboardSurface({
     setDraggedTabId(null);
   };
 
-  const moveWidget = (id: DashboardWidgetId, direction: -1 | 1) => {
-    setOrder((current) => {
-      const index = current.indexOf(id);
-      const target = index + direction;
-      if (target < 0 || target >= current.length) return current;
+  const moveSection = (targetId: DashboardTabId) => {
+    if (!draggedSectionId || draggedSectionId === targetId) return;
+    setSectionOrder((current) => {
+      const from = current.indexOf(draggedSectionId);
+      const to = current.indexOf(targetId);
+      if (from < 0 || to < 0) return current;
       const next = [...current];
-      const sourceItem = next[index];
-      const targetItem = next[target];
-      if (!sourceItem || !targetItem) return current;
-      next[index] = targetItem;
-      next[target] = sourceItem;
+      const [moved] = next.splice(from, 1);
+      if (moved) next.splice(to, 0, moved);
       return next;
     });
+    setDraggedSectionId(null);
+  };
+
+  const moveWidget = (targetId: DashboardWidgetId) => {
+    if (!draggedWidgetId || draggedWidgetId === targetId) return;
+    setOrder((current) => {
+      const from = current.indexOf(draggedWidgetId);
+      const to = current.indexOf(targetId);
+      if (from < 0 || to < 0) return current;
+      const next = [...current];
+      const [moved] = next.splice(from, 1);
+      if (moved) next.splice(to, 0, moved);
+      return next;
+    });
+    setDraggedWidgetId(null);
   };
 
   const widgets: Record<DashboardWidgetId, ReactNode> = {
@@ -800,7 +859,7 @@ export function DashboardSurface({
       </div>
 
       <nav className="dashboard-section-tabs" aria-label="Dashboard sections">
-        {visibleSectionIds.map((id) => {
+        {primarySectionIds.map((id) => {
           const count = id === "overview" ? visibleSectionIds.length - 1 : sectionCounts[id];
           return (
             <button
@@ -816,6 +875,39 @@ export function DashboardSurface({
             </button>
           );
         })}
+        {overflowSectionIds.length > 0 && (
+          <div ref={sectionOverflowRef} className="dashboard-section-overflow">
+            <button
+              type="button"
+              aria-label="More dashboard sections"
+              aria-expanded={sectionOverflowOpen}
+              aria-haspopup="menu"
+              onClick={() => setSectionOverflowOpen((value) => !value)}
+            >
+              <Icon name="more" />
+            </button>
+            {sectionOverflowOpen && (
+              <div className="dashboard-section-overflow-menu" role="menu">
+                {overflowSectionIds.map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="menuitem"
+                    className={activeSection === id ? "active" : ""}
+                    onClick={() => {
+                      setActiveSection(id);
+                      setSectionOverflowOpen(false);
+                    }}
+                  >
+                    <Icon name={SECTION_ICONS[id]} />
+                    <span>{SECTION_LABELS[id]}</span>
+                    <em>{sectionCounts[id]}</em>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </nav>
 
       {(activeSection === "overview" || activeSection === "open-tabs") && (
@@ -976,8 +1068,31 @@ export function DashboardSurface({
           .map((id) => (
             <div
               key={id}
-              className={`dashboard-widget-slot ${id}${activeSection === id ? " single-section" : ""}`}
+              className={`dashboard-widget-slot ${id}${activeSection === id ? " single-section" : ""}${
+                activeSection === "overview" ? " reorderable" : ""
+              }`}
+              onDragOver={(event) => {
+                if (activeSection === "overview" && draggedWidgetId) event.preventDefault();
+              }}
+              onDrop={(event) => {
+                if (activeSection !== "overview") return;
+                event.preventDefault();
+                moveWidget(id);
+              }}
             >
+              {activeSection === "overview" && (
+                <span
+                  className="dashboard-widget-reorder"
+                  role="img"
+                  aria-label={`Drag ${WIDGET_LABELS[id]} to reorder overview`}
+                  title="Drag to reorder overview"
+                  draggable
+                  onDragStart={() => setDraggedWidgetId(id)}
+                  onDragEnd={() => setDraggedWidgetId(null)}
+                >
+                  <Icon name="move" />
+                </span>
+              )}
               {widgets[id]}
             </div>
           ))}
@@ -1020,34 +1135,51 @@ export function DashboardSurface({
               ))}
             </section>
           )}
-          <strong>Show, hide, and reorder</strong>
-          <div className="dashboard-customizer-list">
-            {order.map((id, index) => (
-              <div key={id}>
-                <button
-                  type="button"
-                  aria-pressed={enabled[id]}
-                  onClick={() => {
-                    if (activeSection === id && enabled[id]) setActiveSection("overview");
-                    setEnabled((current) => ({ ...current, [id]: !current[id] }));
+          <section className="dashboard-customizer-sections">
+            <strong>Section tabs</strong>
+            <small>Drag to choose the first three tabs shown beside Overview.</small>
+            <div className="dashboard-customizer-list">
+              {sectionOrder.map((id) => (
+                <div
+                  key={id}
+                  onDragOver={(event) => {
+                    if (draggedSectionId) event.preventDefault();
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    moveSection(id);
                   }}
                 >
-                  {enabled[id] ? "On" : "Off"}
-                </button>
-                <span>{WIDGET_LABELS[id]}</span>
-                <button type="button" disabled={index === 0} onClick={() => moveWidget(id, -1)}>
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  disabled={index === order.length - 1}
-                  onClick={() => moveWidget(id, 1)}
-                >
-                  ↓
-                </button>
-              </div>
-            ))}
-          </div>
+                  {id === "open-tabs" ? (
+                    <span className="dashboard-customizer-fixed">On</span>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-pressed={enabled[id]}
+                      onClick={() => {
+                        if (activeSection === id && enabled[id]) setActiveSection("overview");
+                        setEnabled((current) => ({ ...current, [id]: !current[id] }));
+                      }}
+                    >
+                      {enabled[id] ? "On" : "Off"}
+                    </button>
+                  )}
+                  <span>{SECTION_LABELS[id]}</span>
+                  <span
+                    className="dashboard-customizer-drag"
+                    role="img"
+                    aria-label={`Drag ${SECTION_LABELS[id]} to reorder section tabs`}
+                    title="Drag to reorder section tabs"
+                    draggable
+                    onDragStart={() => setDraggedSectionId(id)}
+                    onDragEnd={() => setDraggedSectionId(null)}
+                  >
+                    <Icon name="move" />
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
         </aside>
       )}
     </div>

@@ -9064,6 +9064,8 @@ kbd {
 }
 
 .dashboard-section-tabs {
+  position: relative;
+  z-index: 15;
   display: flex;
   gap: 7px;
   margin-bottom: 14px;
@@ -9076,7 +9078,8 @@ kbd {
   display: none;
 }
 
-.dashboard-section-tabs > button {
+.dashboard-section-tabs > button,
+.dashboard-section-overflow > button {
   min-height: 38px;
   display: inline-flex;
   flex: 0 0 auto;
@@ -9090,7 +9093,9 @@ kbd {
 }
 
 .dashboard-section-tabs > button:hover,
-.dashboard-section-tabs > button.active {
+.dashboard-section-tabs > button.active,
+.dashboard-section-overflow > button:hover,
+.dashboard-section-overflow > button[aria-expanded="true"] {
   border-color: color-mix(in srgb, var(--accent) 48%, var(--line));
   background: var(--accent-soft);
   color: var(--accent-strong);
@@ -9099,6 +9104,62 @@ kbd {
 .dashboard-section-tabs svg {
   width: 14px;
   height: 14px;
+}
+
+.dashboard-section-overflow {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.dashboard-section-overflow > button {
+  width: 38px;
+  justify-content: center;
+  padding: 0;
+}
+
+.dashboard-section-overflow-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 210px;
+  display: grid;
+  gap: 3px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 6px;
+  box-shadow: 0 18px 44px color-mix(in srgb, #000 20%, transparent);
+}
+
+.dashboard-section-overflow-menu > button {
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  background: transparent;
+  padding: 0 8px;
+  color: var(--muted);
+  text-align: left;
+}
+
+.dashboard-section-overflow-menu > button:hover,
+.dashboard-section-overflow-menu > button.active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.dashboard-section-overflow-menu em {
+  min-width: 20px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-2));
+  padding: 2px 6px;
+  color: var(--accent-strong);
+  font-size: 9px;
+  font-style: normal;
+  text-align: center;
 }
 
 .dashboard-section-tabs em {
@@ -9625,6 +9686,43 @@ kbd {
   grid-column: span 2;
 }
 
+.dashboard-widget-slot.reorderable {
+  position: relative;
+}
+
+.dashboard-widget-slot.reorderable .dashboard-widget > header {
+  padding-left: 31px;
+}
+
+.dashboard-widget-reorder {
+  position: absolute;
+  z-index: 2;
+  top: 17px;
+  left: 16px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--subtle);
+  cursor: grab;
+}
+
+.dashboard-widget-reorder:hover {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.dashboard-widget-reorder:active {
+  cursor: grabbing;
+}
+
+.dashboard-widget-reorder svg,
+.dashboard-customizer-drag svg {
+  width: 14px;
+  height: 14px;
+}
+
 .dashboard-widget-slot.single-section {
   grid-column: 1 / -1;
 }
@@ -9808,7 +9906,8 @@ kbd {
 
 .dashboard-customizer {
   position: fixed;
-  z-index: 20;
+  z-index: 80;
+  isolation: isolate;
   top: 66px;
   right: 18px;
   width: min(340px, calc(100vw - 36px));
@@ -9875,7 +9974,7 @@ kbd {
 
 .dashboard-customizer-list > div {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 28px 28px;
+  grid-template-columns: 40px minmax(0, 1fr) 28px;
   align-items: center;
   gap: 6px;
 }
@@ -9890,6 +9989,45 @@ kbd {
 .dashboard-customizer-list button[aria-pressed="true"] {
   background: var(--accent-soft);
   color: var(--accent-strong);
+}
+
+.dashboard-customizer-sections {
+  display: grid;
+  gap: 5px;
+}
+
+.dashboard-customizer-sections > small {
+  color: var(--subtle);
+  font-size: 9px;
+}
+
+.dashboard-customizer-fixed,
+.dashboard-customizer-drag {
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.dashboard-customizer-fixed {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  font-size: 9px;
+}
+
+.dashboard-customizer-drag {
+  cursor: grab;
+}
+
+.dashboard-customizer-drag:hover {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.dashboard-customizer-drag:active {
+  cursor: grabbing;
 }
 
 @media (max-width: 1120px) {
