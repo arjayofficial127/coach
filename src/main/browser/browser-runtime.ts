@@ -33,6 +33,9 @@ const REMOTE_SECURITY_PREFERENCES = {
   webviewTag: false,
 } satisfies WebPreferences;
 
+const PREVIEW_CAPTURE_BOUNDS = { x: -10_000, y: -10_000, width: 1920, height: 1080 };
+const PREVIEW_THUMBNAIL_SIZE = { width: 640, height: 360 };
+
 export interface BrowserRuntimeOptions {
   partition?: string;
   emitState?: (state: BrowserState) => void;
@@ -148,7 +151,7 @@ export class BrowserRuntime {
         // Hidden WebContentsViews are not guaranteed to paint until they have
         // been presented once. Render the uncached tab outside the window,
         // then restore it without disturbing the dashboard.
-        tab.view.setBounds({ x: -10_000, y: -10_000, width: 960, height: 540 });
+        tab.view.setBounds(PREVIEW_CAPTURE_BOUNDS);
         tab.view.setVisible(true);
       }
       try {
@@ -158,7 +161,9 @@ export class BrowserRuntime {
           try {
             const image = await tab.contents.capturePage();
             if (image.isEmpty()) continue;
-            tab.previewDataUrl = image.resize({ width: 480, quality: "good" }).toDataURL();
+            tab.previewDataUrl = image
+              .resize({ ...PREVIEW_THUMBNAIL_SIZE, quality: "best" })
+              .toDataURL();
             return tab.previewDataUrl;
           } catch {
             // A frame may not exist yet; try again while the page completes its first load.
