@@ -360,9 +360,13 @@ export function LatticeApp() {
   const [profileBusy, setProfileBusy] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [dashboardCustomizing, setDashboardCustomizing] = useState(false);
+  const [dashboardToolbarContentTarget, setDashboardToolbarContentTarget] = useState<HTMLDivElement | null>(null);
   const [requestedCanvasPageId, setRequestedCanvasPageId] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<BrowserSnapshot>(emptySnapshot);
   const [tabDesktops, setTabDesktops] = useState<Record<string, string>>({});
+  const desktopLocationsRef = useRef<
+    Record<string, { kind: "dashboard" } | { kind: "tab"; tabId: string }>
+  >({});
   const [surface, setSurface] = useState<Surface>("home");
   const [address, setAddress] = useState("");
   const [homeQuery, setHomeQuery] = useState("");
@@ -1184,6 +1188,7 @@ export function LatticeApp() {
     try {
       const next = await window.lattice.browser.createTab();
       setBrowserSnapshot(next, desktopId);
+      desktopLocationsRef.current[desktopId] = { kind: "tab", tabId: next.activeTabId };
       setAddress("");
       setSurface(destination);
       setCaptureOpen(false);
@@ -1200,6 +1205,10 @@ export function LatticeApp() {
     if (!confirmCanvasLeave()) return;
     try {
       setSnapshot(await window.lattice.browser.switchTab(tab.id));
+      desktopLocationsRef.current[tabDesktops[tab.id] ?? workspace.activeDesktopId] = {
+        kind: "tab",
+        tabId: tab.id,
+      };
       setSurface(tab.url === "about:blank" ? "home" : "browser");
       setCaptureOpen(false);
     } catch (error) {
@@ -1288,14 +1297,41 @@ export function LatticeApp() {
 
   const selectDesktop = async (desktopId: string) => {
     if (!confirmCanvasLeave()) return;
+    if (surface === "dashboard") {
+      desktopLocationsRef.current[workspace.activeDesktopId] = { kind: "dashboard" };
+    } else if ((surface === "browser" || surface === "home") && contextualTab) {
+      desktopLocationsRef.current[workspace.activeDesktopId] = {
+        kind: "tab",
+        tabId: contextualTab.id,
+      };
+    }
     setWorkspace((current) => ({ ...current, activeDesktopId: desktopId }));
+    const rememberedLocation = desktopLocationsRef.current[desktopId];
+    if (rememberedLocation?.kind === "dashboard") {
+      setAddress("");
+      setSurface("dashboard");
+      setCaptureOpen(false);
+      return;
+    }
+    const rememberedTab =
+      rememberedLocation?.kind === "tab"
+        ? snapshot.tabs.find(
+            (tab) => tab.id === rememberedLocation.tabId && tabDesktops[tab.id] === desktopId,
+          )
+        : null;
+    if (rememberedTab) {
+      setSnapshot(await window.lattice.browser.switchTab(rememberedTab.id));
+      setSurface(rememberedTab.url === "about:blank" ? "home" : "browser");
+      setCaptureOpen(false);
+      return;
+    }
     const firstTab = snapshot.tabs.find((tab) => tabDesktops[tab.id] === desktopId);
     if (firstTab) {
       setSnapshot(await window.lattice.browser.switchTab(firstTab.id));
       setSurface(firstTab.url === "about:blank" ? "home" : "browser");
     } else {
       setAddress("");
-      setSurface("home");
+      setSurface("dashboard");
     }
     setCaptureOpen(false);
   };
@@ -1312,7 +1348,7 @@ export function LatticeApp() {
     }));
     setDesktopName("");
     setAddingDesktop(false);
-    setSurface("home");
+    setSurface("dashboard");
   };
 
   const beginRenameDesktop = (desktopId: string) => {
@@ -1661,6 +1697,7 @@ export function LatticeApp() {
 
   const showDashboard = () => {
     if (!confirmCanvasLeave()) return;
+    desktopLocationsRef.current[workspace.activeDesktopId] = { kind: "dashboard" };
     setSurface("dashboard");
     setCaptureOpen(false);
     setBrowserMenuOpen(false);
@@ -2327,8 +2364,8 @@ export function LatticeApp() {
   return (
     <div
       className={`lattice-shell${focusMode ? " focus-mode" : ""}${
-        showNewTabSurface ? " new-tab-sizing-invalidated" : ""
-      }${settings.activeTheme === "lattice-dark" ? "" : " theme-adaptive"}`}
+        settings.activeTheme === "lattice-dark" ? "" : " theme-adaptive"
+      }`}
       data-theme={settings.activeTheme}
       data-theme-name={
         settings.activeTheme === "custom"
@@ -3040,6 +3077,7 @@ export function LatticeApp() {
       <section
         className={[
           "content-shell",
+          surface === "dashboard" ? "dashboard-content-shell" : "",
           showNewTabSurface ? "new-tab-content" : "",
           captureOpen ? "drawer-open" : "",
           focusMode ? "focus-content" : "",
@@ -3048,8 +3086,15 @@ export function LatticeApp() {
           .join(" ")}
       >
         <header className="tab-strip">
-          <button className="desktop-context" type="button" onClick={showDashboard}>
-            <span className={`context-dot ${activeDesktop?.color ?? "violet"}`} />
+          <button
+            className={surface === "dashboard" ? "desktop-context active" : "desktop-context"}
+            type="button"
+            aria-current={surface === "dashboard" ? "page" : undefined}
+            onClick={showDashboard}
+          >
+            <span className={`favicon desktop-tab-icon ${activeDesktop?.color ?? "violet"}`}>
+              <Icon name="desktop" />
+            </span>
             <span className="desktop-context-name">{activeDesktop?.name ?? "Desk 1"}</span>
             <span className="desktop-context-count">{desktopTabs.length}</span>
           </button>
@@ -3059,6 +3104,7 @@ export function LatticeApp() {
                 key={tab.id}
                 className={
                   tab.id === snapshot.activeTabId &&
+                  surface !== "dashboard" &&
                   surface !== "library" &&
                   surface !== "queue" &&
                   surface !== "pages" &&
@@ -3204,7 +3250,7 @@ export function LatticeApp() {
         )}
 
         {surface !== "browser" && surface !== "home" && (
-          <header className="surface-toolbar">
+          <header className={`surface-toolbar ${surface === "dashboard" ? "dashboard-surface-toolbar" : ""}`}>
             <div className="surface-toolbar-context">
               {surface !== "dashboard" && (
                 <button type="button" className="surface-back" onClick={showDashboard}>
@@ -3231,9 +3277,13 @@ export function LatticeApp() {
                 <span>
                   <strong>
                     {surface === "dashboard"
-                      ? `Dashboard — ${activeDesktop?.name ?? "Desktop 1"}`
+    ? `Dashboard - ${activeDesktop?.name ?? "Desktop 1"}`
                       : surfaceDetails[surface].label}
                   </strong>
+                  {surface === "dashboard" && <small className="dashboard-toolbar-greeting">{greeting}</small>}
+                  {surface === "dashboard" && (
+                    <div className="dashboard-toolbar-content" ref={setDashboardToolbarContentTarget} />
+                  )}
                   {surface !== "dashboard" && <small>{surfaceDetails[surface].description}</small>}
                 </span>
               </span>
@@ -3472,6 +3522,8 @@ export function LatticeApp() {
             {surface === "dashboard" && (
               <DashboardSurface
                 greeting={greeting}
+                showGreeting={false}
+                toolbarContentTarget={dashboardToolbarContentTarget}
                 desktopName={activeDesktop?.name ?? "Workspace"}
                 customizing={dashboardCustomizing}
                 onCustomizingChange={setDashboardCustomizing}

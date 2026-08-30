@@ -1424,6 +1424,10 @@ kbd {
   background: var(--bg);
 }
 
+.content-shell.dashboard-content-shell {
+  grid-template-rows: 43px auto minmax(0, 1fr) 24px;
+}
+
 .tab-strip {
   display: flex;
   min-width: 0;
@@ -1441,13 +1445,16 @@ kbd {
 }
 
 .desktop-context {
-  display: flex;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
   height: 35px;
   align-self: flex-end;
+  margin-right: 3px;
   width: max-content;
   flex-shrink: 0;
   white-space: nowrap;
-  min-width: 84px;
+  min-width: 120px;
+  max-width: 220px;
   align-items: center;
   gap: 7px;
   padding: 0 8px;
@@ -1455,11 +1462,22 @@ kbd {
   font-size: 9px;
   font-weight: 650;
   cursor: pointer;
-  border: 0;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 9px 9px 0 0;
   background: transparent;
+  text-align: left;
 }
 
 .desktop-context:hover {
+  color: var(--text);
+}
+
+.desktop-context.active {
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 9px 9px 0 0;
+  background: var(--surface);
   color: var(--text);
 }
 
@@ -1468,6 +1486,31 @@ kbd {
   height: 7px;
   border-radius: 50%;
   background: var(--accent);
+}
+
+.desktop-tab-icon {
+  background: rgba(139, 124, 246, 0.12);
+  color: #9d8cff;
+}
+
+.desktop-tab-icon.cyan {
+  background: color-mix(in srgb, #54c4d1 16%, transparent);
+  color: #54c4d1;
+}
+
+.desktop-tab-icon.amber {
+  background: color-mix(in srgb, #e0aa52 16%, transparent);
+  color: #e0aa52;
+}
+
+.desktop-tab-icon.rose {
+  background: color-mix(in srgb, #df6f91 16%, transparent);
+  color: #df6f91;
+}
+
+.desktop-tab-icon.lime {
+  background: color-mix(in srgb, #94c663 16%, transparent);
+  color: #94c663;
 }
 
 .context-dot.cyan {
@@ -1686,6 +1729,58 @@ kbd {
   padding: 0 12px;
 }
 
+.dashboard-surface-toolbar {
+  display: grid;
+  position: relative;
+  z-index: 2147483647;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "icon title action"
+    ". greeting ."
+    ". content content";
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 0;
+  min-height: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--text) 6%, transparent);
+  padding: 14px 24px;
+}
+
+.dashboard-surface-toolbar .surface-toolbar-context,
+.dashboard-surface-toolbar .surface-location,
+.dashboard-surface-toolbar .surface-location > span {
+  display: contents;
+}
+
+.dashboard-surface-toolbar .surface-location {
+  min-width: 0;
+}
+
+.dashboard-surface-toolbar .surface-location > svg {
+  grid-area: icon;
+  margin: 0;
+}
+
+.dashboard-surface-toolbar .surface-location > span {
+  width: auto;
+}
+
+.dashboard-surface-toolbar .surface-location > span > strong {
+  grid-area: title;
+  margin: 0;
+}
+
+.dashboard-surface-toolbar .dashboard-toolbar-greeting {
+  grid-area: greeting;
+  margin: 13px 0 3px;
+}
+
+.dashboard-surface-toolbar .dashboard-toolbar-customize {
+  grid-area: action;
+}
+
 .surface-toolbar-context,
 .surface-toolbar-actions,
 .surface-location {
@@ -1696,6 +1791,58 @@ kbd {
 
 .surface-toolbar-context {
   gap: 12px;
+}
+
+.surface-location .dashboard-toolbar-greeting {
+  color: var(--accent-strong);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.dashboard-toolbar-message {
+  display: grid;
+  gap: 2px;
+  padding: 1px 0 2px;
+}
+
+.dashboard-toolbar-message h1,
+.dashboard-toolbar-message p {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.surface-location .dashboard-toolbar-message h1 {
+  color: var(--text);
+  font-family: ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.surface-location .dashboard-toolbar-message p {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.dashboard-toolbar-content {
+  grid-area: content;
+  width: 100%;
+}
+
+.dashboard-toolbar-controls {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.dashboard-toolbar-controls .dashboard-section-tabs {
+  margin-bottom: 0;
 }
 
 .surface-toolbar-actions {
@@ -7424,10 +7571,11 @@ kbd {
   border-right-color: color-mix(in srgb, var(--line) 70%, transparent);
 }
 
-/* Keep the top-bar desktop context content-sized at every viewport width. */
+/* Let the dashboard tab grow with its label while keeping sensible tab bounds. */
 .desktop-context {
   width: max-content;
-  min-width: 0;
+  min-width: 120px;
+  max-width: 220px;
 }
 
 /* Temporary Council-scale invalidation. Remove this block and enable the TS flag to restore it. */
@@ -8074,6 +8222,7 @@ kbd {
     .navigation-row,
     .library-row,
     .desktop-item,
+    .desktop-context,
     .browser-tab,
     .new-tab-button,
     .focus-toolbar-button,
@@ -8113,6 +8262,7 @@ kbd {
     .navigation-row.active,
     .library-row.active,
     .desktop-item.active,
+    .desktop-context.active,
     .browser-tab.active,
     .app-catalog-item.active,
     .daily-flow-tabs button.active,
@@ -8324,11 +8474,49 @@ kbd {
 /* New Tab: one calm decision surface — go somewhere or capture a thought. */
 .new-tab-surface {
   display: grid;
+  min-height: 100%;
   grid-template-columns: minmax(0, 680px) minmax(270px, 330px);
+  align-items: start;
   align-content: center;
   justify-content: center;
   gap: clamp(24px, 4vw, 52px);
   padding: clamp(30px, 6vh, 76px) clamp(24px, 5vw, 80px);
+}
+
+.new-tab-page-actions {
+  position: absolute;
+  z-index: 3;
+  top: 18px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.new-tab-page-actions button {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 9px;
+  background: transparent;
+  padding: 0 9px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.new-tab-page-actions button:hover,
+.new-tab-page-actions button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.new-tab-page-actions .new-tab-appearance {
+  width: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
 }
 
 .new-tab-search-zone {
@@ -8873,7 +9061,7 @@ kbd {
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  padding: 24px clamp(20px, 3vw, 44px) 64px;
+  padding: 18px clamp(20px, 3vw, 44px) 64px;
   color: var(--text);
 }
 
@@ -8907,10 +9095,22 @@ kbd {
   gap: 12px;
 }
 
+.dashboard-top-section {
+  margin-bottom: 14px;
+  padding: 16px 0 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .dashboard-v2-header {
   position: relative;
   display: block;
   margin-bottom: 14px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .dashboard-hero-content {
@@ -9031,7 +9231,8 @@ kbd {
 
 .dashboard-search-settings {
   position: absolute;
-  z-index: 31;
+  z-index: 2147483647;
+  isolation: isolate;
   top: calc(100% + 8px);
   right: 0;
   width: min(360px, calc(100vw - 40px));
@@ -9039,7 +9240,7 @@ kbd {
   gap: 5px;
   border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line));
   border-radius: 14px;
-  background: var(--panel);
+  background: var(--field, var(--panel));
   padding: 14px;
   box-shadow: 0 22px 60px color-mix(in srgb, #000 24%, transparent);
 }
@@ -9106,16 +9307,17 @@ kbd {
 
 .dashboard-section-tabs > button,
 .dashboard-section-overflow > button {
-  min-height: 38px;
+  min-height: 34px;
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface);
-  padding: 0 10px;
+  padding: 0 9px;
   color: var(--muted);
+  font-size: 12px;
 }
 
 .dashboard-section-tabs > button:hover,
@@ -9932,7 +10134,7 @@ kbd {
 
 .dashboard-customizer {
   position: fixed;
-  z-index: 80;
+  z-index: 2147483647;
   isolation: isolate;
   top: 66px;
   right: 18px;
@@ -9941,7 +10143,7 @@ kbd {
   overflow: auto;
   border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
   border-radius: 16px;
-  background: var(--panel);
+  background: var(--field, var(--panel));
   padding: 14px;
   box-shadow: 0 24px 70px color-mix(in srgb, #000 28%, transparent);
 }

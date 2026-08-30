@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { BrowserState, CanvasPageSummary, SavedLinkRecord } from "../shared/contracts";
 import { Icon, type IconName } from "./icon";
 import { RUNNABLE_APP_CATALOG, type RunnableAppId } from "./runnable-apps-model";
@@ -179,6 +180,8 @@ const OVERVIEW_OPEN_TAB_LIMIT = 3;
 
 interface DashboardSurfaceProps {
   greeting: string;
+  showGreeting?: boolean;
+  toolbarContentTarget?: HTMLDivElement | null;
   desktopName: string;
   openTabs: BrowserState[];
   activeTabId: string;
@@ -270,6 +273,8 @@ function matchesSearch(query: string, fields: Array<string | number | null | und
 
 export function DashboardSurface({
   greeting,
+  showGreeting = true,
+  toolbarContentTarget = null,
   desktopName,
   openTabs,
   activeTabId,
@@ -294,8 +299,7 @@ export function DashboardSurface({
   const setCustomizing = onCustomizingChange;
   const [searchSettingsOpen, setSearchSettingsOpen] = useState(false);
   const searchSettingsRef = useRef<HTMLDivElement>(null);
-  const [sectionOverflowOpen, setSectionOverflowOpen] = useState(false);
-  const sectionOverflowRef = useRef<HTMLDivElement>(null);
+  const customizerRef = useRef<HTMLElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSection, setActiveSection] = useState<DashboardSectionId>("overview");
   const [tabViewMode, setTabViewMode] = useState<"grid" | "list">("grid");
@@ -341,13 +345,18 @@ export function DashboardSurface({
   }, [searchSettingsOpen]);
 
   useEffect(() => {
-    if (!sectionOverflowOpen) return;
+    if (customizing) setSearchSettingsOpen(false);
+  }, [customizing]);
+
+  useEffect(() => {
+    if (!customizing) return;
     const closeWhenOutside = (event: PointerEvent) => {
-      if (sectionOverflowRef.current?.contains(event.target as Node)) return;
-      setSectionOverflowOpen(false);
+      if ((event.target as Element).closest?.(".dashboard-toolbar-customize")) return;
+      if (customizerRef.current?.contains(event.target as Node)) return;
+      setCustomizing(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSectionOverflowOpen(false);
+      if (event.key === "Escape") setCustomizing(false);
     };
     document.addEventListener("pointerdown", closeWhenOutside, true);
     document.addEventListener("keydown", closeOnEscape);
@@ -355,7 +364,7 @@ export function DashboardSurface({
       document.removeEventListener("pointerdown", closeWhenOutside, true);
       document.removeEventListener("keydown", closeOnEscape);
     };
-  }, [sectionOverflowOpen]);
+  }, [customizing, setCustomizing]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -511,10 +520,11 @@ export function DashboardSurface({
     "runnable-apps": filteredRunnableApps.length,
     "canvas-pages": filteredCanvasPages.length,
   };
-  const visibleTabIds = sectionOrder.filter((id) => id === "open-tabs" || enabled[id]);
+  const visibleTabIds = sectionOrder.filter(
+    (id) => id !== "message" && (id === "open-tabs" || enabled[id]),
+  );
   const visibleSectionIds: DashboardSectionId[] = ["overview", ...visibleTabIds];
-  const primarySectionIds: DashboardSectionId[] = ["overview", ...visibleTabIds.slice(0, 3)];
-  const overflowSectionIds = visibleTabIds.slice(3);
+  const primarySectionIds = visibleSectionIds;
   const expanded = activeSection !== "overview";
   const displayedOpenTabs = expanded
     ? orderedOpenTabs
@@ -594,7 +604,7 @@ export function DashboardSurface({
     message: (
       <article className="dashboard-widget dashboard-message-widget">
         {activeSection !== "overview" && sectionHeader("message", "Custom message", sectionCounts.message)}
-        <span className="dashboard-widget-kicker">{greeting}</span>
+        {showGreeting && <span className="dashboard-widget-kicker">{greeting}</span>}
         <h2>{headline}</h2>
         <p>{message.trim() || "Review what matters across your workspace"}</p>
       </article>
@@ -777,22 +787,19 @@ export function DashboardSurface({
     ),
   };
 
-  return (
-    <div className="trusted-surface dashboard-surface-v2">
-      <header className="dashboard-v2-header">
-        <div className="dashboard-hero-content">
-          <span className="eyebrow dashboard-eyebrow">
-            <Icon name="desktop" />
-            <span>Overview · {desktopName}</span>
-          </span>
-          {activeSection === "overview" && enabled.message ? (
-            widgets.message
-          ) : (
-            <h1>Your workspace at a glance.</h1>
-          )}
-        </div>
-      </header>
+  const toolbarMessage =
+    toolbarContentTarget && activeSection === "overview" && enabled.message
+      ? createPortal(
+          <div className="dashboard-toolbar-message">
+            <h1>{headline}</h1>
+            <p>{message.trim() || "Review what matters across your workspace"}</p>
+          </div>,
+          toolbarContentTarget,
+        )
+      : null;
 
+  const dashboardControls = (
+    <>
       <div ref={searchSettingsRef} className="dashboard-global-search">
         <Icon name="search" />
         <input
@@ -808,7 +815,13 @@ export function DashboardSurface({
             type="button"
             aria-label="Search filters"
             aria-expanded={searchSettingsOpen}
-            onClick={() => setSearchSettingsOpen((value) => !value)}
+            onClick={() =>
+              setSearchSettingsOpen((value) => {
+                const next = !value;
+                if (next) setCustomizing(false);
+                return next;
+              })
+            }
           >
             <Icon name="filter" />
           </button>
@@ -858,7 +871,6 @@ export function DashboardSurface({
           </aside>
         )}
       </div>
-
       <nav className="dashboard-section-tabs" aria-label="Dashboard sections">
         {primarySectionIds.map((id) => {
           const count = id === "overview" ? visibleSectionIds.length - 1 : sectionCounts[id];
@@ -876,40 +888,34 @@ export function DashboardSurface({
             </button>
           );
         })}
-        {overflowSectionIds.length > 0 && (
-          <div ref={sectionOverflowRef} className="dashboard-section-overflow">
-            <button
-              type="button"
-              aria-label="More dashboard sections"
-              aria-expanded={sectionOverflowOpen}
-              aria-haspopup="menu"
-              onClick={() => setSectionOverflowOpen((value) => !value)}
-            >
-              <Icon name="more" />
-            </button>
-            {sectionOverflowOpen && (
-              <div className="dashboard-section-overflow-menu" role="menu">
-                {overflowSectionIds.map((id) => (
-                  <button
-                    key={id}
-                    type="button"
-                    role="menuitem"
-                    className={activeSection === id ? "active" : ""}
-                    onClick={() => {
-                      setActiveSection(id);
-                      setSectionOverflowOpen(false);
-                    }}
-                  >
-                    <Icon name={SECTION_ICONS[id]} />
-                    <span>{SECTION_LABELS[id]}</span>
-                    <em>{sectionCounts[id]}</em>
-                  </button>
-                ))}
-              </div>
+      </nav>
+    </>
+  );
+
+  const toolbarControls = toolbarContentTarget
+    ? createPortal(<div className="dashboard-toolbar-controls">{dashboardControls}</div>, toolbarContentTarget)
+    : null;
+
+  return (
+    <div className="trusted-surface dashboard-surface-v2">
+      {toolbarMessage}
+      {toolbarControls}
+      {!toolbarContentTarget && <div className="dashboard-top-section">
+      {!(toolbarContentTarget && activeSection === "overview" && enabled.message) && (
+        <header className="dashboard-v2-header">
+          <div className="dashboard-hero-content">
+            {activeSection === "overview" && enabled.message ? (
+              widgets.message
+            ) : (
+              <h1>Your workspace at a glance.</h1>
             )}
           </div>
-        )}
-      </nav>
+        </header>
+      )}
+
+      {!toolbarContentTarget && dashboardControls}
+      </div>
+      }
 
       {(activeSection === "overview" || activeSection === "open-tabs") && (
         <section className="dashboard-open-tabs">
@@ -1099,8 +1105,8 @@ export function DashboardSurface({
           ))}
       </section>
 
-      {customizing && (
-        <aside className="dashboard-customizer" aria-label="Customize dashboard">
+      {customizing && createPortal(
+        <aside ref={customizerRef} className="dashboard-customizer" aria-label="Customize dashboard">
           <header>
             <strong>Customize dashboard</strong>
             <button type="button" onClick={() => setCustomizing(false)}>
@@ -1181,7 +1187,8 @@ export function DashboardSurface({
               ))}
             </div>
           </section>
-        </aside>
+        </aside>,
+        document.querySelector<HTMLElement>(".lattice-shell") ?? document.body,
       )}
     </div>
   );
