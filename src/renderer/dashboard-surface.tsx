@@ -512,7 +512,7 @@ export function DashboardSurface({
   const widgets: Record<DashboardWidgetId, ReactNode> = {
     message: (
       <article className="dashboard-widget dashboard-message-widget">
-        {sectionHeader("message", "Custom message", sectionCounts.message)}
+        {activeSection !== "overview" && sectionHeader("message", "Custom message", sectionCounts.message)}
         <span className="dashboard-widget-kicker">{greeting}</span>
         <h2>{headline}</h2>
         <p>{message}</p>
