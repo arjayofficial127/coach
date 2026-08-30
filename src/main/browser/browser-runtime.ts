@@ -228,6 +228,7 @@ export class BrowserRuntime {
       const bounds = requested.get(id);
       if (!bounds) {
         if (this.livePreviewIds.has(id)) {
+          this.setPreviewScrollLock(tab, false);
           tab.view.setVisible(false);
           tab.contents.setZoomFactor(1);
           this.livePreviewLayouts.delete(id);
@@ -258,7 +259,10 @@ export class BrowserRuntime {
       ) {
         tab.view.setBounds(nextBounds);
       }
-      if (!this.livePreviewIds.has(id)) tab.view.setVisible(true);
+      if (!this.livePreviewIds.has(id)) {
+        this.setPreviewScrollLock(tab, true);
+        tab.view.setVisible(true);
+      }
       this.livePreviewLayouts.set(id, { bounds: nextBounds, zoomFactor });
     }
     this.livePreviewIds.clear();
@@ -613,6 +617,7 @@ export class BrowserRuntime {
     tab.contents.on("did-stop-loading", () => {
       tab.state.loading = false;
       syncNavigationState();
+      if (this.livePreviewIds.has(tab.id)) this.setPreviewScrollLock(tab, true);
     });
     tab.contents.on("did-navigate", syncNavigationState);
     tab.contents.on("did-navigate-in-page", syncNavigationState);
@@ -705,6 +710,39 @@ export class BrowserRuntime {
     this.livePreviewLayouts.delete(tab.id);
     if (!this.window.isDestroyed()) this.window.contentView.removeChildView(tab.view);
     if (!tab.contents.isDestroyed()) tab.contents.close();
+  }
+
+  private setPreviewScrollLock(tab: TabRecord, locked: boolean): void {
+    if (tab.contents.isDestroyed() || tab.state.url === "about:blank") return;
+    const script = locked
+      ? `(() => {
+          const key = "__latticePreviewScrollLock";
+          const previous = window[key];
+          if (previous) {
+            window.removeEventListener("wheel", previous.block, true);
+            window.removeEventListener("touchmove", previous.block, true);
+            window.removeEventListener("scroll", previous.reset, true);
+          }
+          const block = (event) => { if (event.cancelable) event.preventDefault(); };
+          const reset = () => {
+            if (window.scrollX !== 0 || window.scrollY !== 0) window.scrollTo(0, 0);
+          };
+          window[key] = { block, reset };
+          window.addEventListener("wheel", block, { capture: true, passive: false });
+          window.addEventListener("touchmove", block, { capture: true, passive: false });
+          window.addEventListener("scroll", reset, true);
+          window.scrollTo(0, 0);
+        })()`
+      : `(() => {
+          const key = "__latticePreviewScrollLock";
+          const current = window[key];
+          if (!current) return;
+          window.removeEventListener("wheel", current.block, true);
+          window.removeEventListener("touchmove", current.block, true);
+          window.removeEventListener("scroll", current.reset, true);
+          delete window[key];
+        })()`;
+    void tab.contents.executeJavaScript(script, true).catch(() => undefined);
   }
 
   private emitState(tab: TabRecord): void {
