@@ -858,7 +858,7 @@ export function DashboardSurface({
                   void onOpenTab(tab);
                 }}
               >
-                <span className="dashboard-tab-preview">
+                <span className="dashboard-tab-preview" data-live-tab-preview={tab.id}>
                   {tabPreviews[tab.id] ? (
                     <img src={tabPreviews[tab.id]} alt="" />
                   ) : tabPreviewStatuses[tab.id] === "loading" ? (

@@ -2,6 +2,7 @@ import { app, type BrowserWindow, type IpcMainInvokeEvent, ipcMain, shell } from
 import { z } from "zod";
 import type {
   BrowserBounds,
+  LiveTabPreviewBounds,
   BrowserPrivacySummary,
   BrowserSnapshot,
   ProfileState,
@@ -105,6 +106,7 @@ const defaultShellActions: TrustedShellActions = {
 
 export interface BrowserController {
   setBounds(bounds: BrowserBounds): void;
+  setLivePreviews(previews: LiveTabPreviewBounds[]): void;
   navigate(input: string): Promise<void>;
   back(): void;
   forward(): void;
@@ -165,6 +167,13 @@ export function registerIpc(
     return clampZoomPercent(Math.round(window.webContents.getZoomFactor() * 100));
   });
   handle(IPC.browserSetBounds, (_event, payload) => browser.setBounds(boundsSchema.parse(payload)));
+  handle(IPC.browserSetLivePreviews, (_event, payload) => {
+    const previews = z
+      .array(z.object({ tabId: z.string().uuid(), bounds: boundsSchema }))
+      .max(24)
+      .parse(payload);
+    browser.setLivePreviews(previews);
+  });
   handle(IPC.browserNavigate, (_event, payload) => browser.navigate(z.string().parse(payload)));
   handle(IPC.browserBack, () => browser.back());
   handle(IPC.browserForward, () => browser.forward());

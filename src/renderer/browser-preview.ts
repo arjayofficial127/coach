@@ -144,6 +144,7 @@ export function installBrowserPreviewBridge(): void {
     },
     browser: {
       setBounds: async () => undefined,
+      setLivePreviews: async () => undefined,
       navigate: async (input) => updateActive(normalizeAddress(input)),
       back: async () => undefined,
       forward: async () => undefined,

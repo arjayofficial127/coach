@@ -11,6 +11,7 @@ import type {
 import { app, nativeImage, WebContentsView } from "electron";
 import type {
   BrowserBounds,
+  LiveTabPreviewBounds,
   BrowserPrivacySummary,
   BrowserSnapshot,
   BrowserState,
@@ -60,6 +61,7 @@ export class BrowserRuntime {
   private closed = false;
   private visible = false;
   private lastBounds: BrowserBounds | null = null;
+  private readonly livePreviewIds = new Set<string>();
   private popupHandlerTriggered = false;
   private permissionCheckHandlerTriggered = false;
 
@@ -216,8 +218,35 @@ export class BrowserRuntime {
     tab.view.setVisible(this.visible);
   }
 
+  setLivePreviews(previews: LiveTabPreviewBounds[]): void {
+    const requested = new Map(previews.map((preview) => [preview.tabId, preview.bounds]));
+    for (const [id, tab] of this.tabs) {
+      const bounds = requested.get(id);
+      if (!bounds) {
+        if (this.livePreviewIds.has(id)) {
+          tab.view.setVisible(false);
+          tab.contents.setZoomFactor(1);
+        }
+        continue;
+      }
+      const width = Math.max(1, Math.round(bounds.width));
+      const height = Math.max(1, Math.round(bounds.height));
+      tab.contents.setZoomFactor(Math.max(0.25, Math.min(1, width / 1920)));
+      tab.view.setBounds({
+        x: Math.round(bounds.x),
+        y: Math.round(bounds.y),
+        width,
+        height,
+      });
+      tab.view.setVisible(true);
+    }
+    this.livePreviewIds.clear();
+    for (const id of requested.keys()) this.livePreviewIds.add(id);
+  }
+
   setVisible(visible: boolean): void {
     this.visible = visible;
+    if (visible && this.livePreviewIds.size > 0) this.setLivePreviews([]);
     if (!this.closed) this.activeTab().view.setVisible(visible);
   }
 

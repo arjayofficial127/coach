@@ -596,36 +596,50 @@ export function LatticeApp() {
   }, [activeTab, workspace.activeDesktopId]);
   useEffect(() => {
     if (surface !== "dashboard") return;
-    let cancelled = false;
-    const previewTabs = desktopTabs;
-    const alreadyCaptured = new Set(Object.keys(dashboardTabPreviews));
-    void (async () => {
-      for (const tab of previewTabs) {
-        if (cancelled) return;
-        if (alreadyCaptured.has(tab.id)) {
-          setDashboardTabPreviewStatuses((current) => ({ ...current, [tab.id]: "ready" }));
-          continue;
-        }
-        setDashboardTabPreviewStatuses((current) => ({ ...current, [tab.id]: "loading" }));
-        try {
-          const preview = await window.lattice.browser.captureTabPreview(tab.id);
-          if (cancelled) return;
-          if (preview) {
-            alreadyCaptured.add(tab.id);
-            setDashboardTabPreviews((current) => ({ ...current, [tab.id]: preview }));
-            setDashboardTabPreviewStatuses((current) => ({ ...current, [tab.id]: "ready" }));
-          } else {
-            setDashboardTabPreviewStatuses((current) => ({ ...current, [tab.id]: "failed" }));
-          }
-        } catch {
-          if (!cancelled) {
-            setDashboardTabPreviewStatuses((current) => ({ ...current, [tab.id]: "failed" }));
-          }
-        }
-      }
-    })();
+    let frame = 0;
+    const updateLivePreviews = () => {
+      frame = 0;
+      const previews = [...document.querySelectorAll<HTMLElement>("[data-live-tab-preview]")]
+        .map((element) => {
+          const tabId = element.dataset.liveTabPreview;
+          const bounds = element.getBoundingClientRect();
+          if (
+            !tabId ||
+            bounds.width < 2 ||
+            bounds.height < 2 ||
+            bounds.bottom <= 0 ||
+            bounds.top >= window.innerHeight ||
+            bounds.right <= 0 ||
+            bounds.left >= window.innerWidth
+          )
+            return null;
+          return {
+            tabId,
+            bounds: {
+              x: bounds.left,
+              y: bounds.top,
+              width: bounds.width,
+              height: bounds.height,
+            },
+          };
+        })
+        .filter((preview): preview is NonNullable<typeof preview> => preview !== null);
+      void window.lattice.browser.setLivePreviews(previews);
+    };
+    const schedule = () => {
+      if (!frame) frame = window.requestAnimationFrame(updateLivePreviews);
+    };
+    const observer = new MutationObserver(schedule);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+    window.addEventListener("resize", schedule);
+    window.addEventListener("scroll", schedule, true);
+    schedule();
     return () => {
-      cancelled = true;
+      observer.disconnect();
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("scroll", schedule, true);
+      if (frame) window.cancelAnimationFrame(frame);
+      void window.lattice.browser.setLivePreviews([]);
     };
   }, [desktopTabs, surface]);
   const filteredLinks = useMemo(() => {

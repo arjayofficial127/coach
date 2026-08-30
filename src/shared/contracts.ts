@@ -3,6 +3,7 @@ export const IPC = {
   shellGetZoom: "shell:get-zoom",
   shellSetZoom: "shell:set-zoom",
   browserSetBounds: "browser:set-bounds",
+  browserSetLivePreviews: "browser:set-live-previews",
   browserNavigate: "browser:navigate",
   browserBack: "browser:back",
   browserForward: "browser:forward",
@@ -72,6 +73,11 @@ export interface BrowserBounds {
   y: number;
   width: number;
   height: number;
+}
+
+export interface LiveTabPreviewBounds {
+  tabId: string;
+  bounds: BrowserBounds;
 }
 
 export interface BrowserState {
@@ -317,6 +323,7 @@ export interface LatticeApi {
   };
   browser: {
     setBounds(bounds: BrowserBounds): Promise<void>;
+    setLivePreviews(previews: LiveTabPreviewBounds[]): Promise<void>;
     navigate(input: string): Promise<void>;
     back(): Promise<void>;
     forward(): Promise<void>;

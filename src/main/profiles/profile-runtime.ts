@@ -5,6 +5,7 @@ import type {
   BrowserBounds,
   BrowserPrivacySummary,
   BrowserSnapshot,
+  LiveTabPreviewBounds,
   ProfileState,
   ProfileSwitchResult,
 } from "../../shared/contracts";
@@ -123,6 +124,10 @@ export class ProfileRuntime {
     this.activeRuntime().setBounds(bounds);
   }
 
+  setLivePreviews(previews: LiveTabPreviewBounds[]): void {
+    this.activeRuntime().setLivePreviews(previews);
+  }
+
   setVisible(visible: boolean): void {
     this.visible = visible;
     this.activeRuntime().setVisible(visible);
@@ -204,6 +209,7 @@ export class ProfileRuntime {
     if (this.closed) throw new Error("The profile runtime is closed.");
     const current = this.runtimes.get(this.activeProfileId);
     current?.setVisible(false);
+    current?.setLivePreviews([]);
     this.activeProfileId = profileId;
     let next = this.runtimes.get(profileId);
     if (!next) {

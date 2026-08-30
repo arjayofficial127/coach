@@ -15,6 +15,7 @@ const api: LatticeApi = {
   },
   browser: {
     setBounds: (bounds) => ipcRenderer.invoke(IPC.browserSetBounds, bounds),
+    setLivePreviews: (previews) => ipcRenderer.invoke(IPC.browserSetLivePreviews, previews),
     navigate: (input) => ipcRenderer.invoke(IPC.browserNavigate, input),
     back: () => ipcRenderer.invoke(IPC.browserBack),
     forward: () => ipcRenderer.invoke(IPC.browserForward),
