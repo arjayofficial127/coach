@@ -395,6 +395,9 @@ export class BrowserRuntime {
       },
     });
     const contents = view.webContents;
+    // Dashboard previews are captured while their tab views are hidden. Keep
+    // hidden pages painting so capturePage has an actual rendered frame.
+    contents.setBackgroundThrottling(false);
     const tab: TabRecord = {
       id,
       view,

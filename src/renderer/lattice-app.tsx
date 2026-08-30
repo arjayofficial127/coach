@@ -610,10 +610,12 @@ export function LatticeApp() {
       }));
     };
     void capture();
-    const retry = window.setTimeout(() => void capture(), 700);
+    const retries = [700, 1_800, 3_500].map((delay) =>
+      window.setTimeout(() => void capture(), delay),
+    );
     return () => {
       cancelled = true;
-      window.clearTimeout(retry);
+      retries.forEach((retry) => window.clearTimeout(retry));
     };
   }, [desktopTabs, surface]);
   const filteredLinks = useMemo(() => {
