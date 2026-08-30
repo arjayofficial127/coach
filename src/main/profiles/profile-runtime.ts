@@ -102,6 +102,10 @@ export class ProfileRuntime {
     return this.activeRuntime().captureTabPreview(tabId);
   }
 
+  searchTabContents(tabIds: string[], query: string): Promise<string[]> {
+    return this.activeRuntime().searchTabContents(tabIds, query);
+  }
+
   createTab(input?: string): Promise<BrowserSnapshot> {
     return this.activeRuntime().createTab(input);
   }

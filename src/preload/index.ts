@@ -21,6 +21,8 @@ const api: LatticeApi = {
     reload: () => ipcRenderer.invoke(IPC.browserReload),
     snapshot: () => ipcRenderer.invoke(IPC.browserSnapshot),
     captureTabPreview: (tabId) => ipcRenderer.invoke(IPC.browserCaptureTabPreview, tabId),
+    searchTabContents: (tabIds, query) =>
+      ipcRenderer.invoke(IPC.browserSearchTabContents, { tabIds, query }),
     createTab: (input) => ipcRenderer.invoke(IPC.browserCreateTab, input),
     switchTab: (tabId) => ipcRenderer.invoke(IPC.browserSwitchTab, tabId),
     closeTab: (tabId) => ipcRenderer.invoke(IPC.browserCloseTab, tabId),

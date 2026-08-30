@@ -143,6 +143,27 @@ export class BrowserRuntime {
     }
   }
 
+  async searchTabContents(tabIds: string[], query: string): Promise<string[]> {
+    const needle = query.trim().toLocaleLowerCase();
+    if (!needle) return [];
+    const matches = await Promise.all(
+      tabIds.map(async (tabId) => {
+        const tab = this.tabs.get(tabId);
+        if (!tab || tab.contents.isDestroyed() || tab.state.url === "about:blank") return null;
+        try {
+          const found = (await tab.contents.executeJavaScript(
+            `Boolean(document.body?.innerText?.toLocaleLowerCase().includes(${JSON.stringify(needle)}))`,
+            true,
+          )) as boolean;
+          return found ? tabId : null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    return matches.filter((tabId): tabId is string => tabId !== null);
+  }
+
   setBounds(requested: BrowserBounds): void {
     const [width, height] = this.window.getContentSize();
     this.lastBounds = constrainBrowserBounds(requested, {

@@ -9,6 +9,7 @@ export const IPC = {
   browserReload: "browser:reload",
   browserSnapshot: "browser:snapshot",
   browserCaptureTabPreview: "browser:capture-tab-preview",
+  browserSearchTabContents: "browser:search-tab-contents",
   browserCreateTab: "browser:create-tab",
   browserSwitchTab: "browser:switch-tab",
   browserCloseTab: "browser:close-tab",
@@ -322,6 +323,7 @@ export interface LatticeApi {
     reload(): Promise<void>;
     snapshot(): Promise<BrowserSnapshot>;
     captureTabPreview(tabId: string): Promise<string | null>;
+    searchTabContents(tabIds: string[], query: string): Promise<string[]>;
     createTab(input?: string): Promise<BrowserSnapshot>;
     switchTab(tabId: string): Promise<BrowserSnapshot>;
     closeTab(tabId: string): Promise<BrowserSnapshot>;

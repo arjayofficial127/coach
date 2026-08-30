@@ -150,6 +150,7 @@ export function installBrowserPreviewBridge(): void {
       reload: async () => undefined,
       snapshot: async () => snapshot(),
       captureTabPreview: async () => null,
+      searchTabContents: async () => [],
       createTab: async (input) => {
         activeTabId = crypto.randomUUID();
         tabs.push({

@@ -64,6 +64,12 @@ const savedLinkMetadataSchema = z.object({
 });
 
 const tabIdSchema = z.string().uuid();
+const tabContentSearchSchema = z
+  .object({
+    tabIds: z.array(tabIdSchema).max(100),
+    query: z.string().trim().min(1).max(200),
+  })
+  .strict();
 const profileIdSchema = z.string().uuid();
 const createProfileSchema = z.object({
   name: z.string().trim().min(1).max(40),
@@ -105,6 +111,7 @@ export interface BrowserController {
   reload(): void;
   snapshot(): BrowserSnapshot;
   captureTabPreview(tabId: string): Promise<string | null>;
+  searchTabContents(tabIds: string[], query: string): Promise<string[]>;
   createTab(input?: string): Promise<BrowserSnapshot>;
   switchTab(tabId: string): BrowserSnapshot;
   closeTab(tabId: string): BrowserSnapshot;
@@ -166,6 +173,10 @@ export function registerIpc(
   handle(IPC.browserCaptureTabPreview, (_event, payload) =>
     browser.captureTabPreview(tabIdSchema.parse(payload)),
   );
+  handle(IPC.browserSearchTabContents, (_event, payload) => {
+    const input = tabContentSearchSchema.parse(payload);
+    return browser.searchTabContents(input.tabIds, input.query);
+  });
   handle(IPC.browserCreateTab, (_event, payload) =>
     browser.createTab(z.string().optional().parse(payload)),
   );

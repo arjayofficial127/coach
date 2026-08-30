@@ -577,6 +577,7 @@ export function LatticeApp() {
     if (!activeTab || activeTab.url === "about:blank" || activeTab.loading) return;
     const item: DashboardHistoryItem = {
       id: `${activeTab.url}-${Date.now()}`,
+      desktopId: workspace.activeDesktopId,
       title: displayTitle(activeTab),
       url: activeTab.url,
       visitedAt: new Date().toISOString(),
@@ -585,11 +586,11 @@ export function LatticeApp() {
     setBrowserHistory((current) =>
       [item, ...current.filter((entry) => entry.url !== item.url)].slice(0, 100),
     );
-  }, [activeTab]);
+  }, [activeTab, workspace.activeDesktopId]);
   useEffect(() => {
     if (surface !== "dashboard") return;
     let cancelled = false;
-    const previewTabs = desktopTabs.slice(0, 5);
+    const previewTabs = desktopTabs;
     void Promise.all(
       previewTabs.map(
         async (tab) => [tab.id, await window.lattice.browser.captureTabPreview(tab.id)] as const,
@@ -3411,8 +3412,12 @@ export function LatticeApp() {
                 openTabs={desktopTabs}
                 activeTabId={snapshot.activeTabId}
                 tabPreviews={dashboardTabPreviews}
-                recentlyClosed={recentlyClosedTabs}
-                history={browserHistory}
+                recentlyClosed={recentlyClosedTabs.filter(
+                  (item) => item.desktopId === workspace.activeDesktopId,
+                )}
+                history={browserHistory.filter(
+                  (item) => item.desktopId === workspace.activeDesktopId,
+                )}
                 savedLinks={visibleLinks}
                 canvasPages={canvasPages}
                 onOpenTab={(tab) => void switchTab(tab)}
@@ -3430,6 +3435,9 @@ export function LatticeApp() {
                 onOpenUrl={(url) => void openUrl(url, true)}
                 onOpenApp={(id) => showRunnableApp(id)}
                 onOpenCanvas={(id) => void showCanvasPages(id)}
+                onSearchTabContents={(tabIds, query) =>
+                  window.lattice.browser.searchTabContents(tabIds, query)
+                }
               />
             )}
 

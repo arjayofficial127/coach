@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import type { BrowserState, CanvasPageSummary, SavedLinkRecord } from "../shared/contracts";
-import { Icon } from "./icon";
+import { Icon, type IconName } from "./icon";
 import { RUNNABLE_APP_CATALOG, type RunnableAppId } from "./runnable-apps-model";
 
 export interface DashboardClosedTab {
@@ -11,6 +11,7 @@ export interface DashboardClosedTab {
 
 export interface DashboardHistoryItem {
   id: string;
+  desktopId: string;
   title: string;
   url: string;
   visitedAt: string;
@@ -26,6 +27,9 @@ type DashboardWidgetId =
   | "saved-links"
   | "runnable-apps"
   | "canvas-pages";
+
+type DashboardSectionId = "overview" | "open-tabs" | DashboardWidgetId;
+type DashboardSearchScope = "titles" | "all";
 
 const DEFAULT_ORDER: DashboardWidgetId[] = [
   "message",
@@ -47,6 +51,8 @@ interface DashboardPreferences {
   order: DashboardWidgetId[];
   highlightedUrls: string[];
   groupDescriptions: Record<string, string>;
+  searchOpenTabContents: boolean;
+  searchScope: DashboardSearchScope;
 }
 
 function defaultPreferences(): DashboardPreferences {
@@ -60,6 +66,8 @@ function defaultPreferences(): DashboardPreferences {
     order: [...DEFAULT_ORDER],
     highlightedUrls: [],
     groupDescriptions: {},
+    searchOpenTabContents: true,
+    searchScope: "all",
   };
 }
 
@@ -96,6 +104,8 @@ function readPreferences(): DashboardPreferences {
                 .map(([name, description]) => [name.slice(0, 80), description.slice(0, 240)]),
             )
           : {},
+      searchOpenTabContents: parsed.searchOpenTabContents ?? true,
+      searchScope: parsed.searchScope === "titles" ? "titles" : "all",
     };
   } catch {
     return fallback;
@@ -111,6 +121,25 @@ const WIDGET_LABELS: Record<DashboardWidgetId, string> = {
   "saved-links": "Saved links",
   "runnable-apps": "Runnable apps",
   "canvas-pages": "Canvas pages",
+};
+
+const SECTION_LABELS: Record<DashboardSectionId, string> = {
+  overview: "Overview",
+  "open-tabs": "Open tabs",
+  ...WIDGET_LABELS,
+};
+
+const SECTION_ICONS: Record<DashboardSectionId, IconName> = {
+  overview: "home",
+  "open-tabs": "desktop",
+  message: "edit",
+  "recently-closed": "reload",
+  history: "timer",
+  highlights: "sparkle",
+  favorites: "bookmark",
+  "saved-links": "library",
+  "runnable-apps": "grid",
+  "canvas-pages": "folder",
 };
 
 interface DashboardSurfaceProps {
@@ -129,6 +158,7 @@ interface DashboardSurfaceProps {
   onOpenUrl: (url: string) => void;
   onOpenApp: (id: RunnableAppId) => void;
   onOpenCanvas: (id: string) => void;
+  onSearchTabContents: (tabIds: string[], query: string) => Promise<string[]>;
 }
 
 function displayHost(url: string) {
@@ -190,6 +220,15 @@ function shortTime(value: string) {
   return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(date);
 }
 
+function matchesSearch(query: string, fields: Array<string | number | null | undefined>) {
+  if (!query) return true;
+  return fields.some((field) =>
+    String(field ?? "")
+      .toLocaleLowerCase()
+      .includes(query),
+  );
+}
+
 export function DashboardSurface({
   greeting,
   desktopName,
@@ -206,9 +245,15 @@ export function DashboardSurface({
   onOpenUrl,
   onOpenApp,
   onOpenCanvas,
+  onSearchTabContents,
 }: DashboardSurfaceProps) {
   const initialPreferences = useMemo(readPreferences, []);
   const [customizing, setCustomizing] = useState(false);
+  const [searchSettingsOpen, setSearchSettingsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSection, setActiveSection] = useState<DashboardSectionId>("overview");
+  const [contentMatchedTabIds, setContentMatchedTabIds] = useState<string[]>([]);
+  const [contentSearchPending, setContentSearchPending] = useState(false);
   const [selectedTabId, setSelectedTabId] = useState(activeTabId);
   const [headline, setHeadline] = useState(initialPreferences.headline);
   const [message, setMessage] = useState(initialPreferences.message);
@@ -217,6 +262,12 @@ export function DashboardSurface({
   const [highlightedUrls, setHighlightedUrls] = useState(initialPreferences.highlightedUrls);
   const [groupDescriptions, setGroupDescriptions] = useState(initialPreferences.groupDescriptions);
   const [siteIcons, setSiteIcons] = useState(readSiteIcons);
+  const [searchOpenTabContents, setSearchOpenTabContents] = useState(
+    initialPreferences.searchOpenTabContents,
+  );
+  const [searchScope, setSearchScope] = useState<DashboardSearchScope>(
+    initialPreferences.searchScope,
+  );
   const selectedTab = openTabs.find((tab) => tab.id === selectedTabId) ?? openTabs[0] ?? null;
 
   useEffect(() => {
@@ -229,9 +280,51 @@ export function DashboardSurface({
         order,
         highlightedUrls,
         groupDescriptions,
+        searchOpenTabContents,
+        searchScope,
       }),
     );
-  }, [enabled, groupDescriptions, headline, highlightedUrls, message, order]);
+  }, [
+    enabled,
+    groupDescriptions,
+    headline,
+    highlightedUrls,
+    message,
+    order,
+    searchOpenTabContents,
+    searchScope,
+  ]);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!query || !searchOpenTabContents) {
+      setContentMatchedTabIds([]);
+      setContentSearchPending(false);
+      return;
+    }
+    let cancelled = false;
+    setContentMatchedTabIds([]);
+    setContentSearchPending(true);
+    const timeout = window.setTimeout(() => {
+      void onSearchTabContents(
+        openTabs.map((tab) => tab.id),
+        query,
+      )
+        .then((ids) => {
+          if (!cancelled) setContentMatchedTabIds(ids);
+        })
+        .catch(() => {
+          if (!cancelled) setContentMatchedTabIds([]);
+        })
+        .finally(() => {
+          if (!cancelled) setContentSearchPending(false);
+        });
+    }, 180);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [onSearchTabContents, openTabs, searchOpenTabContents, searchQuery]);
 
   useEffect(() => {
     const discovered = [...openTabs, ...recentlyClosed.map((item) => item.tab), ...history]
@@ -257,14 +350,91 @@ export function DashboardSurface({
     );
   }, [highlightedUrls, openTabs, savedLinks]);
 
+  const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
+  const includeAllMetadata = searchScope === "all";
+  const filteredOpenTabs = openTabs.filter(
+    (tab) =>
+      matchesSearch(normalizedQuery, [
+        tab.title,
+        includeAllMetadata ? tab.url : null,
+        includeAllMetadata ? displayHost(tab.url) : null,
+      ]) ||
+      (searchOpenTabContents && contentMatchedTabIds.includes(tab.id)),
+  );
+  const filteredRecentlyClosed = recentlyClosed.filter((item) =>
+    matchesSearch(normalizedQuery, [item.tab.title, includeAllMetadata ? item.tab.url : null]),
+  );
+  const filteredHistory = history.filter((item) =>
+    matchesSearch(normalizedQuery, [item.title, includeAllMetadata ? item.url : null]),
+  );
+  const filteredHighlights = highlightedItems.filter((item) =>
+    matchesSearch(normalizedQuery, [item.title, includeAllMetadata ? item.url : null]),
+  );
+  const filteredSavedLinks = savedLinks.filter((link) =>
+    matchesSearch(normalizedQuery, [
+      link.title,
+      link.description,
+      includeAllMetadata ? link.url : null,
+      includeAllMetadata ? link.folder : null,
+    ]),
+  );
+  const filteredRunnableApps = RUNNABLE_APP_CATALOG.filter((app) =>
+    matchesSearch(normalizedQuery, [app.name, app.description, includeAllMetadata ? app.id : null]),
+  );
+  const filteredCanvasPages = canvasPages.filter((page) =>
+    matchesSearch(normalizedQuery, [
+      page.title,
+      page.description,
+      includeAllMetadata ? page.folder : null,
+      includeAllMetadata ? page.nodeCount : null,
+    ]),
+  );
+
   const savedGroups = useMemo(() => {
     const groups = new Map<string, SavedLinkRecord[]>();
-    for (const link of savedLinks) {
+    for (const link of filteredSavedLinks) {
       const name = link.folder.trim() || "Unsorted";
       groups.set(name, [...(groups.get(name) ?? []), link]);
     }
     return [...groups.entries()];
-  }, [savedLinks]);
+  }, [filteredSavedLinks]);
+
+  const sectionCounts: Record<Exclude<DashboardSectionId, "overview">, number> = {
+    "open-tabs": filteredOpenTabs.length,
+    message: matchesSearch(normalizedQuery, [headline, message]) ? 1 : 0,
+    "recently-closed": filteredRecentlyClosed.length,
+    history: filteredHistory.length,
+    highlights: filteredHighlights.length,
+    favorites: filteredHighlights.length,
+    "saved-links": filteredSavedLinks.length,
+    "runnable-apps": filteredRunnableApps.length,
+    "canvas-pages": filteredCanvasPages.length,
+  };
+  const visibleSectionIds: DashboardSectionId[] = [
+    "overview",
+    "open-tabs",
+    ...order.filter((id) => enabled[id]),
+  ];
+  const expanded = activeSection !== "overview";
+  const visibleSelectedTab =
+    filteredOpenTabs.find((tab) => tab.id === selectedTab?.id) ?? filteredOpenTabs[0] ?? null;
+  const displayedOpenTabs = expanded ? filteredOpenTabs : filteredOpenTabs.slice(0, 5);
+
+  const sectionHeader = (id: DashboardWidgetId, title: string, count: number) => (
+    <header className="dashboard-section-header">
+      <button type="button" onClick={() => setActiveSection(id)}>
+        {title}
+      </button>
+      <div>
+        <button type="button" onClick={() => setActiveSection(id)}>
+          See all
+        </button>
+        <button type="button" onClick={() => setActiveSection(id)} aria-label={`See all ${title}`}>
+          {count}
+        </button>
+      </div>
+    </header>
+  );
 
   const toggleHighlight = (url: string) => {
     setHighlightedUrls((current) =>
@@ -290,6 +460,7 @@ export function DashboardSurface({
   const widgets: Record<DashboardWidgetId, ReactNode> = {
     message: (
       <article className="dashboard-widget dashboard-message-widget">
+        {sectionHeader("message", "Custom message", sectionCounts.message)}
         <span className="dashboard-widget-kicker">{greeting}</span>
         <h2>{headline}</h2>
         <p>{message}</p>
@@ -297,12 +468,9 @@ export function DashboardSurface({
     ),
     "recently-closed": (
       <article className="dashboard-widget">
-        <header>
-          <strong>Recently closed</strong>
-          <span>{recentlyClosed.length}</span>
-        </header>
+        {sectionHeader("recently-closed", "Recently closed", sectionCounts["recently-closed"])}
         <div className="dashboard-list">
-          {recentlyClosed.slice(0, 6).map((item) => (
+          {filteredRecentlyClosed.slice(0, expanded ? undefined : 6).map((item) => (
             <button
               key={`${item.tab.id}-${item.closedAt}`}
               type="button"
@@ -321,7 +489,7 @@ export function DashboardSurface({
               <time>{shortTime(item.closedAt)}</time>
             </button>
           ))}
-          {recentlyClosed.length === 0 && (
+          {filteredRecentlyClosed.length === 0 && (
             <p className="dashboard-empty">Closed tabs will appear here.</p>
           )}
         </div>
@@ -329,12 +497,9 @@ export function DashboardSurface({
     ),
     history: (
       <article className="dashboard-widget">
-        <header>
-          <strong>History</strong>
-          <span>{history.length}</span>
-        </header>
+        {sectionHeader("history", "History", sectionCounts.history)}
         <div className="dashboard-list">
-          {history.slice(0, 7).map((item) => (
+          {filteredHistory.slice(0, expanded ? undefined : 7).map((item) => (
             <button key={item.id} type="button" onClick={() => onOpenUrl(item.url)}>
               <SiteIcon
                 url={item.url}
@@ -349,7 +514,7 @@ export function DashboardSurface({
               <time>{shortTime(item.visitedAt)}</time>
             </button>
           ))}
-          {history.length === 0 && (
+          {filteredHistory.length === 0 && (
             <p className="dashboard-empty">Your browsing history is clear.</p>
           )}
         </div>
@@ -357,12 +522,9 @@ export function DashboardSurface({
     ),
     highlights: (
       <article className="dashboard-widget">
-        <header>
-          <strong>Highlights</strong>
-          <span>{highlightedItems.length}</span>
-        </header>
+        {sectionHeader("highlights", "Highlights", sectionCounts.highlights)}
         <div className="dashboard-list">
-          {highlightedItems.map((item) => (
+          {filteredHighlights.slice(0, expanded ? undefined : 6).map((item) => (
             <button key={item.url} type="button" onClick={() => onOpenUrl(item.url)}>
               <SiteIcon url={item.url} title={item.title} icons={siteIcons} />
               <span>
@@ -372,7 +534,7 @@ export function DashboardSurface({
               <em>★</em>
             </button>
           ))}
-          {highlightedItems.length === 0 && (
+          {filteredHighlights.length === 0 && (
             <p className="dashboard-empty">Star a tab or saved link to highlight it.</p>
           )}
         </div>
@@ -380,12 +542,9 @@ export function DashboardSurface({
     ),
     favorites: (
       <article className="dashboard-widget">
-        <header>
-          <strong>Favorites</strong>
-          <span>{highlightedItems.length}</span>
-        </header>
+        {sectionHeader("favorites", "Favorites", sectionCounts.favorites)}
         <div className="dashboard-list">
-          {highlightedItems.slice(0, 6).map((item) => (
+          {filteredHighlights.slice(0, expanded ? undefined : 6).map((item) => (
             <button key={item.url} type="button" onClick={() => onOpenUrl(item.url)}>
               <SiteIcon url={item.url} title={item.title} icons={siteIcons} />
               <span>
@@ -395,7 +554,7 @@ export function DashboardSurface({
               <em>★</em>
             </button>
           ))}
-          {highlightedItems.length === 0 && (
+          {filteredHighlights.length === 0 && (
             <p className="dashboard-empty">Favorites are your starred highlights.</p>
           )}
         </div>
@@ -403,12 +562,9 @@ export function DashboardSurface({
     ),
     "saved-links": (
       <article className="dashboard-widget dashboard-saved-widget">
-        <header>
-          <strong>Saved links</strong>
-          <span>{savedLinks.length}</span>
-        </header>
+        {sectionHeader("saved-links", "Saved links", sectionCounts["saved-links"])}
         <div className="dashboard-saved-groups">
-          {savedGroups.slice(0, 4).map(([name, groupLinks]) => (
+          {savedGroups.slice(0, expanded ? undefined : 4).map(([name, groupLinks]) => (
             <section key={name}>
               <header>
                 <strong>{name}</strong>
@@ -416,7 +572,7 @@ export function DashboardSurface({
                   {groupLinks.length} saved · {groupDescriptions[name] || "Organized collection"}
                 </small>
               </header>
-              {groupLinks.slice(0, 4).map((link) => (
+              {groupLinks.slice(0, expanded ? undefined : 4).map((link) => (
                 <div className="dashboard-saved-link" key={link.id}>
                   <button type="button" onClick={() => onOpenUrl(link.url)}>
                     <SiteIcon url={link.url} title={link.title} icons={siteIcons} />
@@ -449,12 +605,9 @@ export function DashboardSurface({
     ),
     "runnable-apps": (
       <article className="dashboard-widget">
-        <header>
-          <strong>Runnable apps</strong>
-          <span>{RUNNABLE_APP_CATALOG.length}</span>
-        </header>
+        {sectionHeader("runnable-apps", "Runnable apps", sectionCounts["runnable-apps"])}
         <div className="dashboard-tile-grid">
-          {RUNNABLE_APP_CATALOG.map((app) => (
+          {filteredRunnableApps.map((app) => (
             <button key={app.id} type="button" onClick={() => onOpenApp(app.id)}>
               <Icon
                 name={
@@ -472,12 +625,9 @@ export function DashboardSurface({
     ),
     "canvas-pages": (
       <article className="dashboard-widget">
-        <header>
-          <strong>Canvas pages</strong>
-          <span>{canvasPages.length}</span>
-        </header>
+        {sectionHeader("canvas-pages", "Canvas pages", sectionCounts["canvas-pages"])}
         <div className="dashboard-list">
-          {canvasPages.slice(0, 6).map((page) => (
+          {filteredCanvasPages.slice(0, expanded ? undefined : 6).map((page) => (
             <button key={page.id} type="button" onClick={() => onOpenCanvas(page.id)}>
               <Icon name="grid" />
               <span>
@@ -486,7 +636,7 @@ export function DashboardSurface({
               </span>
             </button>
           ))}
-          {canvasPages.length === 0 && (
+          {filteredCanvasPages.length === 0 && (
             <p className="dashboard-empty">Canvas pages will appear here.</p>
           )}
         </div>
@@ -506,65 +656,167 @@ export function DashboardSurface({
         </button>
       </header>
 
-      <section className="dashboard-open-tabs">
-        <header>
-          <strong>Open tabs</strong>
-          <span>{openTabs.length}</span>
-        </header>
-        <div className="dashboard-tab-strip">
-          {openTabs.slice(0, 5).map((tab) => (
-            <button
-              className={tab.id === selectedTab?.id ? "selected" : ""}
-              key={tab.id}
-              type="button"
-              onClick={() => setSelectedTabId(tab.id)}
-            >
-              <span className="dashboard-tab-preview">
-                {tabPreviews[tab.id] ? (
-                  <img src={tabPreviews[tab.id]} alt="" />
-                ) : (
-                  <Icon name={tab.url === "about:blank" ? "sparkle" : "globe"} />
-                )}
+      <div className="dashboard-global-search">
+        <Icon name="search" />
+        <input
+          value={searchQuery}
+          maxLength={200}
+          placeholder={`Search ${desktopName}…`}
+          aria-label={`Search ${desktopName}`}
+          onChange={(event) => setSearchQuery(event.target.value)}
+        />
+        {contentSearchPending && <span className="dashboard-searching">Searching pages…</span>}
+        <button
+          type="button"
+          aria-label="Search settings"
+          aria-expanded={searchSettingsOpen}
+          onClick={() => setSearchSettingsOpen((value) => !value)}
+        >
+          <Icon name="settings" />
+        </button>
+        {searchSettingsOpen && (
+          <aside className="dashboard-search-settings">
+            <strong>Search settings</strong>
+            <small>Choose what to include in this desktop&apos;s results.</small>
+            <label>
+              <input
+                type="checkbox"
+                checked={searchOpenTabContents}
+                onChange={(event) => setSearchOpenTabContents(event.target.checked)}
+              />
+              <span>
+                <strong>Search inside open tabs</strong>
+                <small>Checks text currently rendered inside webpages.</small>
               </span>
-              <strong className="dashboard-tab-name">
-                <SiteIcon
-                  url={tab.url}
-                  title={tab.title || "New tab"}
-                  icons={siteIcons}
-                  explicitIcon={tab.siteIconDataUrl}
+            </label>
+            <fieldset>
+              <legend>Search depth</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="dashboard-search-scope"
+                  checked={searchScope === "titles"}
+                  onChange={() => setSearchScope("titles")}
                 />
-                <span>{tab.title || "New tab"}</span>
-              </strong>
-              <small>{tab.url === "about:blank" ? "Ready to browse" : displayHost(tab.url)}</small>
-            </button>
-          ))}
-          <button className="dashboard-new-tab" type="button" onClick={onNewTab}>
-            <Icon name="plus" />
-            <span>New tab</span>
-          </button>
-        </div>
-      </section>
+                <span>
+                  <strong>Search titles and descriptions only</strong>
+                  <small>Keeps matching focused on human-readable labels.</small>
+                </span>
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="dashboard-search-scope"
+                  checked={searchScope === "all"}
+                  onChange={() => setSearchScope("all")}
+                />
+                <span>
+                  <strong>Search all content</strong>
+                  <small>Also searches URLs, folders, IDs, and object details.</small>
+                </span>
+              </label>
+            </fieldset>
+          </aside>
+        )}
+      </div>
 
-      {selectedTab && (
+      <nav className="dashboard-section-tabs" aria-label="Dashboard sections">
+        {visibleSectionIds.map((id) => {
+          const count = id === "overview" ? visibleSectionIds.length - 1 : sectionCounts[id];
+          return (
+            <button
+              key={id}
+              type="button"
+              className={activeSection === id ? "active" : ""}
+              aria-current={activeSection === id ? "page" : undefined}
+              onClick={() => setActiveSection(id)}
+            >
+              <Icon name={SECTION_ICONS[id]} />
+              <span>{SECTION_LABELS[id]}</span>
+              <em>{count}</em>
+            </button>
+          );
+        })}
+      </nav>
+
+      {(activeSection === "overview" || activeSection === "open-tabs") && (
+        <section className="dashboard-open-tabs">
+          <header className="dashboard-section-header">
+            <button type="button" onClick={() => setActiveSection("open-tabs")}>
+              Open tabs
+            </button>
+            <div>
+              <button type="button" onClick={() => setActiveSection("open-tabs")}>
+                See all
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSection("open-tabs")}
+                aria-label="See all open tabs"
+              >
+                {sectionCounts["open-tabs"]}
+              </button>
+            </div>
+          </header>
+          <div className="dashboard-tab-strip">
+            {displayedOpenTabs.map((tab) => (
+              <button
+                className={tab.id === selectedTab?.id ? "selected" : ""}
+                key={tab.id}
+                type="button"
+                onClick={() => setSelectedTabId(tab.id)}
+              >
+                <span className="dashboard-tab-preview">
+                  {tabPreviews[tab.id] ? (
+                    <img src={tabPreviews[tab.id]} alt="" />
+                  ) : (
+                    <Icon name={tab.url === "about:blank" ? "sparkle" : "globe"} />
+                  )}
+                </span>
+                <strong className="dashboard-tab-name">
+                  <SiteIcon
+                    url={tab.url}
+                    title={tab.title || "New tab"}
+                    icons={siteIcons}
+                    explicitIcon={tab.siteIconDataUrl}
+                  />
+                  <span>{tab.title || "New tab"}</span>
+                </strong>
+                <small>
+                  {tab.url === "about:blank" ? "Ready to browse" : displayHost(tab.url)}
+                </small>
+              </button>
+            ))}
+            <button className="dashboard-new-tab" type="button" onClick={onNewTab}>
+              <Icon name="plus" />
+              <span>New tab</span>
+            </button>
+          </div>
+        </section>
+      )}
+
+      {(activeSection === "overview" || activeSection === "open-tabs") && visibleSelectedTab && (
         <aside className="dashboard-tab-detail">
           <SiteIcon
-            url={selectedTab.url}
-            title={selectedTab.title || "New tab"}
+            url={visibleSelectedTab.url}
+            title={visibleSelectedTab.title || "New tab"}
             icons={siteIcons}
-            explicitIcon={selectedTab.siteIconDataUrl}
+            explicitIcon={visibleSelectedTab.siteIconDataUrl}
           />
           <div>
-            <strong>{selectedTab.title || "New tab"}</strong>
-            <small>{selectedTab.url === "about:blank" ? "Blank tab" : selectedTab.url}</small>
+            <strong>{visibleSelectedTab.title || "New tab"}</strong>
+            <small>
+              {visibleSelectedTab.url === "about:blank" ? "Blank tab" : visibleSelectedTab.url}
+            </small>
           </div>
           <button
             type="button"
-            onClick={() => toggleHighlight(selectedTab.url)}
+            onClick={() => toggleHighlight(visibleSelectedTab.url)}
             aria-label="Toggle highlight"
           >
-            {highlightedUrls.includes(selectedTab.url) ? "★ Highlighted" : "☆ Highlight"}
+            {highlightedUrls.includes(visibleSelectedTab.url) ? "★ Highlighted" : "☆ Highlight"}
           </button>
-          <button type="button" onClick={() => onOpenTab(selectedTab)}>
+          <button type="button" onClick={() => onOpenTab(visibleSelectedTab)}>
             Open tab
           </button>
         </aside>
@@ -572,9 +824,18 @@ export function DashboardSurface({
 
       <section className="dashboard-widget-grid">
         {order
-          .filter((id) => enabled[id])
+          .filter(
+            (id) =>
+              enabled[id] &&
+              (activeSection === "overview"
+                ? !normalizedQuery || sectionCounts[id] > 0
+                : activeSection === id),
+          )
           .map((id) => (
-            <div key={id} className={`dashboard-widget-slot ${id}`}>
+            <div
+              key={id}
+              className={`dashboard-widget-slot ${id}${activeSection === id ? " single-section" : ""}`}
+            >
               {widgets[id]}
             </div>
           ))}
@@ -624,7 +885,10 @@ export function DashboardSurface({
                 <button
                   type="button"
                   aria-pressed={enabled[id]}
-                  onClick={() => setEnabled((current) => ({ ...current, [id]: !current[id] }))}
+                  onClick={() => {
+                    if (activeSection === id && enabled[id]) setActiveSection("overview");
+                    setEnabled((current) => ({ ...current, [id]: !current[id] }));
+                  }}
                 >
                   {enabled[id] ? "On" : "Off"}
                 </button>
