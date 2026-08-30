@@ -9268,6 +9268,92 @@ kbd {
   text-align: center;
 }
 
+.dashboard-tab-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-tab-view-toggle {
+  display: inline-flex;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--canvas);
+  padding: 2px;
+}
+
+.dashboard-tab-view-toggle button {
+  width: 25px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.dashboard-tab-view-toggle button:hover,
+.dashboard-tab-view-toggle button.active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.dashboard-tab-view-toggle svg {
+  width: 13px;
+  height: 13px;
+}
+
+.dashboard-tab-list {
+  display: grid;
+  gap: 5px;
+}
+
+.dashboard-tab-list > .dashboard-tab-card {
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--canvas);
+  padding: 9px 12px;
+  color: var(--text);
+  text-align: left;
+}
+
+.dashboard-tab-list > .dashboard-tab-card:hover,
+.dashboard-tab-list > .dashboard-tab-card.selected {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--line));
+  background: var(--accent-soft);
+}
+
+.dashboard-tab-list .dashboard-tab-preview {
+  display: none;
+}
+
+.dashboard-tab-list .dashboard-tab-name {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.dashboard-tab-list > .dashboard-tab-card > small {
+  grid-column: 1;
+  grid-row: 2;
+  padding-left: 24px;
+}
+
+.dashboard-tab-list > .dashboard-new-tab {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: var(--muted);
+  text-align: center;
+}
+
 .dashboard-new-tab svg {
   width: 20px;
   height: 20px;
@@ -9283,6 +9369,19 @@ kbd {
   border-radius: 12px;
   background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
   padding: 10px 12px;
+}
+
+.dashboard-tab-detail-preview {
+  width: 100%;
+  max-height: 360px;
+  grid-column: 1 / -1;
+  aspect-ratio: 16 / 9;
+  display: block;
+  border-radius: 9px;
+  object-fit: cover;
+  object-position: top center;
+  pointer-events: none;
+  user-select: none;
 }
 
 .dashboard-tab-detail > span {

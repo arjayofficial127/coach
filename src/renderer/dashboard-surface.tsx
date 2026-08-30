@@ -252,6 +252,7 @@ export function DashboardSurface({
   const [searchSettingsOpen, setSearchSettingsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSection, setActiveSection] = useState<DashboardSectionId>("overview");
+  const [tabViewMode, setTabViewMode] = useState<"grid" | "list">("grid");
   const [contentMatchedTabIds, setContentMatchedTabIds] = useState<string[]>([]);
   const [contentSearchPending, setContentSearchPending] = useState(false);
   const [selectedTabId, setSelectedTabId] = useState(activeTabId);
@@ -748,7 +749,27 @@ export function DashboardSurface({
             <button type="button" onClick={() => setActiveSection("open-tabs")}>
               Open tabs
             </button>
-            <div>
+            <div className="dashboard-tab-tools">
+              <div className="dashboard-tab-view-toggle">
+                <button
+                  type="button"
+                  className={tabViewMode === "grid" ? "active" : ""}
+                  aria-label="Grid view"
+                  aria-pressed={tabViewMode === "grid"}
+                  onClick={() => setTabViewMode("grid")}
+                >
+                  <Icon name="grid" />
+                </button>
+                <button
+                  type="button"
+                  className={tabViewMode === "list" ? "active" : ""}
+                  aria-label="List view"
+                  aria-pressed={tabViewMode === "list"}
+                  onClick={() => setTabViewMode("list")}
+                >
+                  <Icon name="library" />
+                </button>
+              </div>
               <button type="button" onClick={() => setActiveSection("open-tabs")}>
                 See all
               </button>
@@ -761,10 +782,10 @@ export function DashboardSurface({
               </button>
             </div>
           </header>
-          <div className="dashboard-tab-strip">
+          <div className={tabViewMode === "grid" ? "dashboard-tab-strip" : "dashboard-tab-list"}>
             {displayedOpenTabs.map((tab) => (
               <button
-                className={tab.id === selectedTab?.id ? "selected" : ""}
+                className={`dashboard-tab-card ${tab.id === selectedTab?.id ? "selected" : ""}`}
                 key={tab.id}
                 type="button"
                 onClick={() => setSelectedTabId(tab.id)}
@@ -790,7 +811,11 @@ export function DashboardSurface({
                 </small>
               </button>
             ))}
-            <button className="dashboard-new-tab" type="button" onClick={onNewTab}>
+            <button
+              className="dashboard-new-tab dashboard-tab-card"
+              type="button"
+              onClick={onNewTab}
+            >
               <Icon name="plus" />
               <span>New tab</span>
             </button>
@@ -800,6 +825,13 @@ export function DashboardSurface({
 
       {(activeSection === "overview" || activeSection === "open-tabs") && visibleSelectedTab && (
         <aside className="dashboard-tab-detail">
+          {tabPreviews[visibleSelectedTab.id] && (
+            <img
+              className="dashboard-tab-detail-preview"
+              src={tabPreviews[visibleSelectedTab.id]}
+              alt=""
+            />
+          )}
           <SiteIcon
             url={visibleSelectedTab.url}
             title={visibleSelectedTab.title || "New tab"}
