@@ -62,6 +62,10 @@ export class BrowserRuntime {
   private visible = false;
   private lastBounds: BrowserBounds | null = null;
   private readonly livePreviewIds = new Set<string>();
+  private readonly livePreviewLayouts = new Map<
+    string,
+    { bounds: BrowserBounds; zoomFactor: number }
+  >();
   private popupHandlerTriggered = false;
   private permissionCheckHandlerTriggered = false;
 
@@ -226,21 +230,36 @@ export class BrowserRuntime {
         if (this.livePreviewIds.has(id)) {
           tab.view.setVisible(false);
           tab.contents.setZoomFactor(1);
+          this.livePreviewLayouts.delete(id);
         }
         continue;
       }
       const width = Math.max(1, Math.round(bounds.width));
       const height = Math.max(1, Math.round(bounds.height));
-      // Keep the page's CSS viewport equivalent to a 1920px desktop while
-      // scaling the live view down to the dashboard card.
-      tab.contents.setZoomFactor(Math.max(0.1, Math.min(1, width / 1920)));
-      tab.view.setBounds({
+      const nextBounds = {
         x: Math.round(bounds.x),
         y: Math.round(bounds.y),
         width,
         height,
-      });
-      tab.view.setVisible(true);
+      };
+      // Keep the page's CSS viewport equivalent to a 1920px desktop while
+      // scaling the live view down to the dashboard card.
+      const zoomFactor = Math.max(0.1, Math.min(1, width / 1920));
+      const previous = this.livePreviewLayouts.get(id);
+      if (!previous || Math.abs(previous.zoomFactor - zoomFactor) > 0.001) {
+        tab.contents.setZoomFactor(zoomFactor);
+      }
+      if (
+        !previous ||
+        previous.bounds.x !== nextBounds.x ||
+        previous.bounds.y !== nextBounds.y ||
+        previous.bounds.width !== nextBounds.width ||
+        previous.bounds.height !== nextBounds.height
+      ) {
+        tab.view.setBounds(nextBounds);
+      }
+      if (!this.livePreviewIds.has(id)) tab.view.setVisible(true);
+      this.livePreviewLayouts.set(id, { bounds: nextBounds, zoomFactor });
     }
     this.livePreviewIds.clear();
     for (const id of requested.keys()) this.livePreviewIds.add(id);
@@ -682,6 +701,8 @@ export class BrowserRuntime {
   }
 
   private disposeTab(tab: TabRecord): void {
+    this.livePreviewIds.delete(tab.id);
+    this.livePreviewLayouts.delete(tab.id);
     if (!this.window.isDestroyed()) this.window.contentView.removeChildView(tab.view);
     if (!tab.contents.isDestroyed()) tab.contents.close();
   }

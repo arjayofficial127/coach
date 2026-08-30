@@ -636,7 +636,7 @@ export function LatticeApp() {
     };
     resizeObserver = new ResizeObserver(schedule);
     const observer = new MutationObserver(schedule);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+    observer.observe(document.body, { childList: true, subtree: true });
     window.addEventListener("resize", schedule);
     window.addEventListener("scroll", schedule, true);
     schedule();
@@ -648,7 +648,7 @@ export function LatticeApp() {
       if (frame) window.cancelAnimationFrame(frame);
       void window.lattice.browser.setLivePreviews([]);
     };
-  }, [desktopTabs, surface]);
+  }, [surface]);
   const filteredLinks = useMemo(() => {
     const query = libraryQuery.trim().toLowerCase();
     return links.filter((link) => {
