@@ -2,6 +2,7 @@ import { app, type BrowserWindow, type IpcMainInvokeEvent, ipcMain, shell } from
 import { z } from "zod";
 import type {
   BrowserBounds,
+  BrowserCreateTabInput,
   BrowserPrivacySummary,
   BrowserSnapshot,
   LiveTabPreviewBounds,
@@ -65,6 +66,25 @@ const savedLinkMetadataSchema = z.object({
 });
 
 const tabIdSchema = z.string().uuid();
+const browserTabUrlSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(2048)
+  .refine((value) => value === "about:blank" || value.startsWith("https://"), {
+    message: "Only HTTPS tab URLs are allowed.",
+  });
+const browserCreateTabSchema = z
+  .union([
+    browserTabUrlSchema,
+    z
+      .object({
+        url: browserTabUrlSchema.optional(),
+        activate: z.boolean().optional(),
+      })
+      .strict(),
+  ])
+  .optional();
 const tabContentSearchSchema = z
   .object({
     tabIds: z.array(tabIdSchema).max(100),
@@ -126,7 +146,7 @@ export interface BrowserController {
   captureTabPreview(tabId: string): Promise<string | null>;
   searchTabContents(tabIds: string[], query: string): Promise<string[]>;
   loadSiteIcons(urls: string[]): Promise<Record<string, string>>;
-  createTab(input?: string): Promise<BrowserSnapshot>;
+  createTab(input?: string | BrowserCreateTabInput): Promise<BrowserSnapshot>;
   switchTab(tabId: string): BrowserSnapshot;
   closeTab(tabId: string): BrowserSnapshot;
   setVisible(visible: boolean): void;
@@ -202,7 +222,7 @@ export function registerIpc(
     browser.loadSiteIcons(siteIconUrlsSchema.parse(payload)),
   );
   handle(IPC.browserCreateTab, (_event, payload) =>
-    browser.createTab(z.string().optional().parse(payload)),
+    browser.createTab(browserCreateTabSchema.parse(payload)),
   );
   handle(IPC.browserSwitchTab, (_event, payload) => browser.switchTab(tabIdSchema.parse(payload)));
   handle(IPC.browserCloseTab, (_event, payload) => browser.closeTab(tabIdSchema.parse(payload)));

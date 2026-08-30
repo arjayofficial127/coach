@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer } from "electron";
-import { type BrowserState, IPC, type LatticeApi, type ShellCommand } from "../shared/contracts";
+import {
+  type BrowserLinkAction,
+  type BrowserState,
+  IPC,
+  type LatticeApi,
+  type ShellCommand,
+} from "../shared/contracts";
 
 const api: LatticeApi = {
   shell: {
@@ -35,6 +41,12 @@ const api: LatticeApi = {
       const handler = (_event: Electron.IpcRendererEvent, state: BrowserState) => listener(state);
       ipcRenderer.on(IPC.browserState, handler);
       return () => ipcRenderer.removeListener(IPC.browserState, handler);
+    },
+    onLinkAction: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, action: BrowserLinkAction) =>
+        listener(action);
+      ipcRenderer.on(IPC.browserLinkAction, handler);
+      return () => ipcRenderer.removeListener(IPC.browserLinkAction, handler);
     },
   },
   profiles: {

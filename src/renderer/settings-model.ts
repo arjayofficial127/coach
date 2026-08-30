@@ -29,8 +29,8 @@ export const MAX_CUSTOM_THEME_NAME_LENGTH = 40;
 export const THEME_CATALOG: readonly ThemeCatalogEntry[] = [
   {
     id: "lattice-dark",
-    name: "Lattice Dark",
-    description: "The focused, low-light Lattice you already know.",
+    name: "Coach Dark",
+    description: "The focused, low-light Coach Browser you already know.",
   },
   {
     id: "paper-felt",

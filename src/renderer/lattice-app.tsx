@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import type {
+  BrowserLinkAction,
   BrowserPrivacySummary,
   BrowserSnapshot,
   BrowserState,
@@ -40,6 +41,7 @@ import {
   type DashboardClosedTab,
   type DashboardHistoryItem,
   DashboardSurface,
+  setDashboardUrlFavorite,
 } from "./dashboard-surface";
 import {
   FOCUS_STORAGE_KEY,
@@ -104,6 +106,7 @@ const SESSION_STORAGE_KEY = "lattice.session.v1";
 const SETTINGS_STORAGE_KEY = "lattice.settings.v2";
 const LEGACY_SETTINGS_STORAGE_KEY = "lattice.settings.v1";
 const ZOOM_STORAGE_KEY = "lattice.shell-zoom.v1";
+const NAVIGATION_STORAGE_KEY = "lattice.navigation-mode.v1";
 const emptySnapshot: BrowserSnapshot = { activeTabId: "", tabs: [] };
 const emptyReferenceIndex: VaultReferenceIndex = {
   generatedAt: "",
@@ -167,6 +170,7 @@ const railItems: Array<{ id: Surface; label: string; icon: IconName }> = [
   { id: "pages", label: "Canvas pages", icon: "grid" },
   { id: "apps", label: "Runnable apps", icon: "timer" },
   { id: "library", label: "Saved links", icon: "bookmark" },
+  { id: "queue", label: "Reading queue", icon: "folder" },
   { id: "settings", label: "Settings", icon: "settings" },
 ];
 
@@ -336,6 +340,7 @@ export function LatticeApp() {
   const newDesktopInputRef = useRef<HTMLInputElement>(null);
   const desktopRenameInputRef = useRef<HTMLInputElement>(null);
   const commandHandlerRef = useRef<(command: ShellCommand) => void>(() => undefined);
+  const browserLinkActionHandlerRef = useRef<(action: BrowserLinkAction) => void>(() => undefined);
   const zoomHandlerRef = useRef<(command: ZoomCommand) => void>(() => undefined);
   const zoomPercentRef = useRef(DEFAULT_ZOOM_PERCENT);
   const zoomRequestRef = useRef(0);
@@ -365,6 +370,13 @@ export function LatticeApp() {
   const [profileName, setProfileName] = useState("");
   const [profileBusy, setProfileBusy] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  const [navigationExpanded, setNavigationExpanded] = useState(() => {
+    try {
+      return localStorage.getItem(NAVIGATION_STORAGE_KEY) !== "compact";
+    } catch {
+      return true;
+    }
+  });
   const [dashboardCustomizing, setDashboardCustomizing] = useState(false);
   const [dashboardToolbarContentTarget, setDashboardToolbarContentTarget] =
     useState<HTMLDivElement | null>(null);
@@ -572,6 +584,14 @@ export function LatticeApp() {
     }, 1_800);
     return () => window.clearTimeout(timer);
   }, [zoomFeedbackVisible, zoomFineTuneOpen, zoomPercent]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(NAVIGATION_STORAGE_KEY, navigationExpanded ? "expanded" : "compact");
+    } catch {
+      // Navigation mode persistence is optional.
+    }
+  }, [navigationExpanded]);
 
   const confirmCanvasLeave = () => {
     if (surface !== "pages" || !canvasDirtyRef.current) return true;
@@ -1098,6 +1118,9 @@ export function LatticeApp() {
         };
       });
     });
+    const unsubscribeLinkActions = window.lattice.browser.onLinkAction((action) =>
+      browserLinkActionHandlerRef.current(action),
+    );
     void (async () => {
       const profiles = await window.lattice.profiles.state();
       profilesLoaded = true;
@@ -1159,6 +1182,7 @@ export function LatticeApp() {
     return () => {
       cancelled = true;
       unsubscribe();
+      unsubscribeLinkActions();
     };
   }, []);
 
@@ -1752,6 +1776,127 @@ export function LatticeApp() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const openBrowserLinkTab = async (action: BrowserLinkAction) => {
+    const activate = action.action === "open-foreground";
+    const previousIds = new Set(snapshot.tabs.map((tab) => tab.id));
+    const next = await window.lattice.browser.createTab({ url: action.url, activate });
+    const created = next.tabs.find((tab) => !previousIds.has(tab.id));
+    setSnapshot(next);
+    if (created) {
+      setTabDesktops((current) => ({
+        ...current,
+        [created.id]: workspace.activeDesktopId,
+      }));
+    }
+    if (activate) {
+      setSurface("browser");
+      setCaptureOpen(false);
+      setStatus(`Opened ${displayHost(action.url)} in a new tab`);
+    } else {
+      setStatus(`Opened ${displayHost(action.url)} in a background tab`);
+    }
+  };
+
+  const saveBrowserLink = async (action: BrowserLinkAction) => {
+    if (action.action === "favorite") {
+      const changed = setDashboardUrlFavorite(action.url, true, action.title);
+      setStatus(changed ? `Added ${action.title} to Favorites` : `${action.title} is a favorite`);
+      if (changed) {
+        offerRecovery(`Added ${action.title} to Favorites`, () => {
+          setDashboardUrlFavorite(action.url, false, action.title);
+        });
+      }
+      return;
+    }
+    if (!vault) {
+      setSurface(action.action === "queue" ? "queue" : "library");
+      setCaptureOpen(false);
+      setStatus("Connect a vault before saving links");
+      return;
+    }
+
+    const targetKey = urlReferenceKey(action.url);
+    const existing = links.find(
+      (link) =>
+        urlReferenceKey(link.url) === targetKey &&
+        (!activeDesktop ||
+          link.desktopId === activeDesktop.id ||
+          (!link.desktopId && link.folder === activeDesktop.name)),
+    );
+    if (existing) {
+      if (action.action === "queue" && existing.readingStatus !== "queued") {
+        const previousStatus = existing.readingStatus;
+        await window.lattice.vault.setReadingStatus({ id: existing.id, status: "queued" });
+        setLinks(await window.lattice.vault.listSavedLinks());
+        setStatus(`Added ${existing.title} to the reading queue`);
+        offerRecovery(`Added ${existing.title} to the reading queue`, async () => {
+          await window.lattice.vault.setReadingStatus({
+            id: existing.id,
+            status: previousStatus,
+          });
+          setLinks(await window.lattice.vault.listSavedLinks());
+        });
+      } else {
+        setStatus(
+          action.action === "queue"
+            ? `${existing.title} is already in the reading queue`
+            : `${existing.title} is already in Saved links`,
+        );
+      }
+      return;
+    }
+
+    const savedLink = await window.lattice.vault.saveProbeNote({
+      title: action.title.trim().slice(0, 200) || displayHost(action.url),
+      url: action.url,
+      description: "",
+      folder: activeDesktop?.name ?? "Saved Links",
+      desktopId: activeDesktop?.id ?? "research",
+      readingStatus: action.action === "queue" ? "queued" : "saved",
+    });
+    const [savedLinks, references] = await Promise.all([
+      window.lattice.vault.listSavedLinks(),
+      window.lattice.vault.referenceIndex(),
+    ]);
+    setLinks(savedLinks);
+    setReferenceIndex(references);
+    setStatus(
+      action.action === "queue"
+        ? `Added ${savedLink.title} to the reading queue`
+        : `Saved ${savedLink.title} to Saved links`,
+    );
+    offerRecovery(
+      action.action === "queue"
+        ? `Added ${savedLink.title} to the reading queue`
+        : `Saved ${savedLink.title}`,
+      async () => {
+        await window.lattice.vault.trashSavedLink(savedLink.id);
+        const [remainingLinks, remainingReferences] = await Promise.all([
+          window.lattice.vault.listSavedLinks(),
+          window.lattice.vault.referenceIndex(),
+        ]);
+        setLinks(remainingLinks);
+        setReferenceIndex(remainingReferences);
+      },
+    );
+  };
+
+  browserLinkActionHandlerRef.current = (action) => {
+    void (async () => {
+      try {
+        if (action.action === "open") {
+          await openUrl(action.url);
+        } else if (action.action === "open-background" || action.action === "open-foreground") {
+          await openBrowserLinkTab(action);
+        } else {
+          await saveBrowserLink(action);
+        }
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : String(error));
+      }
+    })();
   };
 
   const showLibrary = async () => {
@@ -2368,7 +2513,15 @@ export function LatticeApp() {
     else await showLibrary();
   };
 
-  const activeRailItem = surface === "library" || surface === "queue" ? "library" : surface;
+  const activeRailItem = surface;
+
+  const setNavigationView = (expanded: boolean) => {
+    setNavigationExpanded(expanded);
+    setWorkspaceMenuOpen(false);
+    setArchivedDesktopsOpen(false);
+    setProfileMenuOpen(false);
+    setStatus(expanded ? "Expanded navigation" : "Compact navigation");
+  };
 
   commandHandlerRef.current = (command) => {
     if (command === "zoom-in" || command === "zoom-out" || command === "zoom-reset") {
@@ -2489,7 +2642,7 @@ export function LatticeApp() {
 
   return (
     <div
-      className={`lattice-shell${focusMode ? " focus-mode" : ""}${
+      className={`lattice-shell navigation-${navigationExpanded ? "expanded" : "compact"}${focusMode ? " focus-mode" : ""}${
         settings.activeTheme === "lattice-dark" ? "" : " theme-adaptive"
       }`}
       data-theme={settings.activeTheme}
@@ -2501,14 +2654,41 @@ export function LatticeApp() {
       data-titlebar-theme={nativeAppearanceTheme ?? "syncing"}
       style={shellThemeStyle}
     >
-      <nav className="activity-rail" aria-label="Primary navigation">
+      <nav
+        className={`activity-rail${profileMenuOpen ? " profile-open" : ""}`}
+        aria-label="Compact navigation"
+        aria-hidden={navigationExpanded && !profileMenuOpen}
+        inert={navigationExpanded && !profileMenuOpen ? true : undefined}
+      >
         <button
           className="brand-mark"
           type="button"
           onClick={showDashboard}
           aria-label="Open Dashboard"
+          title="Coach Browser"
         >
           <img src={coachLogoUrl} alt="" />
+        </button>
+        <button
+          type="button"
+          className="rail-button rail-search-button"
+          aria-label="Search everything"
+          title={`Search everything (${searchShortcutLabel})`}
+          onClick={openCommandPalette}
+        >
+          <Icon name="search" />
+        </button>
+        <button
+          type="button"
+          className="rail-desktop-switcher"
+          aria-label={`Expand navigation and change desktop. Active desktop: ${activeDesktop?.name ?? "Desktop 1"}`}
+          title={`Active desktop: ${activeDesktop?.name ?? "Desktop 1"}`}
+          onClick={() => setNavigationView(true)}
+        >
+          <span className={`rail-desktop-glyph ${activeDesktop?.color ?? "violet"}`}>
+            <Icon name="desktop" />
+          </span>
+          <Icon name="arrow-right" />
         </button>
         <div className="rail-actions">
           {railItems.map((item) => (
@@ -2522,6 +2702,9 @@ export function LatticeApp() {
               onClick={() => void showSurface(item.id)}
             >
               <Icon name={item.icon} />
+              {item.id === "queue" && queueCount > 0 && (
+                <span className="rail-count">{queueCount > 99 ? "99+" : queueCount}</span>
+              )}
             </button>
           ))}
         </div>
@@ -2725,16 +2908,29 @@ export function LatticeApp() {
                 </div>
               )}
               <p className="profile-privacy-note">
-                Website sign-ins stay inside this profile’s Chromium storage. Lattice never stores
-                your Google or identity-provider password.
+                Website sign-ins stay inside this profile’s Chromium storage. Coach Browser never
+                stores your Google or identity-provider password.
               </p>
             </section>
           </>
         )}
       </nav>
 
-      <aside className="workspace-panel">
+      <aside
+        className="workspace-panel"
+        aria-hidden={!navigationExpanded}
+        inert={!navigationExpanded ? true : undefined}
+      >
         <div className="workspace-heading" ref={workspaceHeadingRef}>
+          <button
+            className="brand-mark workspace-brand-mark"
+            type="button"
+            onClick={showDashboard}
+            aria-label="Open Coach Browser dashboard"
+            title="Coach Browser"
+          >
+            <img src={coachLogoUrl} alt="" />
+          </button>
           <button
             className="workspace-selector"
             type="button"
@@ -2752,6 +2948,15 @@ export function LatticeApp() {
               </strong>
             </span>
             <Icon name="chevron-down" />
+          </button>
+          <button
+            type="button"
+            className="navigation-collapse-button"
+            aria-label="Use compact navigation"
+            title="Use compact navigation"
+            onClick={() => setNavigationView(false)}
+          >
+            <Icon name="arrow-left" />
           </button>
           {workspaceMenuOpen && (
             <div className="workspace-menu">
@@ -3155,6 +3360,20 @@ export function LatticeApp() {
             </span>
             <kbd>7</kbd>
           </button>
+          <button
+            type="button"
+            className={surface === "settings" ? "navigation-row active" : "navigation-row"}
+            aria-current={surface === "settings" ? "page" : undefined}
+            onClick={() => void showSettings()}
+          >
+            <span className="navigation-row-icon settings">
+              <Icon name="settings" />
+            </span>
+            <span>
+              <strong>Settings</strong>
+              <small>Appearance, privacy, and behavior</small>
+            </span>
+          </button>
         </div>
 
         <div className="section-label library-label">
@@ -3181,6 +3400,32 @@ export function LatticeApp() {
           <b>{queueCount}</b>
         </button>
         <div className="workspace-spacer" />
+        <button
+          type="button"
+          className="workspace-profile-button"
+          aria-label={activeProfile ? `Open ${activeProfile.name} profile menu` : "Open profiles"}
+          aria-expanded={profileMenuOpen}
+          onClick={() => {
+            setWorkspaceMenuOpen(false);
+            setBrowserMenuOpen(false);
+            setCommandOpen(false);
+            setProfileEditor(null);
+            setProfileMenuOpen((open) => !open);
+          }}
+        >
+          <span className="profile-avatar">
+            {activeProfile?.avatarDataUrl ? (
+              <img src={activeProfile.avatarDataUrl} alt="" />
+            ) : (
+              profileInitials(activeProfile?.name ?? "Personal")
+            )}
+          </span>
+          <span className="workspace-profile-copy">
+            <small>Website profile</small>
+            <strong>{activeProfile?.name ?? "Personal"}</strong>
+          </span>
+          <Icon name="arrow-right" />
+        </button>
         <div className={vault ? "vault-card connected" : "vault-card"}>
           <div className="vault-card-icon">
             <Icon name={vault ? "check" : "sparkle"} />
@@ -3891,7 +4136,8 @@ export function LatticeApp() {
                   <span>
                     <strong>Private by design. Always local.</strong>
                     <small>
-                      Your data stays on this device. Lattice never sees or stores your content.
+                      Your data stays on this device. Coach Browser never sees or stores your
+                      content.
                     </small>
                   </span>
                   <em>Local-first</em>
@@ -4227,7 +4473,7 @@ export function LatticeApp() {
                     </span>
 
                     <fieldset className="theme-option-grid">
-                      <legend className="sr-only">Lattice theme</legend>
+                      <legend className="sr-only">Coach Browser theme</legend>
                       {THEME_CATALOG.map((theme) => {
                         const selected = settings.activeTheme === theme.id;
                         const displayName =
@@ -4419,7 +4665,7 @@ export function LatticeApp() {
                     </div>
                     <div className="settings-card-copy">
                       <span className="settings-kicker">About</span>
-                      <h2>Lattice 0.15.0</h2>
+                      <h2>Coach Browser 0.16.0</h2>
                       <p>
                         Current privacy controls. Remote Node access, downloads, popups, device
                         permissions, and unsafe protocols remain disabled.
@@ -4465,7 +4711,7 @@ export function LatticeApp() {
                     <Icon name="sparkle" />
                   </span>
                   <h3>Connect your vault first</h3>
-                  <p>Lattice writes plain Markdown. Nothing is locked inside the app.</p>
+                  <p>Coach Browser writes plain Markdown. Nothing is locked inside the app.</p>
                   <button
                     type="button"
                     className="primary-action"

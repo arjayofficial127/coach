@@ -154,9 +154,11 @@ export function installBrowserPreviewBridge(): void {
       searchTabContents: async () => [],
       loadSiteIcons: async () => ({}),
       createTab: async (input) => {
-        activeTabId = crypto.randomUUID();
+        const url = typeof input === "string" ? input : input?.url;
+        const activate = typeof input === "string" ? true : (input?.activate ?? true);
+        const createdTabId = crypto.randomUUID();
         tabs.push({
-          id: activeTabId,
+          id: createdTabId,
           url: "about:blank",
           title: "New tab",
           loading: false,
@@ -164,7 +166,20 @@ export function installBrowserPreviewBridge(): void {
           canGoForward: false,
           error: null,
         });
-        if (input) updateActive(normalizeAddress(input));
+        if (activate) activeTabId = createdTabId;
+        if (url) {
+          const normalized = normalizeAddress(url);
+          tabs = tabs.map((tab) =>
+            tab.id === createdTabId
+              ? {
+                  ...tab,
+                  url: normalized,
+                  title: new URL(normalized).hostname.replace(/^www\./, ""),
+                  canGoBack: true,
+                }
+              : tab,
+          );
+        }
         return snapshot();
       },
       switchTab: async (tabId) => {
@@ -201,6 +216,7 @@ export function installBrowserPreviewBridge(): void {
         listeners.add(listener);
         return () => listeners.delete(listener);
       },
+      onLinkAction: () => () => undefined,
     },
     profiles: {
       state: async () => structuredClone(profileState),

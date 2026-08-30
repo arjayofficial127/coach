@@ -62,6 +62,7 @@ const DEFAULT_SECTION_ORDER: DashboardTabId[] = [
 ];
 
 const DASHBOARD_STORAGE_KEY = "coach.dashboard.v1";
+export const DASHBOARD_FAVORITES_UPDATED_EVENT = "coach:dashboard-favorites-updated";
 
 interface DashboardPreferences {
   headline: string;
@@ -70,6 +71,7 @@ interface DashboardPreferences {
   order: DashboardWidgetId[];
   sectionOrder: DashboardTabId[];
   highlightedUrls: string[];
+  favoriteLinks: Array<{ title: string; url: string }>;
   pinnedTabIds: string[];
   tabOrder: string[];
   groupDescriptions: Record<string, string>;
@@ -88,6 +90,7 @@ function defaultPreferences(): DashboardPreferences {
     order: [...DEFAULT_ORDER],
     sectionOrder: [...DEFAULT_SECTION_ORDER],
     highlightedUrls: [],
+    favoriteLinks: [],
     pinnedTabIds: [],
     tabOrder: [],
     groupDescriptions: {},
@@ -130,6 +133,19 @@ function readPreferences(): DashboardPreferences {
             .filter((url): url is string => typeof url === "string")
             .slice(0, 200)
         : [],
+      favoriteLinks: Array.isArray(parsed.favoriteLinks)
+        ? parsed.favoriteLinks
+            .filter((item): item is { title: string; url: string } =>
+              Boolean(
+                item &&
+                  typeof item === "object" &&
+                  typeof item.title === "string" &&
+                  typeof item.url === "string",
+              ),
+            )
+            .map((item) => ({ title: item.title.slice(0, 200), url: item.url.slice(0, 2048) }))
+            .slice(0, 200)
+        : [],
       pinnedTabIds: Array.isArray(parsed.pinnedTabIds)
         ? parsed.pinnedTabIds.filter((id): id is string => typeof id === "string").slice(0, 200)
         : [],
@@ -150,6 +166,39 @@ function readPreferences(): DashboardPreferences {
   } catch {
     return fallback;
   }
+}
+
+export function setDashboardUrlFavorite(url: string, favorite: boolean, title = ""): boolean {
+  const normalized = url.trim();
+  if (!normalized) return false;
+  const preferences = readPreferences();
+  const current = preferences.highlightedUrls;
+  const currentLinks = preferences.favoriteLinks;
+  const alreadyFavorite = current.includes(normalized);
+  const hasFavoriteMetadata = currentLinks.some((item) => item.url === normalized);
+  if (alreadyFavorite === favorite && (!favorite || hasFavoriteMetadata)) return false;
+  const highlightedUrls = favorite
+    ? [...current, normalized].slice(-200)
+    : current.filter((item) => item !== normalized);
+  const favoriteLinks = favorite
+    ? [
+        ...currentLinks.filter((item) => item.url !== normalized),
+        { title: title.trim().slice(0, 200) || displayHost(normalized), url: normalized },
+      ].slice(-200)
+    : currentLinks.filter((item) => item.url !== normalized);
+  let stored: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DASHBOARD_STORAGE_KEY) ?? "null");
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) stored = parsed;
+  } catch {
+    // A malformed legacy value is replaced with the current validated favorite list.
+  }
+  localStorage.setItem(
+    DASHBOARD_STORAGE_KEY,
+    JSON.stringify({ ...stored, highlightedUrls, favoriteLinks }),
+  );
+  window.dispatchEvent(new CustomEvent(DASHBOARD_FAVORITES_UPDATED_EVENT));
+  return alreadyFavorite !== favorite;
 }
 
 const WIDGET_LABELS: Record<DashboardWidgetId, string> = {
@@ -295,6 +344,7 @@ export function DashboardSurface({
   const [order, setOrder] = useState(initialPreferences.order);
   const [sectionOrder, setSectionOrder] = useState(initialPreferences.sectionOrder);
   const [highlightedUrls, setHighlightedUrls] = useState(initialPreferences.highlightedUrls);
+  const [favoriteLinks, setFavoriteLinks] = useState(initialPreferences.favoriteLinks);
   const [pinnedTabIds, setPinnedTabIds] = useState(initialPreferences.pinnedTabIds);
   const [tabOrder, setTabOrder] = useState(initialPreferences.tabOrder);
   const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
@@ -306,6 +356,15 @@ export function DashboardSurface({
   useEffect(() => {
     setDesktopNameDraft(desktopName);
   }, [desktopName]);
+  useEffect(() => {
+    const syncFavorites = () => {
+      const preferences = readPreferences();
+      setHighlightedUrls(preferences.highlightedUrls);
+      setFavoriteLinks(preferences.favoriteLinks);
+    };
+    window.addEventListener(DASHBOARD_FAVORITES_UPDATED_EVENT, syncFavorites);
+    return () => window.removeEventListener(DASHBOARD_FAVORITES_UPDATED_EVENT, syncFavorites);
+  }, []);
   const [searchOpenTabContents, setSearchOpenTabContents] = useState(
     initialPreferences.searchOpenTabContents,
   );
@@ -363,6 +422,7 @@ export function DashboardSurface({
         order,
         sectionOrder,
         highlightedUrls,
+        favoriteLinks,
         pinnedTabIds,
         tabOrder,
         groupDescriptions,
@@ -375,6 +435,7 @@ export function DashboardSurface({
     groupDescriptions,
     headline,
     highlightedUrls,
+    favoriteLinks,
     pinnedTabIds,
     tabOrder,
     message,
@@ -434,6 +495,7 @@ export function DashboardSurface({
 
   const highlightedItems = useMemo(() => {
     const candidates = [
+      ...favoriteLinks.map((item) => ({ id: item.url, title: item.title, url: item.url })),
       ...openTabs.map((tab) => ({ id: tab.id, title: tab.title || "New tab", url: tab.url })),
       ...savedLinks.map((link) => ({ id: link.id, title: link.title, url: link.url })),
     ];
@@ -442,7 +504,7 @@ export function DashboardSurface({
         highlightedUrls.includes(item.url) &&
         candidates.findIndex((entry) => entry.url === item.url) === index,
     );
-  }, [highlightedUrls, openTabs, savedLinks]);
+  }, [favoriteLinks, highlightedUrls, openTabs, savedLinks]);
 
   const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
   const includeAllMetadata = searchScope === "all";
@@ -541,10 +603,9 @@ export function DashboardSurface({
     </header>
   );
 
-  const toggleHighlight = (url: string) => {
-    setHighlightedUrls((current) =>
-      current.includes(url) ? current.filter((item) => item !== url) : [...current, url],
-    );
+  const toggleHighlight = (url: string, title: string) => {
+    const favorite = !highlightedUrls.includes(url);
+    setDashboardUrlFavorite(url, favorite, title);
   };
 
   const togglePinned = (tabId: string) => {
@@ -728,7 +789,7 @@ export function DashboardSurface({
                     }
                     type="button"
                     aria-label={`Highlight ${link.title}`}
-                    onClick={() => toggleHighlight(link.url)}
+                    onClick={() => toggleHighlight(link.url, link.title)}
                   >
                     ★
                   </button>
@@ -1028,13 +1089,13 @@ export function DashboardSurface({
                     }
                     onClick={(event) => {
                       event.stopPropagation();
-                      toggleHighlight(tab.url);
+                      toggleHighlight(tab.url, tab.title || displayHost(tab.url));
                     }}
                     onKeyDown={(event) => {
                       if (event.key !== "Enter" && event.key !== " ") return;
                       event.preventDefault();
                       event.stopPropagation();
-                      toggleHighlight(tab.url);
+                      toggleHighlight(tab.url, tab.title || displayHost(tab.url));
                     }}
                   >
                     {highlightedUrls.includes(tab.url) ? "★" : "☆"}

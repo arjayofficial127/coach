@@ -9,6 +9,7 @@ import { runPhaseNineSmoke } from "./smoke";
 import { VaultService } from "./vault/vault-service";
 
 registerLatticeScheme();
+app.setName("Coach Browser");
 app.enableSandbox();
 if (process.platform === "win32") {
   app.setAppUserModelId("app.lattice.browser");
@@ -29,6 +30,7 @@ async function createMainWindow(): Promise<void> {
     minHeight: 620,
     show: false,
     autoHideMenuBar: true,
+    title: "Coach Browser",
     titleBarStyle: "hidden",
     titleBarOverlay: {
       color: "#f3f3f0",

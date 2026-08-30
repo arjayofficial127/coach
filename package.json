@@ -1,9 +1,9 @@
 {
   "name": "lattice",
-  "productName": "Lattice",
+  "productName": "Coach Browser",
   "version": "0.16.0",
-  "description": "A secure Electron research browser with desktops and Obsidian-compatible Markdown capture.",
-  "author": "Lattice Project",
+  "description": "Coach Browser is a secure research browser with desktops and Obsidian-compatible Markdown capture.",
+  "author": "Coach Browser Project",
   "type": "module",
   "main": "dist/main/index.cjs",
   "private": true,

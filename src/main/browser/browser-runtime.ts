@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { unlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type {
   BrowserWindow,
   Certificate,
@@ -8,9 +11,11 @@ import type {
   WebContents,
   WebPreferences,
 } from "electron";
-import { app, nativeImage, WebContentsView } from "electron";
+import { app, clipboard, Menu, nativeImage, WebContentsView } from "electron";
 import type {
   BrowserBounds,
+  BrowserCreateTabInput,
+  BrowserLinkAction,
   BrowserPrivacySummary,
   BrowserSnapshot,
   BrowserState,
@@ -21,6 +26,7 @@ import { IPC } from "../../shared/contracts";
 import { zoomCommandForShortcut } from "../../shared/zoom";
 import { constrainBrowserBounds } from "../policies/bounds";
 import { isAllowedRemoteNavigation, normalizeHttpUrl } from "../policies/navigation";
+import { discoverFaviconCandidates, rankFaviconUrls } from "./favicon-discovery";
 
 const REMOTE_SECURITY_PREFERENCES = {
   sandbox: true,
@@ -36,6 +42,8 @@ const REMOTE_SECURITY_PREFERENCES = {
 
 const PREVIEW_CAPTURE_BOUNDS = { x: -10_000, y: -10_000, width: 1920, height: 1080 };
 const PREVIEW_THUMBNAIL_SIZE = { width: 640, height: 360 };
+const MAX_FAVICON_BYTES = 512_000;
+const MAX_FAVICON_DOCUMENT_BYTES = 2_000_000;
 
 export interface BrowserRuntimeOptions {
   partition?: string;
@@ -91,13 +99,15 @@ export class BrowserRuntime {
     await this.navigateTab(this.activeTab(), input);
   }
 
-  async createTab(input?: string): Promise<BrowserSnapshot> {
+  async createTab(input?: string | BrowserCreateTabInput): Promise<BrowserSnapshot> {
+    const url = typeof input === "string" ? input : input?.url;
+    const activate = typeof input === "string" ? true : (input?.activate ?? true);
     const tab = this.createTabRecord();
     this.tabs.set(tab.id, tab);
     this.configureTab(tab);
-    this.activate(tab.id);
-    if (input && input !== "about:blank") {
-      void this.navigateTab(tab, input).catch((error) => {
+    if (activate) this.activate(tab.id);
+    if (url && url !== "about:blank") {
+      void this.navigateTab(tab, url).catch((error) => {
         if (tab.contents.isDestroyed()) return;
         tab.state.loading = false;
         tab.state.error = error instanceof Error ? error.message : String(error);
@@ -217,34 +227,137 @@ export class BrowserRuntime {
       try {
         const url = new URL(value);
         if (!/^https?:$/.test(url.protocol)) continue;
-        uniqueSites.set(url.hostname.toLowerCase(), new URL("/favicon.ico", url.origin).toString());
+        uniqueSites.set(url.hostname.toLowerCase(), url.toString());
       } catch {
         // Invalid URLs are rejected at IPC; keep this method safe for direct callers too.
       }
     }
 
-    const resolved = await Promise.all(
-      [...uniqueSites].map(async ([hostname, faviconUrl]) => {
-        try {
-          const response = await this.remoteSession.fetch(faviconUrl);
-          if (!response.ok) return null;
-          const bytes = Buffer.from(await response.arrayBuffer());
-          if (bytes.length === 0 || bytes.length > 512_000) return null;
-          const image = nativeImage.createFromBuffer(bytes);
-          if (image.isEmpty()) return null;
-          return [
-            hostname,
-            image.resize({ width: 32, height: 32, quality: "good" }).toDataURL(),
-          ] as const;
-        } catch {
-          return null;
-        }
-      }),
-    );
+    const entries = [...uniqueSites];
+    const resolved: Array<readonly [string, string] | null> = [];
+    for (let offset = 0; offset < entries.length; offset += 6) {
+      resolved.push(
+        ...(await Promise.all(
+          entries
+            .slice(offset, offset + 6)
+            .map(([hostname, pageUrl]) => this.resolveSiteIcon(hostname, pageUrl)),
+        )),
+      );
+    }
 
     return Object.fromEntries(
       resolved.filter((entry): entry is readonly [string, string] => entry !== null),
     );
+  }
+
+  private async readResponseBytes(response: Response, maximumBytes: number) {
+    const declaredLength = Number(response.headers.get("content-length"));
+    if (Number.isFinite(declaredLength) && declaredLength > maximumBytes) return null;
+    if (!response.body) {
+      const bytes = Buffer.from(await response.arrayBuffer());
+      return bytes.length > 0 && bytes.length <= maximumBytes ? bytes : null;
+    }
+
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (!value) continue;
+        total += value.byteLength;
+        if (total > maximumBytes) {
+          await reader.cancel();
+          return null;
+        }
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    return total > 0
+      ? Buffer.concat(
+          chunks.map((chunk) => Buffer.from(chunk)),
+          total,
+        )
+      : null;
+  }
+
+  private async decodeFavicon(bytes: Buffer, faviconUrl: string, mimeType: string) {
+    let image = nativeImage.createFromBuffer(bytes);
+    const icoResponse =
+      /(?:image\/(?:x-icon|vnd\.microsoft\.icon))/i.test(mimeType) ||
+      (() => {
+        try {
+          return new URL(faviconUrl).pathname.toLowerCase().endsWith(".ico");
+        } catch {
+          return false;
+        }
+      })();
+    if (!image.isEmpty() || !icoResponse || process.platform !== "win32") return image;
+
+    const temporaryPath = join(tmpdir(), `lattice-favicon-${randomUUID()}.ico`);
+    try {
+      await writeFile(temporaryPath, bytes);
+      image = nativeImage.createFromPath(temporaryPath);
+    } finally {
+      await unlink(temporaryPath).catch(() => undefined);
+    }
+    return image;
+  }
+
+  private async fetchFaviconImage(faviconUrl: string) {
+    if (faviconUrl.startsWith("data:image/")) {
+      if (faviconUrl.length > 700_000) return nativeImage.createEmpty();
+      return nativeImage.createFromDataURL(faviconUrl);
+    }
+    const response = await this.remoteSession.fetch(faviconUrl);
+    if (!response.ok) return nativeImage.createEmpty();
+    const mimeType = response.headers.get("content-type")?.split(";")[0]?.trim() ?? "";
+    if (mimeType && !mimeType.startsWith("image/")) return nativeImage.createEmpty();
+    const bytes = await this.readResponseBytes(response, MAX_FAVICON_BYTES);
+    return bytes
+      ? this.decodeFavicon(bytes, response.url || faviconUrl, mimeType)
+      : nativeImage.createEmpty();
+  }
+
+  private async resolveSiteIcon(
+    hostname: string,
+    pageUrl: string,
+  ): Promise<readonly [string, string] | null> {
+    let candidates = discoverFaviconCandidates("", pageUrl);
+    try {
+      const response = await this.remoteSession.fetch(pageUrl, {
+        headers: { accept: "text/html,application/xhtml+xml" },
+      });
+      const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+      if (
+        response.ok &&
+        (!contentType || /(?:text\/html|application\/xhtml\+xml)/.test(contentType))
+      ) {
+        const bytes = await this.readResponseBytes(response, MAX_FAVICON_DOCUMENT_BYTES);
+        if (bytes) {
+          candidates = discoverFaviconCandidates(bytes.toString("utf8"), response.url || pageUrl);
+        }
+      }
+    } catch {
+      // Direct favicon fallback below still gives offline-tolerant callers a chance to recover.
+    }
+
+    for (const candidate of candidates) {
+      try {
+        const image = await this.fetchFaviconImage(candidate.url);
+        if (image.isEmpty()) continue;
+        return [
+          hostname,
+          image.resize({ width: 32, height: 32, quality: "good" }).toDataURL(),
+        ] as const;
+      } catch {
+        // Try the next declared size or format before falling back to a letter icon.
+      }
+    }
+    return null;
   }
 
   setBounds(requested: BrowserBounds): void {
@@ -568,6 +681,40 @@ export class BrowserRuntime {
   }
 
   private configureTab(tab: TabRecord): void {
+    tab.contents.on("context-menu", (_event, params) => {
+      const url = params.linkURL;
+      if (!url || !isAllowedRemoteNavigation(url) || url === "about:blank") return;
+      const title = this.linkTitle(params.linkText, url);
+      const send = (action: BrowserLinkAction["action"]) =>
+        this.emitLinkAction({
+          action,
+          url,
+          title,
+          sourceUrl: params.pageURL || tab.state.url,
+        });
+      Menu.buildFromTemplate([
+        { label: "Open link", click: () => send("open") },
+        {
+          label: "Open link in new tab",
+          accelerator: "CmdOrCtrl+Enter",
+          click: () => send("open-background"),
+        },
+        {
+          label: "Open and switch to new tab",
+          accelerator: "CmdOrCtrl+Shift+Enter",
+          click: () => send("open-foreground"),
+        },
+        { type: "separator" },
+        { label: "Add to Favorites", click: () => send("favorite") },
+        { label: "Add to Reading queue", click: () => send("queue") },
+        { label: "Save to Saved links", click: () => send("save") },
+        { type: "separator" },
+        {
+          label: "Copy link address",
+          click: () => clipboard.writeText(url),
+        },
+      ]).popup({ window: this.window });
+    });
     tab.contents.on("before-input-event", (event, input) => {
       // Holding Ctrl/Cmd+T must not create a tab for every auto-repeated
       // keydown generated by Chromium while the key is held.
@@ -615,8 +762,20 @@ export class BrowserRuntime {
       event.preventDefault();
       if (!this.window.isDestroyed()) this.window.webContents.send(IPC.shellCommand, command);
     });
-    tab.contents.setWindowOpenHandler(({ url }) => {
+    tab.contents.setWindowOpenHandler(({ url, disposition }) => {
       this.popupHandlerTriggered = true;
+      if (
+        isAllowedRemoteNavigation(url) &&
+        (disposition === "background-tab" || disposition === "foreground-tab")
+      ) {
+        this.emitLinkAction({
+          action: disposition === "background-tab" ? "open-background" : "open-foreground",
+          url,
+          title: this.linkTitle("", url),
+          sourceUrl: tab.state.url,
+        });
+        return { action: "deny" };
+      }
       tab.state.error = isAllowedRemoteNavigation(url)
         ? "Popups are blocked in this phase; OAuth handling remains a gated capability."
         : "A website attempted to open a blocked protocol.";
@@ -638,6 +797,22 @@ export class BrowserRuntime {
       }
     });
     this.bindEvents(tab);
+  }
+
+  private linkTitle(linkText: string, url: string): string {
+    const text = linkText.replace(/\s+/g, " ").trim();
+    if (text) return text.slice(0, 200);
+    try {
+      return new URL(url).hostname.replace(/^www\./, "").slice(0, 200);
+    } catch {
+      return "Saved link";
+    }
+  }
+
+  private emitLinkAction(action: BrowserLinkAction): void {
+    if (!this.window.isDestroyed()) {
+      this.window.webContents.send(IPC.browserLinkAction, action);
+    }
   }
 
   private bindEvents(tab: TabRecord): void {
@@ -664,11 +839,9 @@ export class BrowserRuntime {
       this.emitState(tab);
     });
     tab.contents.on("page-favicon-updated", (_event, favicons) => {
-      const favicon = favicons.find((candidate) =>
-        /^(?:https?:\/\/|data:image\/)/i.test(candidate),
-      );
-      if (!favicon) return;
-      void this.captureSiteIcon(tab, favicon, tab.contents.getURL());
+      const candidates = rankFaviconUrls(favicons).map((candidate) => candidate.url);
+      if (candidates.length === 0) return;
+      void this.captureSiteIcon(tab, candidates, tab.contents.getURL());
     });
     tab.contents.on("did-fail-load", (_event, code, description, url, isMainFrame) => {
       if (isMainFrame && code !== -3) {
@@ -699,31 +872,22 @@ export class BrowserRuntime {
 
   private async captureSiteIcon(
     tab: TabRecord,
-    faviconUrl: string,
+    faviconUrls: string[],
     pageUrl: string,
   ): Promise<void> {
-    try {
-      let image = nativeImage.createEmpty();
-      if (faviconUrl.startsWith("data:image/")) {
-        if (faviconUrl.length > 700_000) return;
-        image = nativeImage.createFromDataURL(faviconUrl);
-      } else {
-        const response = await tab.contents.session.fetch(faviconUrl);
-        if (!response.ok) return;
-        const mimeType = response.headers.get("content-type")?.split(";")[0]?.trim();
-        if (!mimeType?.startsWith("image/")) return;
-        const bytes = Buffer.from(await response.arrayBuffer());
-        if (bytes.length === 0 || bytes.length > 512_000) return;
-        image = nativeImage.createFromBuffer(bytes);
+    for (const faviconUrl of faviconUrls) {
+      try {
+        const image = await this.fetchFaviconImage(faviconUrl);
+        if (tab.contents.isDestroyed() || tab.contents.getURL() !== pageUrl) return;
+        if (image.isEmpty()) continue;
+        tab.state.siteIconDataUrl = image
+          .resize({ width: 32, height: 32, quality: "good" })
+          .toDataURL();
+        this.emitState(tab);
+        return;
+      } catch {
+        // Try the next page-declared icon candidate.
       }
-      if (tab.contents.isDestroyed() || tab.contents.getURL() !== pageUrl) return;
-      if (image.isEmpty()) return;
-      tab.state.siteIconDataUrl = image
-        .resize({ width: 32, height: 32, quality: "good" })
-        .toDataURL();
-      this.emitState(tab);
-    } catch {
-      // A missing or blocked favicon must never affect page navigation.
     }
   }
 

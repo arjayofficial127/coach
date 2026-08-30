@@ -157,7 +157,7 @@ export class ProfileStore {
   async create(nameInput: string): Promise<ProfileState> {
     const document = this.requireDocument();
     if (document.profiles.length >= MAX_PROFILES) {
-      throw new Error(`Lattice supports up to ${MAX_PROFILES} local profiles.`);
+      throw new Error(`Coach Browser supports up to ${MAX_PROFILES} local profiles.`);
     }
     const name = this.validateUniqueName(nameInput);
     const id = randomUUID();

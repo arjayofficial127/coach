@@ -19,6 +19,7 @@ export const IPC = {
   browserPrivacySummary: "browser:privacy-summary",
   browserClearWebsiteData: "browser:clear-website-data",
   browserState: "browser:state",
+  browserLinkAction: "browser:link-action",
   profilesState: "profiles:state",
   profilesCreate: "profiles:create",
   profilesUpdate: "profiles:update",
@@ -95,6 +96,26 @@ export interface BrowserState {
 export interface BrowserSnapshot {
   activeTabId: string;
   tabs: BrowserState[];
+}
+
+export type BrowserLinkActionKind =
+  | "open"
+  | "open-background"
+  | "open-foreground"
+  | "favorite"
+  | "queue"
+  | "save";
+
+export interface BrowserLinkAction {
+  action: BrowserLinkActionKind;
+  url: string;
+  title: string;
+  sourceUrl: string;
+}
+
+export interface BrowserCreateTabInput {
+  url?: string;
+  activate?: boolean;
 }
 
 export interface BrowserPrivacySummary {
@@ -333,13 +354,14 @@ export interface LatticeApi {
     captureTabPreview(tabId: string): Promise<string | null>;
     searchTabContents(tabIds: string[], query: string): Promise<string[]>;
     loadSiteIcons(urls: string[]): Promise<Record<string, string>>;
-    createTab(input?: string): Promise<BrowserSnapshot>;
+    createTab(input?: string | BrowserCreateTabInput): Promise<BrowserSnapshot>;
     switchTab(tabId: string): Promise<BrowserSnapshot>;
     closeTab(tabId: string): Promise<BrowserSnapshot>;
     setVisible(visible: boolean): Promise<void>;
     privacySummary(): Promise<BrowserPrivacySummary>;
     clearWebsiteData(): Promise<BrowserPrivacySummary>;
     onState(listener: (state: BrowserState) => void): () => void;
+    onLinkAction(listener: (action: BrowserLinkAction) => void): () => void;
   };
   profiles: {
     state(): Promise<ProfileState>;
