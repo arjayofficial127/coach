@@ -788,7 +788,10 @@ export function DashboardSurface({
                 className={`dashboard-tab-card ${tab.id === selectedTab?.id ? "selected" : ""}`}
                 key={tab.id}
                 type="button"
-                onClick={() => setSelectedTabId(tab.id)}
+                onClick={() => {
+                  setSelectedTabId(tab.id);
+                  void onOpenTab(tab);
+                }}
               >
                 <span className="dashboard-tab-preview">
                   {tabPreviews[tab.id] ? (
