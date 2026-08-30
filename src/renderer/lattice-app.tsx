@@ -597,9 +597,14 @@ export function LatticeApp() {
   useEffect(() => {
     if (surface !== "dashboard") return;
     let frame = 0;
+    let resizeObserver: ResizeObserver;
     const updateLivePreviews = () => {
       frame = 0;
-      const previews = [...document.querySelectorAll<HTMLElement>("[data-live-tab-preview]")]
+      const elements = [
+        ...document.querySelectorAll<HTMLElement>("[data-live-tab-preview]"),
+      ];
+      elements.forEach((element) => resizeObserver.observe(element));
+      const previews = elements
         .map((element) => {
           const tabId = element.dataset.liveTabPreview;
           const bounds = element.getBoundingClientRect();
@@ -629,6 +634,7 @@ export function LatticeApp() {
     const schedule = () => {
       if (!frame) frame = window.requestAnimationFrame(updateLivePreviews);
     };
+    resizeObserver = new ResizeObserver(schedule);
     const observer = new MutationObserver(schedule);
     observer.observe(document.body, { childList: true, subtree: true, attributes: true });
     window.addEventListener("resize", schedule);
@@ -636,6 +642,7 @@ export function LatticeApp() {
     schedule();
     return () => {
       observer.disconnect();
+      resizeObserver.disconnect();
       window.removeEventListener("resize", schedule);
       window.removeEventListener("scroll", schedule, true);
       if (frame) window.cancelAnimationFrame(frame);

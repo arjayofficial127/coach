@@ -231,7 +231,9 @@ export class BrowserRuntime {
       }
       const width = Math.max(1, Math.round(bounds.width));
       const height = Math.max(1, Math.round(bounds.height));
-      tab.contents.setZoomFactor(Math.max(0.25, Math.min(1, width / 1920)));
+      // Keep the page's CSS viewport equivalent to a 1920px desktop while
+      // scaling the live view down to the dashboard card.
+      tab.contents.setZoomFactor(Math.max(0.1, Math.min(1, width / 1920)));
       tab.view.setBounds({
         x: Math.round(bounds.x),
         y: Math.round(bounds.y),
