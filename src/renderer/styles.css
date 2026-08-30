@@ -8884,7 +8884,7 @@ kbd {
 .dashboard-v2-header {
   position: relative;
   display: block;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .dashboard-hero-content {
@@ -8892,23 +8892,45 @@ kbd {
 }
 
 .dashboard-v2-header .dashboard-eyebrow {
-  margin: 0 0 11px 2px;
+  margin: 0 0 8px 2px;
 }
 
 .dashboard-v2-header .dashboard-message-widget {
-  min-height: 276px;
+  min-height: 0;
   width: 100%;
   box-sizing: border-box;
   border-color: color-mix(in srgb, var(--accent) 16%, var(--line));
-  border-radius: 24px;
-  padding: 25px clamp(24px, 4vw, 46px) 30px;
+  border-radius: 18px;
+  padding: 16px clamp(20px, 2.5vw, 30px) 18px;
   background:
     radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 37%),
     radial-gradient(circle at 72% 100%, color-mix(in srgb, var(--accent-soft) 78%, transparent), transparent 44%),
     linear-gradient(136deg, color-mix(in srgb, var(--surface) 94%, white), color-mix(in srgb, var(--accent-soft) 38%, var(--surface)));
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, white 72%, transparent),
-    0 20px 48px color-mix(in srgb, var(--text) 8%, transparent);
+    0 12px 30px color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.dashboard-v2-header .dashboard-message-widget > header {
+  margin-bottom: 7px;
+}
+
+.dashboard-v2-header .dashboard-message-widget h2 {
+  max-width: 760px;
+  margin: 6px 0 7px;
+  font-size: clamp(28px, 2.5vw, 38px);
+  line-height: 1;
+}
+
+.dashboard-v2-header .dashboard-message-widget p {
+  max-width: 640px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.dashboard-v2-header .dashboard-widget-kicker {
+  font-size: 9px;
+  letter-spacing: 0.12em;
 }
 
 .dashboard-eyebrow {
