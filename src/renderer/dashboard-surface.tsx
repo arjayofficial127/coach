@@ -721,11 +721,11 @@ export function DashboardSurface({
         {contentSearchPending && <span className="dashboard-searching">Searching pages…</span>}
         <button
           type="button"
-          aria-label="Search settings"
+          aria-label="Search filters"
           aria-expanded={searchSettingsOpen}
           onClick={() => setSearchSettingsOpen((value) => !value)}
         >
-          <Icon name="settings" />
+          <Icon name="filter" />
         </button>
         {searchSettingsOpen && (
           <aside className="dashboard-search-settings">

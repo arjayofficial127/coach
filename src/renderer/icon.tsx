@@ -10,6 +10,7 @@ export type IconName =
   | "command"
   | "desktop"
   | "edit"
+  | "filter"
   | "folder"
   | "globe"
   | "grid"
@@ -40,6 +41,7 @@ const paths: Record<IconName, ReactNode> = {
   ),
   desktop: <path d="M4 5h16v11H4zM9 20h6M12 16v4" />,
   edit: <path d="M4 20h4l11-11-4-4L4 16v4ZM13.5 6.5l4 4" />,
+  filter: <path d="M4 6h16M7 12h10M10 18h4" />,
   folder: <path d="M3.5 6.5h6l2-2h9v15h-17z" />,
   globe: (
     <>
