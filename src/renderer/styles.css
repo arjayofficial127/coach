@@ -8885,6 +8885,19 @@ kbd {
   margin-bottom: 18px;
 }
 
+.dashboard-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dashboard-eyebrow svg {
+  width: 13px;
+  height: 13px;
+  color: var(--accent-strong);
+  stroke-width: 1.8;
+}
+
 .dashboard-global-search {
   position: relative;
   z-index: 3;

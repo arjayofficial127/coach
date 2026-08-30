@@ -648,7 +648,10 @@ export function DashboardSurface({
     <div className="trusted-surface dashboard-surface-v2">
       <header className="dashboard-v2-header">
         <div>
-          <span className="eyebrow">Overview · {desktopName}</span>
+          <span className="eyebrow dashboard-eyebrow">
+            <Icon name="desktop" />
+            <span>Overview · {desktopName}</span>
+          </span>
           <h1>Your workspace at a glance.</h1>
         </div>
         <button type="button" onClick={() => setCustomizing((value) => !value)}>
