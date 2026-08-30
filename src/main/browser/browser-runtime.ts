@@ -142,19 +142,35 @@ export class BrowserRuntime {
     // dashboard opens. Capture only its first rendered frame and cache it;
     // subsequent dashboard visits reuse that preview without refreshing it.
     tab.previewCapture = (async () => {
-      for (const delay of [0, 220, 850, 1_800]) {
-        if (delay) await new Promise<void>((resolve) => setTimeout(resolve, delay));
-        if (tab.contents.isDestroyed()) return null;
-        try {
-          const image = await tab.contents.capturePage();
-          if (image.isEmpty()) continue;
-          tab.previewDataUrl = image.resize({ width: 480, quality: "good" }).toDataURL();
-          return tab.previewDataUrl;
-        } catch {
-          // A frame may not exist yet; try again while the page completes its first load.
+      const originalBounds = tab.view.getBounds();
+      const originallyVisible = tab.view.getVisible();
+      if (!originallyVisible) {
+        // Hidden WebContentsViews are not guaranteed to paint until they have
+        // been presented once. Render the uncached tab outside the window,
+        // then restore it without disturbing the dashboard.
+        tab.view.setBounds({ x: -10_000, y: -10_000, width: 960, height: 540 });
+        tab.view.setVisible(true);
+      }
+      try {
+        for (const delay of [160, 320, 900, 1_800]) {
+          await new Promise<void>((resolve) => setTimeout(resolve, delay));
+          if (tab.contents.isDestroyed()) return null;
+          try {
+            const image = await tab.contents.capturePage();
+            if (image.isEmpty()) continue;
+            tab.previewDataUrl = image.resize({ width: 480, quality: "good" }).toDataURL();
+            return tab.previewDataUrl;
+          } catch {
+            // A frame may not exist yet; try again while the page completes its first load.
+          }
+        }
+        return null;
+      } finally {
+        if (!tab.contents.isDestroyed() && !originallyVisible) {
+          tab.view.setVisible(false);
+          tab.view.setBounds(originalBounds);
         }
       }
-      return null;
     })();
     try {
       return await tab.previewCapture;
