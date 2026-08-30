@@ -9158,6 +9158,7 @@ kbd {
 }
 
 .dashboard-tab-strip > button {
+  position: relative;
   min-height: 116px;
   display: grid;
   grid-template-rows: auto auto auto;
@@ -9262,10 +9263,12 @@ kbd {
 }
 
 .dashboard-tab-actions {
+  position: absolute;
+  top: 8px;
+  left: 8px;
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  justify-self: end;
   color: var(--muted);
 }
 
