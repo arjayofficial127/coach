@@ -338,6 +338,10 @@ export function LatticeApp() {
   const recoveryTimerRef = useRef<number | null>(null);
   const canvasDirtyRef = useRef(false);
   const quickNoteCaptureBusyRef = useRef(false);
+  // Ctrl/Cmd+T can arrive from both the embedded browser and the shell
+  // keyboard handler. Keep tab creation single-flight so one gesture cannot
+  // create a burst of duplicate tabs while the IPC request is in flight.
+  const creatingTabRef = useRef(false);
   const [workspace, setWorkspace] = useState<WorkspacePreferences>(DEFAULT_WORKSPACE);
   const [settings, setSettings] = useState<SettingsPreferences>(DEFAULT_SETTINGS);
   const [customThemeDraft, setCustomThemeDraft] =
@@ -1135,7 +1139,9 @@ export function LatticeApp() {
     desktopId = workspace.activeDesktopId,
     destination: "home" | "browser" = "home",
   ) => {
+    if (creatingTabRef.current) return;
     if (!confirmCanvasLeave()) return;
+    creatingTabRef.current = true;
     try {
       const next = await window.lattice.browser.createTab();
       setBrowserSnapshot(next, desktopId);
@@ -1146,6 +1152,8 @@ export function LatticeApp() {
       if (destination === "browser") focusBrowserLocation();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      creatingTabRef.current = false;
     }
   };
 
@@ -2206,6 +2214,7 @@ export function LatticeApp() {
       commandHandlerRef.current(command),
     );
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat) return;
       if (event.key === "Escape") {
         setCommandOpen(false);
         setCaptureOpen(false);
