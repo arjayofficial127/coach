@@ -165,6 +165,7 @@ interface DashboardSurfaceProps {
   savedLinks: SavedLinkRecord[];
   canvasPages: CanvasPageSummary[];
   onOpenTab: (tab: BrowserState) => void;
+  onCloseTab: (tab: BrowserState) => void;
   onNewTab: () => void;
   onRestoreClosed: (item: DashboardClosedTab) => void;
   onOpenUrl: (url: string) => void;
@@ -252,6 +253,7 @@ export function DashboardSurface({
   savedLinks,
   canvasPages,
   onOpenTab,
+  onCloseTab,
   onNewTab,
   onRestoreClosed,
   onOpenUrl,
@@ -899,7 +901,31 @@ export function DashboardSurface({
                     {highlightedUrls.includes(tab.url) ? "★" : "☆"}
                   </span>
                   <span className="dashboard-tab-drag" aria-label="Drag to reorder">
-                    <Icon name="more" />
+                    <Icon name="move" />
+                  </span>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="dashboard-tab-action"
+                    aria-label="Open tab"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onOpenTab(tab);
+                    }}
+                  >
+                    <Icon name="arrow-right" />
+                  </span>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="dashboard-tab-action"
+                    aria-label="Close tab"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onCloseTab(tab);
+                    }}
+                  >
+                    <Icon name="close" />
                   </span>
                 </span>
               </button>

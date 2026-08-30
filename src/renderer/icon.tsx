@@ -24,6 +24,7 @@ export type IconName =
   | "settings"
   | "sun"
   | "moon"
+  | "move"
   | "leaf"
   | "sparkle"
   | "timer"
@@ -86,6 +87,7 @@ const paths: Record<IconName, ReactNode> = {
     </>
   ),
   moon: <path d="M20.5 15.7A8.5 8.5 0 0 1 8.3 3.5 8.5 8.5 0 1 0 20.5 15.7Z" />,
+  move: <path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3" />,
   leaf: (
     <>
       <path d="M20 4C11 4 5 8.4 5 14.4 5 18 7.8 20 11.2 20 17.2 20 20 13.8 20 4Z" />

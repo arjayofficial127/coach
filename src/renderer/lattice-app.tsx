@@ -3430,6 +3430,7 @@ export function LatticeApp() {
                 savedLinks={visibleLinks}
                 canvasPages={canvasPages}
                 onOpenTab={(tab) => void switchTab(tab)}
+                onCloseTab={(tab) => void closeTab(tab.id)}
                 onNewTab={() => void createTab(workspace.activeDesktopId, "browser")}
                 onRestoreClosed={(item) => {
                   void restoreClosedTabs(
