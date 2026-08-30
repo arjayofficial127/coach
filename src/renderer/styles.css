@@ -9261,6 +9261,44 @@ kbd {
   text-overflow: ellipsis;
 }
 
+.dashboard-tab-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  justify-self: end;
+  color: var(--muted);
+}
+
+.dashboard-tab-action {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 5px;
+  color: inherit;
+  font-size: 16px;
+}
+
+.dashboard-tab-action:hover,
+.dashboard-tab-action:focus-visible {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.dashboard-tab-action svg,
+.dashboard-tab-drag svg {
+  width: 13px;
+  height: 13px;
+}
+
+.dashboard-tab-drag {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  cursor: grab;
+}
+
 .dashboard-tab-strip > .dashboard-new-tab {
   place-items: center;
   grid-template-rows: 1fr auto;

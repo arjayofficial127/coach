@@ -50,6 +50,8 @@ interface DashboardPreferences {
   enabled: Record<DashboardWidgetId, boolean>;
   order: DashboardWidgetId[];
   highlightedUrls: string[];
+  pinnedTabIds: string[];
+  tabOrder: string[];
   groupDescriptions: Record<string, string>;
   searchOpenTabContents: boolean;
   searchScope: DashboardSearchScope;
@@ -65,6 +67,8 @@ function defaultPreferences(): DashboardPreferences {
     >,
     order: [...DEFAULT_ORDER],
     highlightedUrls: [],
+    pinnedTabIds: [],
+    tabOrder: [],
     groupDescriptions: {},
     searchOpenTabContents: true,
     searchScope: "all",
@@ -95,6 +99,12 @@ function readPreferences(): DashboardPreferences {
         ? parsed.highlightedUrls
             .filter((url): url is string => typeof url === "string")
             .slice(0, 200)
+        : [],
+      pinnedTabIds: Array.isArray(parsed.pinnedTabIds)
+        ? parsed.pinnedTabIds.filter((id): id is string => typeof id === "string").slice(0, 200)
+        : [],
+      tabOrder: Array.isArray(parsed.tabOrder)
+        ? parsed.tabOrder.filter((id): id is string => typeof id === "string").slice(0, 500)
         : [],
       groupDescriptions:
         parsed.groupDescriptions && typeof parsed.groupDescriptions === "object"
@@ -263,6 +273,9 @@ export function DashboardSurface({
   const [enabled, setEnabled] = useState(initialPreferences.enabled);
   const [order, setOrder] = useState(initialPreferences.order);
   const [highlightedUrls, setHighlightedUrls] = useState(initialPreferences.highlightedUrls);
+  const [pinnedTabIds, setPinnedTabIds] = useState(initialPreferences.pinnedTabIds);
+  const [tabOrder, setTabOrder] = useState(initialPreferences.tabOrder);
+  const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
   const [groupDescriptions, setGroupDescriptions] = useState(initialPreferences.groupDescriptions);
   const [siteIcons, setSiteIcons] = useState(readSiteIcons);
   const [searchOpenTabContents, setSearchOpenTabContents] = useState(
@@ -282,6 +295,8 @@ export function DashboardSurface({
         enabled,
         order,
         highlightedUrls,
+        pinnedTabIds,
+        tabOrder,
         groupDescriptions,
         searchOpenTabContents,
         searchScope,
@@ -292,6 +307,8 @@ export function DashboardSurface({
     groupDescriptions,
     headline,
     highlightedUrls,
+    pinnedTabIds,
+    tabOrder,
     message,
     order,
     searchOpenTabContents,
@@ -364,6 +381,14 @@ export function DashboardSurface({
       ]) ||
       (searchOpenTabContents && contentMatchedTabIds.includes(tab.id)),
   );
+  const orderedOpenTabs = useMemo(() => {
+    const positions = new Map(tabOrder.map((id, index) => [id, index]));
+    return [...filteredOpenTabs].sort((a, b) => {
+      const pinnedDelta = Number(pinnedTabIds.includes(b.id)) - Number(pinnedTabIds.includes(a.id));
+      if (pinnedDelta) return pinnedDelta;
+      return (positions.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (positions.get(b.id) ?? Number.MAX_SAFE_INTEGER);
+    });
+  }, [filteredOpenTabs, pinnedTabIds, tabOrder]);
   const filteredRecentlyClosed = recentlyClosed.filter((item) =>
     matchesSearch(normalizedQuery, [item.tab.title, includeAllMetadata ? item.tab.url : null]),
   );
@@ -416,14 +441,14 @@ export function DashboardSurface({
   const visibleSectionIds: DashboardSectionId[] = [
     "overview",
     "open-tabs",
-    ...order.filter((id) => enabled[id]),
+    ...order.filter((id) => id !== "highlights" && enabled[id]),
   ];
   const expanded = activeSection !== "overview";
   const visibleSelectedTab =
     filteredOpenTabs.find((tab) => tab.id === selectedTab?.id) ?? filteredOpenTabs[0] ?? null;
   const displayedOpenTabs = expanded
-    ? filteredOpenTabs
-    : filteredOpenTabs.slice(0, OVERVIEW_OPEN_TAB_LIMIT);
+    ? orderedOpenTabs
+    : orderedOpenTabs.slice(0, OVERVIEW_OPEN_TAB_LIMIT);
 
   const sectionHeader = (id: DashboardWidgetId, title: string, count: number) => (
     <header className="dashboard-section-header">
@@ -445,6 +470,26 @@ export function DashboardSurface({
     setHighlightedUrls((current) =>
       current.includes(url) ? current.filter((item) => item !== url) : [...current, url],
     );
+  };
+
+  const togglePinned = (tabId: string) => {
+    setPinnedTabIds((current) =>
+      current.includes(tabId) ? current.filter((id) => id !== tabId) : [tabId, ...current],
+    );
+  };
+
+  const moveTab = (targetId: string) => {
+    if (!draggedTabId || draggedTabId === targetId) return;
+    setTabOrder((current) => {
+      const ids = [...new Set([...openTabs.map((tab) => tab.id), ...current])];
+      const from = ids.indexOf(draggedTabId);
+      const to = ids.indexOf(targetId);
+      if (from < 0 || to < 0) return current;
+      const [moved] = ids.splice(from, 1);
+      if (moved) ids.splice(to, 0, moved);
+      return ids;
+    });
+    setDraggedTabId(null);
   };
 
   const moveWidget = (id: DashboardWidgetId, direction: -1 | 1) => {
@@ -800,6 +845,10 @@ export function DashboardSurface({
                 className={`dashboard-tab-card ${tab.id === selectedTab?.id ? "selected" : ""}`}
                 key={tab.id}
                 type="button"
+                draggable
+                onDragStart={() => setDraggedTabId(tab.id)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={() => moveTab(tab.id)}
                 onClick={() => {
                   setSelectedTabId(tab.id);
                   void onOpenTab(tab);
@@ -824,6 +873,35 @@ export function DashboardSurface({
                 <small>
                   {tab.url === "about:blank" ? "Ready to browse" : displayHost(tab.url)}
                 </small>
+                <span className="dashboard-tab-actions">
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="dashboard-tab-action"
+                    aria-label={pinnedTabIds.includes(tab.id) ? "Unpin tab" : "Pin tab"}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      togglePinned(tab.id);
+                    }}
+                  >
+                    <Icon name="bookmark" />
+                  </span>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="dashboard-tab-action"
+                    aria-label={highlightedUrls.includes(tab.url) ? "Remove favorite" : "Add favorite"}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleHighlight(tab.url);
+                    }}
+                  >
+                    {highlightedUrls.includes(tab.url) ? "★" : "☆"}
+                  </span>
+                  <span className="dashboard-tab-drag" aria-label="Drag to reorder">
+                    <Icon name="more" />
+                  </span>
+                </span>
               </button>
             ))}
           </div>
@@ -868,6 +946,7 @@ export function DashboardSurface({
         {order
           .filter(
             (id) =>
+              id !== "highlights" &&
               enabled[id] &&
               (activeSection === "overview"
                 ? !normalizedQuery || sectionCounts[id] > 0
