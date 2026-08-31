@@ -226,6 +226,7 @@ export function ActionPopover() {
     const updatePosition = () => {
       const popover = popoverRef.current;
       if (!popover || !target.element.isConnected) return;
+      if (!popover.matches(":popover-open")) popover.showPopover();
       const targetBounds = target.element.getBoundingClientRect();
       const popoverBounds = popover.getBoundingClientRect();
       const margin = 10;
@@ -282,6 +283,7 @@ export function ActionPopover() {
       id={TOOLTIP_ID}
       className="action-popover"
       data-placement={position.placement}
+      popover="manual"
       role="tooltip"
       style={style}
     >

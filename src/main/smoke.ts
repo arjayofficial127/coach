@@ -390,6 +390,13 @@ export async function runNewTabReactivationSmoke(
     compactNavigation: string;
     searchEverything: string;
     desktopRow: string;
+    tab: {
+      description: string;
+      placement: string;
+      topLayer: boolean;
+      topmost: boolean;
+      zIndex: string;
+    };
   };
 }> {
   const window = new BrowserWindow({
@@ -468,11 +475,69 @@ export async function runNewTabReactivationSmoke(
         );
         return description;
       };
-      const actionPopovers = {
+      const sidebarActionPopovers = {
         compactNavigation: await popoverFor('.navigation-collapse-button'),
         searchEverything: await popoverFor('.panel-search'),
         desktopRow: await popoverFor('.desktop-item[data-desktop-id]')
       };
+      const dashboardButton = document.querySelector('.desktop-context');
+      if (!(dashboardButton instanceof HTMLButtonElement)) {
+        throw new Error('Dashboard tab was not available');
+      }
+      dashboardButton.click();
+      await waitFor(
+        () => dashboardButton.classList.contains('active') &&
+          Boolean(document.querySelector('.dashboard-content-shell')),
+        'Dashboard did not activate for the tab popover check'
+      );
+      const tabPopoverTarget = document.querySelector('.browser-tab .tab-select');
+      if (!(tabPopoverTarget instanceof HTMLButtonElement)) {
+        throw new Error('Browser tab popover target was not available');
+      }
+      tabPopoverTarget.dispatchEvent(new PointerEvent('pointerover', {
+        bubbles: true,
+        pointerType: 'mouse'
+      }));
+      await waitFor(
+        () => Boolean(document.querySelector('.action-popover')),
+        'Tab action popover did not appear'
+      );
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const tabPopoverElement = document.querySelector('.action-popover');
+      if (!(tabPopoverElement instanceof HTMLElement)) {
+        throw new Error('Tab action popover was not measurable');
+      }
+      const tabPopoverBounds = tabPopoverElement.getBoundingClientRect();
+      const previousPointerEvents = tabPopoverElement.style.pointerEvents;
+      tabPopoverElement.style.pointerEvents = 'auto';
+      const tabPopoverHit = document.elementFromPoint(
+        tabPopoverBounds.left + tabPopoverBounds.width / 2,
+        tabPopoverBounds.top + tabPopoverBounds.height / 2
+      );
+      tabPopoverElement.style.pointerEvents = previousPointerEvents;
+      const tabPopover = {
+        description: tabPopoverElement.querySelector('.action-popover-description')
+          ?.textContent?.trim() ?? '',
+        placement: tabPopoverElement.dataset.placement ?? '',
+        topLayer: tabPopoverElement.matches(':popover-open'),
+        topmost: tabPopoverHit === tabPopoverElement || tabPopoverElement.contains(tabPopoverHit),
+        zIndex: getComputedStyle(tabPopoverElement).zIndex
+      };
+      tabPopoverTarget.dispatchEvent(new PointerEvent('pointerout', {
+        bubbles: true,
+        pointerType: 'mouse',
+        relatedTarget: document.body
+      }));
+      await waitFor(
+        () => !document.querySelector('.action-popover'),
+        'Tab action popover did not close'
+      );
+      tabPopoverTarget.click();
+      await waitFor(
+        () => Boolean(document.querySelector('.new-tab-surface')),
+        'New Tab did not reopen after the tab popover check'
+      );
+      const actionPopovers = { ...sidebarActionPopovers, tab: tabPopover };
       const initialTabCount = document.querySelectorAll('.browser-tab').length;
       document.dispatchEvent(
         new KeyboardEvent('keydown', { key: 't', ctrlKey: true, bubbles: true })
@@ -521,6 +586,13 @@ export async function runNewTabReactivationSmoke(
         compactNavigation: string;
         searchEverything: string;
         desktopRow: string;
+        tab: {
+          description: string;
+          placement: string;
+          topLayer: boolean;
+          topmost: boolean;
+          zIndex: string;
+        };
       };
     };
     await delay(100);
@@ -538,7 +610,12 @@ export async function runNewTabReactivationSmoke(
       !evidence.nativeViewHidden ||
       !evidence.actionPopovers.compactNavigation.includes("compact navigation") ||
       !evidence.actionPopovers.searchEverything.includes("Search open tabs") ||
-      !evidence.actionPopovers.desktopRow.includes("Switch to")
+      !evidence.actionPopovers.desktopRow.includes("Switch to") ||
+      !evidence.actionPopovers.tab.description.includes("New tab") ||
+      evidence.actionPopovers.tab.placement !== "bottom" ||
+      !evidence.actionPopovers.tab.topLayer ||
+      !evidence.actionPopovers.tab.topmost ||
+      evidence.actionPopovers.tab.zIndex !== "2147483647"
     ) {
       throw new Error(`New Tab reactivation regression: ${JSON.stringify(evidence)}`);
     }
