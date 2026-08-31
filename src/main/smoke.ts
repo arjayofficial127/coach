@@ -386,6 +386,11 @@ export async function runNewTabReactivationSmoke(
   windowHeight: number;
   browserToolbarVisible: boolean;
   nativeViewHidden: boolean;
+  actionPopovers: {
+    compactNavigation: string;
+    searchEverything: string;
+    desktopRow: string;
+  };
 }> {
   const window = new BrowserWindow({
     show: false,
@@ -439,6 +444,35 @@ export async function runNewTabReactivationSmoke(
       );
       const initialHomeHeight = document.querySelector('.new-tab-surface')
         ?.getBoundingClientRect().height ?? 0;
+      const popoverFor = async (selector) => {
+        const element = document.querySelector(selector);
+        if (!(element instanceof HTMLElement)) throw new Error('Missing popover target: ' + selector);
+        element.dispatchEvent(new PointerEvent('pointerover', {
+          bubbles: true,
+          pointerType: 'mouse'
+        }));
+        await waitFor(
+          () => Boolean(document.querySelector('.action-popover-description')),
+          'Action popover did not appear for ' + selector
+        );
+        const description = document.querySelector('.action-popover-description')
+          ?.textContent?.trim() ?? '';
+        element.dispatchEvent(new PointerEvent('pointerout', {
+          bubbles: true,
+          pointerType: 'mouse',
+          relatedTarget: document.body
+        }));
+        await waitFor(
+          () => !document.querySelector('.action-popover-description'),
+          'Action popover did not close for ' + selector
+        );
+        return description;
+      };
+      const actionPopovers = {
+        compactNavigation: await popoverFor('.navigation-collapse-button'),
+        searchEverything: await popoverFor('.panel-search'),
+        desktopRow: await popoverFor('.desktop-item[data-desktop-id]')
+      };
       const initialTabCount = document.querySelectorAll('.browser-tab').length;
       document.dispatchEvent(
         new KeyboardEvent('keydown', { key: 't', ctrlKey: true, bubbles: true })
@@ -476,12 +510,18 @@ export async function runNewTabReactivationSmoke(
           ?.getBoundingClientRect().height ?? 0,
         windowHeight: window.innerHeight,
         browserToolbarVisible: Boolean(document.querySelector('.browser-toolbar')),
+        actionPopovers,
       };
     })()`)) as {
       initialHomeHeight: number;
       reactivatedSurfaceHeight: number;
       windowHeight: number;
       browserToolbarVisible: boolean;
+      actionPopovers: {
+        compactNavigation: string;
+        searchEverything: string;
+        desktopRow: string;
+      };
     };
     await delay(100);
     const evidence = {
@@ -495,7 +535,10 @@ export async function runNewTabReactivationSmoke(
       evidence.reactivatedSurfaceHeight < minimumFullHeight ||
       evidence.rendererReportedHeight < minimumFullHeight ||
       !evidence.browserToolbarVisible ||
-      !evidence.nativeViewHidden
+      !evidence.nativeViewHidden ||
+      !evidence.actionPopovers.compactNavigation.includes("compact navigation") ||
+      !evidence.actionPopovers.searchEverything.includes("Search open tabs") ||
+      !evidence.actionPopovers.desktopRow.includes("Switch to")
     ) {
       throw new Error(`New Tab reactivation regression: ${JSON.stringify(evidence)}`);
     }

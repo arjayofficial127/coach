@@ -1,0 +1,86 @@
+.action-popover {
+  position: fixed;
+  z-index: 2147483646;
+  display: grid;
+  width: max-content;
+  max-width: min(290px, calc(100vw - 20px));
+  gap: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 10px;
+  background: rgba(28, 29, 34, 0.97);
+  padding: 9px 11px 10px;
+  color: #f7f7f5;
+  box-shadow:
+    0 14px 34px rgba(19, 20, 24, 0.22),
+    0 3px 9px rgba(19, 20, 24, 0.16);
+  font-family: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.35;
+  pointer-events: none;
+  animation: action-popover-in 130ms ease-out;
+}
+
+.action-popover::before {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: solid rgba(255, 255, 255, 0.13);
+  background: #1c1d22;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.action-popover[data-placement="right"]::before {
+  top: calc(50% - 4px);
+  left: -5px;
+  border-width: 0 0 1px 1px;
+}
+
+.action-popover[data-placement="left"]::before {
+  top: calc(50% - 4px);
+  right: -5px;
+  border-width: 1px 1px 0 0;
+}
+
+.action-popover[data-placement="top"]::before {
+  bottom: -5px;
+  left: calc(50% - 4px);
+  border-width: 0 1px 1px 0;
+}
+
+.action-popover[data-placement="bottom"]::before {
+  top: -5px;
+  left: calc(50% - 4px);
+  border-width: 1px 0 0 1px;
+}
+
+.action-popover-kicker {
+  color: #b9adff;
+  font-size: 8px;
+  font-weight: 760;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.action-popover-description {
+  color: #f3f2f6;
+  font-size: 11px;
+  font-weight: 520;
+}
+
+@keyframes action-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action-popover {
+    animation: none;
+  }
+}
