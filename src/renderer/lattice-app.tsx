@@ -50,6 +50,7 @@ import {
   normalizeFocusIntention,
   parseFocusPreferences,
   type Surface,
+  shouldShowNativeBrowser,
   surfaceDetails,
 } from "./focus-model";
 import { Icon, type IconName } from "./icon";
@@ -740,6 +741,7 @@ export function LatticeApp() {
   const isNewTabSurface = surface === "home";
   const showNewTabSurface =
     isNewTabSurface || (surface === "browser" && contextualTab?.url === "about:blank");
+  const showNativeBrowser = shouldShowNativeBrowser(surface, contextualTab?.url);
   const searchShortcutLabel = useMemo(() => {
     if (typeof navigator === "undefined") return "Ctrl K";
     return /Mac|iPad|iPhone|iPod/i.test(navigator.platform) ? "⌘ K" : "Ctrl K";
@@ -1230,7 +1232,7 @@ export function LatticeApp() {
         .then(() => {
           if (!disposed)
             return window.lattice.browser.setVisible(
-              surface === "browser" && !browserMenuOpen && !commandOpen && !profileMenuOpen,
+              showNativeBrowser && !browserMenuOpen && !commandOpen && !profileMenuOpen,
             );
         });
     };
@@ -1244,7 +1246,7 @@ export function LatticeApp() {
       window.removeEventListener("resize", updateBounds);
       void window.lattice.browser.setVisible(false);
     };
-  }, [browserMenuOpen, commandOpen, profileMenuOpen, surface]);
+  }, [browserMenuOpen, commandOpen, profileMenuOpen, showNativeBrowser]);
 
   useEffect(() => {
     if (!commandOpen) return;
@@ -1347,7 +1349,7 @@ export function LatticeApp() {
         kind: "tab",
         tabId: tab.id,
       };
-      setSurface(tab.url === "about:blank" ? "home" : "browser");
+      setSurface("browser");
       setCaptureOpen(false);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
@@ -3450,6 +3452,7 @@ export function LatticeApp() {
           "content-shell",
           surface === "dashboard" ? "dashboard-content-shell" : "",
           showNewTabSurface ? "new-tab-content" : "",
+          surface === "home" ? "home-content" : "",
           captureOpen ? "drawer-open" : "",
           focusMode ? "focus-content" : "",
         ]

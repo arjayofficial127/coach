@@ -5,6 +5,7 @@ import {
   navigationShortcut,
   normalizeFocusIntention,
   parseFocusPreferences,
+  shouldShowNativeBrowser,
   surfaceDetails,
 } from "./focus-model";
 
@@ -69,5 +70,18 @@ describe("focus-first navigation shortcuts", () => {
     expect(new Set(Object.values(surfaceDetails).map((item) => item.shortcut)).size).toBe(8);
     expect(surfaceDetails.home.label).toBe("New tab");
     expect(surfaceDetails.dashboard.label).toBe("Dashboard");
+  });
+});
+
+describe("native browser visibility", () => {
+  it("keeps the native view hidden while an app-rendered new tab is active", () => {
+    expect(shouldShowNativeBrowser("home", "about:blank")).toBe(false);
+    expect(shouldShowNativeBrowser("browser", "about:blank")).toBe(false);
+    expect(shouldShowNativeBrowser("browser")).toBe(false);
+  });
+
+  it("shows the native view only for a navigated browser tab", () => {
+    expect(shouldShowNativeBrowser("browser", "https://example.com")).toBe(true);
+    expect(shouldShowNativeBrowser("dashboard", "https://example.com")).toBe(false);
   });
 });

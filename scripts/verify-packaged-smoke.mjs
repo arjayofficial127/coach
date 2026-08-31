@@ -269,9 +269,14 @@ if (
   !evidence.navigation?.newTabSuggestionKinds?.includes("app") ||
   !evidence.navigation?.quickCaptureVisible ||
   evidence.navigation?.capturedInboxCount < 1 ||
-  !evidence.navigation?.capturedNoteVisibleInInbox
+  !evidence.navigation?.capturedNoteVisibleInInbox ||
+  !evidence.navigation?.newTabNativeViewHidden ||
+  !evidence.navigation?.newTabNativeViewHiddenAfterReactivation ||
+  !evidence.navigation?.newTabReactivationPreservedLayout
 ) {
-  failures.push("minimal New Tab search, suggestions, or durable capture Inbox failed");
+  failures.push(
+    "minimal New Tab search, tab reactivation layout, native-view isolation, or durable capture Inbox failed",
+  );
 }
 if (
   evidence.runnableApps?.heading !== "Runnable apps" ||

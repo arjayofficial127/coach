@@ -5,7 +5,7 @@ import { isTrustedShellUrl } from "./policies/shell-origin";
 import { ProfileRuntime } from "./profiles/profile-runtime";
 import { ProfileStore } from "./profiles/profile-store";
 import { installLatticeProtocol, registerLatticeScheme } from "./protocol";
-import { runPhaseNineSmoke } from "./smoke";
+import { runNewTabReactivationSmoke, runPhaseNineSmoke } from "./smoke";
 import { VaultService } from "./vault/vault-service";
 
 registerLatticeScheme();
@@ -108,6 +108,22 @@ async function createMainWindow(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  if (process.argv.includes("--new-tab-reactivation-smoke")) {
+    try {
+      const rendererRoot = path.join(__dirname, "../renderer");
+      const evidence = await runNewTabReactivationSmoke(
+        rendererRoot,
+        path.join(__dirname, "preload.cjs"),
+      );
+      console.log(JSON.stringify(evidence));
+      app.exit(0);
+    } catch (error) {
+      console.error(error);
+      app.exit(1);
+    }
+    return;
+  }
+
   if (
     process.argv.includes("--phase4-smoke") ||
     process.argv.includes("--phase5-smoke") ||

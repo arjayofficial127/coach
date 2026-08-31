@@ -116,6 +116,9 @@ export interface PhaseNineSmokeEvidence {
     quickCaptureVisible: boolean;
     capturedInboxCount: number;
     capturedNoteVisibleInInbox: boolean;
+    newTabNativeViewHidden: boolean;
+    newTabNativeViewHiddenAfterReactivation: boolean;
+    newTabReactivationPreservedLayout: boolean;
     newTabScreenshotPath: string;
     newTabScreenshotBytes: number;
     screenshotPath: string;
@@ -373,6 +376,137 @@ function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+export async function runNewTabReactivationSmoke(
+  rendererRoot: string,
+  preloadPath: string,
+): Promise<{
+  initialHomeHeight: number;
+  reactivatedSurfaceHeight: number;
+  rendererReportedHeight: number;
+  windowHeight: number;
+  browserToolbarVisible: boolean;
+  nativeViewHidden: boolean;
+}> {
+  const window = new BrowserWindow({
+    show: false,
+    width: 1_000,
+    height: 720,
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: "#101017",
+      symbolColor: "#e9e9f2",
+      height: 43,
+    },
+    backgroundColor: "#101017",
+    webPreferences: {
+      partition: `lattice-new-tab-smoke-${randomUUID()}`,
+      preload: preloadPath,
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      nodeIntegrationInWorker: false,
+      nodeIntegrationInSubFrames: false,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      experimentalFeatures: false,
+      webviewTag: false,
+    },
+  });
+  installLatticeProtocol(window.webContents.session, rendererRoot);
+  const profileRoot = path.join(os.tmpdir(), "lattice-new-tab-reactivation", randomUUID());
+  const profileStore = new ProfileStore(
+    path.join(profileRoot, "profiles.json"),
+    path.join(profileRoot, "avatars"),
+  );
+  await profileStore.initialize();
+  const runtime = new ProfileRuntime(window, profileStore);
+  const unregisterIpc = registerIpc(window, runtime, new VaultService(), runtime);
+
+  try {
+    await window.loadURL("lattice://app/index.html");
+    const result = (await window.webContents.executeJavaScript(`(async () => {
+      const waitFor = async (predicate, message) => {
+        const deadline = Date.now() + 3000;
+        while (!predicate() && Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        }
+        if (!predicate()) throw new Error(message);
+      };
+      await waitFor(
+        () => document.querySelectorAll('.browser-tab').length > 0 &&
+          Boolean(document.querySelector('.new-tab-surface')),
+        'Initial New Tab did not render'
+      );
+      const initialHomeHeight = document.querySelector('.new-tab-surface')
+        ?.getBoundingClientRect().height ?? 0;
+      const initialTabCount = document.querySelectorAll('.browser-tab').length;
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 't', ctrlKey: true, bubbles: true })
+      );
+      await waitFor(
+        () => document.querySelectorAll('.browser-tab').length > initialTabCount &&
+          Boolean(document.querySelector('.browser-toolbar')),
+        'Ctrl+T did not create a browser New Tab'
+      );
+      const activeTab = document.querySelector('.browser-tab.active');
+      const returnButton = activeTab?.querySelector('.tab-select');
+      const otherTab = [...document.querySelectorAll('.browser-tab')]
+        .find((candidate) => candidate !== activeTab);
+      const otherButton = otherTab?.querySelector('.tab-select');
+      if (!(activeTab instanceof HTMLElement) ||
+          !(returnButton instanceof HTMLButtonElement) ||
+          !(otherButton instanceof HTMLButtonElement)) {
+        throw new Error('New Tab reactivation controls were not available');
+      }
+      otherButton.click();
+      await waitFor(
+        () => !activeTab.classList.contains('active'),
+        'The alternate tab did not activate'
+      );
+      returnButton.click();
+      await waitFor(
+        () => activeTab.classList.contains('active') &&
+          Boolean(document.querySelector('.new-tab-surface')),
+        'The New Tab did not reactivate'
+      );
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return {
+        initialHomeHeight,
+        reactivatedSurfaceHeight: document.querySelector('.new-tab-surface')
+          ?.getBoundingClientRect().height ?? 0,
+        windowHeight: window.innerHeight,
+        browserToolbarVisible: Boolean(document.querySelector('.browser-toolbar')),
+      };
+    })()`)) as {
+      initialHomeHeight: number;
+      reactivatedSurfaceHeight: number;
+      windowHeight: number;
+      browserToolbarVisible: boolean;
+    };
+    await delay(100);
+    const evidence = {
+      ...result,
+      rendererReportedHeight: runtime.getBounds().height,
+      nativeViewHidden: !runtime.isVisible(),
+    };
+    const minimumFullHeight = Math.max(300, evidence.windowHeight * 0.5);
+    if (
+      evidence.initialHomeHeight < minimumFullHeight ||
+      evidence.reactivatedSurfaceHeight < minimumFullHeight ||
+      evidence.rendererReportedHeight < minimumFullHeight ||
+      !evidence.browserToolbarVisible ||
+      !evidence.nativeViewHidden
+    ) {
+      throw new Error(`New Tab reactivation regression: ${JSON.stringify(evidence)}`);
+    }
+    return evidence;
+  } finally {
+    runtime.close();
+    unregisterIpc();
+    if (!window.isDestroyed()) window.destroy();
+  }
+}
+
 async function waitForRendererBounds(
   runtime: ProfileRuntime,
   window: BrowserWindow,
@@ -394,7 +528,7 @@ async function waitForRendererBounds(
     await delay(25);
   }
   const diagnostics = (await window.webContents.executeJavaScript(`(() => {
-    const viewport = document.querySelector(".browser-viewport");
+    const viewport = document.querySelector(".native-view-slot");
     const bounds = viewport?.getBoundingClientRect();
     return {
       readyState: document.readyState,
@@ -839,7 +973,48 @@ export async function runPhaseNineSmoke(
     await window.webContents.executeJavaScript(
       `document.dispatchEvent(new KeyboardEvent("keydown", { key: "t", ctrlKey: true, bubbles: true }))`,
     );
-    await delay(100);
+    const newTabVisibilityDeadline = Date.now() + 2_000;
+    while (Date.now() < newTabVisibilityDeadline && runtime.isVisible()) await delay(25);
+    const newTabNativeViewHidden = !runtime.isVisible();
+    const newTabReactivationPreservedLayout =
+      (await window.webContents.executeJavaScript(`(async () => {
+      const deadline = Date.now() + 2000;
+      while (!document.querySelector('.new-tab-surface') && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      const activeTab = document.querySelector('.browser-tab.active');
+      const returnButton = activeTab?.querySelector('.tab-select');
+      const otherTab = [...document.querySelectorAll('.browser-tab')]
+        .find((candidate) => candidate !== activeTab);
+      const otherButton = otherTab?.querySelector('.tab-select');
+      if (!(activeTab instanceof HTMLElement) ||
+          !(returnButton instanceof HTMLButtonElement) ||
+          !(otherButton instanceof HTMLButtonElement)) {
+        throw new Error("New Tab reactivation needs another browser tab");
+      }
+      otherButton.click();
+      const switchedAwayDeadline = Date.now() + 2000;
+      while (activeTab.classList.contains('active') && Date.now() < switchedAwayDeadline) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      returnButton.click();
+      const switchedBackDeadline = Date.now() + 2000;
+      while ((!activeTab.classList.contains('active') || !document.querySelector('.new-tab-surface')) &&
+        Date.now() < switchedBackDeadline) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const surface = document.querySelector('.new-tab-surface');
+      const bounds = surface?.getBoundingClientRect();
+      return Boolean(
+        document.querySelector('.browser-toolbar') &&
+        bounds &&
+        bounds.height >= Math.max(300, window.innerHeight * 0.5)
+      );
+    })()`)) as boolean;
+    const reactivationVisibilityDeadline = Date.now() + 2_000;
+    while (Date.now() < reactivationVisibilityDeadline && runtime.isVisible()) await delay(25);
+    const newTabNativeViewHiddenAfterReactivation = !runtime.isVisible();
     const newTabDom = (await window.webContents.executeJavaScript(`(async () => {
       const deadline = Date.now() + 2000;
       while (!document.querySelector('.new-tab-surface') && Date.now() < deadline) {
@@ -2377,6 +2552,9 @@ export async function runPhaseNineSmoke(
         browserRestoredAfterShortcuts,
         ...newTabDom,
         capturedNoteVisibleInInbox,
+        newTabNativeViewHidden,
+        newTabNativeViewHiddenAfterReactivation,
+        newTabReactivationPreservedLayout,
         newTabScreenshotPath,
         newTabScreenshotBytes: newTabScreenshot.byteLength,
         screenshotPath: focusNavigationScreenshotPath,

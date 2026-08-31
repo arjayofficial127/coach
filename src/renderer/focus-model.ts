@@ -115,3 +115,7 @@ export function navigationShortcut(input: {
   }
   return null;
 }
+
+export function shouldShowNativeBrowser(surface: Surface, url?: string): boolean {
+  return surface === "browser" && Boolean(url) && url !== "about:blank";
+}

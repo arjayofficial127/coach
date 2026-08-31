@@ -1676,6 +1676,10 @@ kbd {
   grid-template-rows: 43px auto minmax(0, 1fr) 24px;
 }
 
+.content-shell.home-content {
+  grid-template-rows: 43px minmax(0, 1fr);
+}
+
 .tab-strip {
   display: flex;
   min-width: 0;
@@ -7932,6 +7936,10 @@ kbd {
 
 .lattice-shell.new-tab-sizing-invalidated .new-tab-content {
   grid-template-rows: var(--coach-chrome-height) 50px minmax(0, 1fr) 24px;
+}
+
+.lattice-shell.new-tab-sizing-invalidated .new-tab-content.home-content {
+  grid-template-rows: var(--coach-chrome-height) minmax(0, 1fr);
 }
 
 .lattice-shell.new-tab-sizing-invalidated > .workspace-panel {
