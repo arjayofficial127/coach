@@ -416,6 +416,10 @@ export async function runNewTabReactivationSmoke(
     saveAsNote: boolean;
     oneControlInNoteMode: boolean;
   };
+  restoreStormRecovery: {
+    restoredDuplicateCount: number;
+    failedTabRemovedFromSession: boolean;
+  };
   reactivatedLaunchpadVisible: boolean;
   actionPopovers: {
     compactNavigation: string;
@@ -479,6 +483,55 @@ export async function runNewTabReactivationSmoke(
   const unregisterIpc = registerIpc(window, runtime, new VaultService(), runtime);
 
   try {
+    await window.loadURL("lattice://app/index.html");
+    await window.webContents.executeJavaScript(`(async () => {
+      const deadline = Date.now() + 3000;
+      while (!window.lattice && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      if (!window.lattice) throw new Error('Lattice bridge did not initialize');
+      const profiles = await window.lattice.profiles.state();
+      localStorage.setItem(
+        'lattice.session.v1.profile.' + profiles.activeProfileId,
+        JSON.stringify({
+          version: 1,
+          tabs: Array.from({ length: 24 }, (_, index) => ({
+            url: 'https://test/',
+            desktopId: 'research',
+            active: index === 23
+          }))
+        })
+      );
+    })()`);
+    await window.loadURL("lattice://app/index.html");
+    const restoreStormRecovery = (await window.webContents.executeJavaScript(`(async () => {
+      const deadline = Date.now() + 6000;
+      let snapshot = await window.lattice.browser.snapshot();
+      while (Date.now() < deadline) {
+        const duplicates = snapshot.tabs.filter((tab) => tab.url === 'https://test/');
+        if (duplicates.length === 1 && duplicates[0]?.error) break;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        snapshot = await window.lattice.browser.snapshot();
+      }
+      const restoredDuplicateCount = snapshot.tabs.filter(
+        (tab) => tab.url === 'https://test/'
+      ).length;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      const profiles = await window.lattice.profiles.state();
+      const serialized = localStorage.getItem(
+        'lattice.session.v1.profile.' + profiles.activeProfileId
+      );
+      const saved = serialized ? JSON.parse(serialized) : { tabs: [] };
+      const failedTabRemovedFromSession =
+        Array.isArray(saved.tabs) && !saved.tabs.some((tab) => tab.url === 'https://test/');
+      for (const tab of snapshot.tabs.filter((candidate) => candidate.url === 'https://test/')) {
+        await window.lattice.browser.closeTab(tab.id);
+      }
+      return { restoredDuplicateCount, failedTabRemovedFromSession };
+    })()`)) as {
+      restoredDuplicateCount: number;
+      failedTabRemovedFromSession: boolean;
+    };
     await window.loadURL("lattice://app/index.html");
     const result = (await window.webContents.executeJavaScript(`(async () => {
       const waitFor = async (predicate, message) => {
@@ -864,6 +917,7 @@ export async function runNewTabReactivationSmoke(
     await writeFile(screenshotPath, screenshot);
     const evidence = {
       ...result,
+      restoreStormRecovery,
       rendererReportedHeight: runtime.getBounds().height,
       nativeViewHidden: !runtime.isVisible(),
       screenshotPath,
@@ -902,6 +956,8 @@ export async function runNewTabReactivationSmoke(
       !evidence.intentChecks.youtubeSearch ||
       !evidence.intentChecks.saveAsNote ||
       !evidence.intentChecks.oneControlInNoteMode ||
+      evidence.restoreStormRecovery.restoredDuplicateCount !== 1 ||
+      !evidence.restoreStormRecovery.failedTabRemovedFromSession ||
       !evidence.reactivatedLaunchpadVisible ||
       !evidence.actionPopovers.compactNavigation.includes("smaller icon menu") ||
       !evidence.actionPopovers.searchEverything.includes("Find a tab") ||

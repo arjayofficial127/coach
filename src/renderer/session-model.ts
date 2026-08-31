@@ -15,18 +15,14 @@ const MAX_RESTORED_TABS = 24;
 
 function normalizeRestorableTabs(tabs: readonly RestorableTab[]): RestorableTab[] {
   const normalized: RestorableTab[] = [];
-  const blankTabIndexByDesktop = new Map<string, number>();
+  const tabIndexByDesktopAndUrl = new Map<string, number>();
 
   for (const tab of tabs) {
     const next = { ...tab };
-    if (next.url !== "about:blank") {
-      normalized.push(next);
-      continue;
-    }
-
-    const existingIndex = blankTabIndexByDesktop.get(next.desktopId);
+    const restoreKey = `${next.desktopId}\u0000${next.url}`;
+    const existingIndex = tabIndexByDesktopAndUrl.get(restoreKey);
     if (existingIndex === undefined) {
-      blankTabIndexByDesktop.set(next.desktopId, normalized.length);
+      tabIndexByDesktopAndUrl.set(restoreKey, normalized.length);
       normalized.push(next);
       continue;
     }
@@ -101,7 +97,7 @@ export function buildRestorableSession(
 ): RestorableSession {
   const tabs = normalizeRestorableTabs(
     snapshot.tabs
-      .filter((tab) => isRestorableUrl(tab.url))
+      .filter((tab) => isRestorableUrl(tab.url) && !tab.error)
       .map((tab) => ({
         url: tab.url,
         desktopId: tabDesktops[tab.id] ?? fallbackDesktopId,

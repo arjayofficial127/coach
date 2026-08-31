@@ -57,6 +57,7 @@ interface TabRecord {
   state: BrowserState;
   previewDataUrl: string | null;
   previewCapture: Promise<string | null> | null;
+  pendingNavigation: { url: string; promise: Promise<void> } | null;
 }
 
 export class BrowserRuntime {
@@ -660,6 +661,7 @@ export class BrowserRuntime {
       },
       previewDataUrl: null,
       previewCapture: null,
+      pendingNavigation: null,
     };
     this.allContents.push(contents);
     this.window.contentView.addChildView(view);
@@ -857,8 +859,10 @@ export class BrowserRuntime {
     });
   }
 
-  private async navigateTab(tab: TabRecord, input: string): Promise<void> {
+  private navigateTab(tab: TabRecord, input: string): Promise<void> {
     const url = normalizeHttpUrl(input);
+    if (tab.pendingNavigation?.url === url) return tab.pendingNavigation.promise;
+    if (tab.pendingNavigation) tab.contents.stop();
     tab.state.url = url;
     tab.state.title = url;
     tab.state.loading = true;
@@ -867,7 +871,12 @@ export class BrowserRuntime {
     tab.previewDataUrl = null;
     tab.previewCapture = null;
     this.emitState(tab);
-    await tab.contents.loadURL(url);
+    const request = { url, promise: Promise.resolve() };
+    request.promise = tab.contents.loadURL(url).finally(() => {
+      if (tab.pendingNavigation === request) tab.pendingNavigation = null;
+    });
+    tab.pendingNavigation = request;
+    return request.promise;
   }
 
   private async captureSiteIcon(
@@ -913,6 +922,7 @@ export class BrowserRuntime {
   private disposeTab(tab: TabRecord): void {
     this.livePreviewIds.delete(tab.id);
     this.livePreviewLayouts.delete(tab.id);
+    tab.pendingNavigation = null;
     if (!this.window.isDestroyed()) this.window.contentView.removeChildView(tab.view);
     if (!tab.contents.isDestroyed()) tab.contents.close();
   }

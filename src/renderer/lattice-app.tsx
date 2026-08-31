@@ -163,6 +163,13 @@ interface ProfileShellState {
   runnableApps: RunnableAppsState;
 }
 
+interface InitialProfileBootstrap {
+  profiles: ProfileState;
+  shell: ProfileShellState;
+  restored: RestoredBrowserState;
+  restoreError: string | null;
+}
+
 interface RecoveryNotice {
   id: string;
   message: string;
@@ -464,6 +471,7 @@ export function LatticeApp() {
   // keyboard handler. Keep tab creation single-flight so one gesture cannot
   // create a burst of duplicate tabs while the IPC request is in flight.
   const creatingTabRef = useRef(false);
+  const initialProfileBootstrapRef = useRef<Promise<InitialProfileBootstrap> | null>(null);
   const [workspace, setWorkspace] = useState<WorkspacePreferences>(DEFAULT_WORKSPACE);
   const [settings, setSettings] = useState<SettingsPreferences>(DEFAULT_SETTINGS);
   const [customThemeDraft, setCustomThemeDraft] =
@@ -1512,7 +1520,6 @@ export function LatticeApp() {
 
   useEffect(() => {
     let cancelled = false;
-    let profilesLoaded = false;
     const unsubscribe = window.lattice.browser.onState((state) => {
       setSnapshot((current) => {
         const exists = current.tabs.some((tab) => tab.id === state.id);
@@ -1527,16 +1534,50 @@ export function LatticeApp() {
     const unsubscribeLinkActions = window.lattice.browser.onLinkAction((action) =>
       browserLinkActionHandlerRef.current(action),
     );
-    void (async () => {
-      const profiles = await window.lattice.profiles.state();
-      profilesLoaded = true;
-      if (!cancelled) {
+    let bootstrap = initialProfileBootstrapRef.current;
+    if (!bootstrap) {
+      bootstrap = (async () => {
+        const profiles = await window.lattice.profiles.state();
+        const shell = loadProfileShellState(profiles, profiles.activeProfileId);
+        const initial = await window.lattice.browser.snapshot();
+        try {
+          const restored = await restoreProfileBrowser(
+            initial,
+            shell.workspace,
+            shell.settings,
+            profiles,
+            profiles.activeProfileId,
+          );
+          return { profiles, shell, restored, restoreError: null };
+        } catch (error) {
+          const fallback = await window.lattice.browser.snapshot();
+          return {
+            profiles,
+            shell,
+            restored: {
+              snapshot: fallback,
+              assignments: {
+                [fallback.activeTabId]: shell.workspace.activeDesktopId,
+              },
+              restoredCount: 0,
+              restoredActive: null,
+            },
+            restoreError: error instanceof Error ? error.message : String(error),
+          };
+        }
+      })();
+      initialProfileBootstrapRef.current = bootstrap;
+    }
+    void bootstrap
+      .then(({ profiles, shell, restored, restoreError }) => {
+        if (cancelled) return;
         setProfileState(profiles);
         setProfileLoadError(null);
-      }
-      const shell = loadProfileShellState(profiles, profiles.activeProfileId);
-      if (!cancelled) {
-        setWorkspace(shell.workspace);
+        setWorkspace(
+          restored.restoredActive
+            ? { ...shell.workspace, activeDesktopId: restored.restoredActive.desktopId }
+            : shell.workspace,
+        );
         setSettings(shell.settings);
         setFocusIntention(shell.focusIntention);
         setRunnableApps(shell.runnableApps);
@@ -1551,40 +1592,22 @@ export function LatticeApp() {
           ),
         );
         setProfileShellHydrated(true);
-      }
-      const initial = await window.lattice.browser.snapshot();
-      const restored = await restoreProfileBrowser(
-        initial,
-        shell.workspace,
-        shell.settings,
-        profiles,
-        profiles.activeProfileId,
-      );
-      return { profiles, restored };
-    })()
-      .then(({ profiles, restored }) => {
-        if (cancelled) return;
-        setProfileState(profiles);
         setSnapshot(restored.snapshot);
         setTabDesktops(restored.assignments);
         const restoredActive = restored.restoredActive;
         if (restoredActive) {
-          setWorkspace((current) => ({
-            ...current,
-            activeDesktopId: restoredActive.desktopId,
-          }));
           setSurface(restoredActive.url === "about:blank" ? "home" : "browser");
         }
         setSessionReady(true);
-        if (restored.restoredCount > 0) {
+        if (restoreError) {
+          setStatus(`Session restore skipped: ${restoreError}`);
+        } else if (restored.restoredCount > 0) {
           setStatus(`Restored ${restored.restoredCount} tabs`);
         }
       })
       .catch(async (error) => {
         if (cancelled) return;
-        if (!profilesLoaded) {
-          setProfileLoadError(error instanceof Error ? error.message : "Profiles could not load");
-        }
+        setProfileLoadError(error instanceof Error ? error.message : "Profiles could not load");
         const fallback = await window.lattice.browser.snapshot();
         setSnapshot(fallback);
         setTabDesktops({ [fallback.activeTabId]: DEFAULT_WORKSPACE.activeDesktopId });

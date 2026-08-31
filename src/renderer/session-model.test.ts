@@ -117,6 +117,62 @@ describe("restorable browser sessions", () => {
     ]);
   });
 
+  it("collapses duplicate website tabs from a legacy restore storm", () => {
+    const parsed = parseRestorableSession(
+      JSON.stringify({
+        version: 1,
+        tabs: [
+          ...Array.from({ length: 24 }, (_, index) => ({
+            url: "https://test/",
+            desktopId: "research",
+            active: index === 23,
+          })),
+          { url: "https://test/", desktopId: "build", active: false },
+          { url: "https://example.com", desktopId: "research", active: false },
+        ],
+      }),
+      desktopIds,
+    );
+
+    expect(parsed.tabs).toEqual([
+      { url: "https://test/", desktopId: "research", active: true },
+      { url: "https://test/", desktopId: "build", active: false },
+      { url: "https://example.com", desktopId: "research", active: false },
+    ]);
+  });
+
+  it("does not persist failed pages for another automatic retry", () => {
+    const session = buildRestorableSession(
+      {
+        activeTabId: "failed",
+        tabs: [
+          {
+            id: "blank",
+            url: "about:blank",
+            title: "New tab",
+            loading: false,
+            canGoBack: false,
+            canGoForward: false,
+            error: null,
+          },
+          {
+            id: "failed",
+            url: "https://test/",
+            title: "test",
+            loading: false,
+            canGoBack: false,
+            canGoForward: false,
+            error: "ERR_NAME_NOT_RESOLVED",
+          },
+        ],
+      },
+      { blank: "research", failed: "research" },
+      "research",
+    );
+
+    expect(session.tabs).toEqual([{ url: "about:blank", desktopId: "research", active: true }]);
+  });
+
   it("reconnects a reloaded shell to existing native tabs without duplicating them", () => {
     const snapshot = {
       activeTabId: "native-build",
