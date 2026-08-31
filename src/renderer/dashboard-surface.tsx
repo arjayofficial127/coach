@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { BrowserState, CanvasPageSummary, SavedLinkRecord } from "../shared/contracts";
+import { actionHelpText } from "./action-help-text";
 import { Icon, type IconName } from "./icon";
 import { RUNNABLE_APP_CATALOG, type RunnableAppId } from "./runnable-apps-model";
 import {
@@ -927,7 +928,7 @@ export function DashboardSurface({
               className={activeSection === id ? "active" : ""}
               aria-current={activeSection === id ? "page" : undefined}
               data-dashboard-section={id}
-              data-action-description={`Show the ${SECTION_LABELS[id]} dashboard section`}
+              data-action-description={actionHelpText.dashboardSection(SECTION_LABELS[id])}
               data-action-popover-placement="bottom"
               onClick={() => setActiveSection(id)}
             >
@@ -1208,7 +1209,7 @@ export function DashboardSurface({
               <button
                 type="button"
                 aria-label="Close dashboard customization"
-                data-action-description="Close dashboard customization controls"
+                data-action-description={actionHelpText.closeDashboardCustomization}
                 onClick={() => setCustomizing(false)}
               >
                 <Icon name="close" />
@@ -1289,7 +1290,10 @@ export function DashboardSurface({
                         type="button"
                         aria-pressed={enabled[id]}
                         data-dashboard-section-toggle={id}
-                        data-action-description={`${enabled[id] ? "Hide" : "Show"} the ${SECTION_LABELS[id]} dashboard section`}
+                        data-action-description={actionHelpText.dashboardSectionToggle(
+                          SECTION_LABELS[id],
+                          enabled[id],
+                        )}
                         onClick={() => {
                           if (activeSection === id && enabled[id]) setActiveSection("overview");
                           setEnabled((current) => ({ ...current, [id]: !current[id] }));
@@ -1305,7 +1309,9 @@ export function DashboardSurface({
                       aria-label={`Drag ${SECTION_LABELS[id]} to reorder section tabs`}
                       title="Drag to reorder section tabs"
                       data-dashboard-section-drag={id}
-                      data-action-description={`Drag ${SECTION_LABELS[id]} to reorder dashboard section tabs`}
+                      data-action-description={actionHelpText.dashboardSectionDrag(
+                        SECTION_LABELS[id],
+                      )}
                       draggable
                       onDragStart={() => setDraggedSectionId(id)}
                       onDragEnd={() => setDraggedSectionId(null)}

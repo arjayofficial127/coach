@@ -32,6 +32,7 @@ import {
   type ZoomCommand,
   zoomCommandForShortcut,
 } from "../shared/zoom";
+import { actionHelpText } from "./action-help-text";
 import { ActionPopover } from "./action-popover";
 import lightCapLogoUrl from "./assets/traced-cap-icon.svg";
 import darkCapLogoUrl from "./assets/traced-cap-icon-white.svg";
@@ -176,43 +177,43 @@ const railItems: Array<{
     id: "dashboard",
     label: "Dashboard",
     icon: "home",
-    description: "Review this desktop and resume recent work",
+    description: actionHelpText.dashboardOverview,
   },
   {
     id: "browser",
     label: "Browse",
     icon: "globe",
-    description: "Open the browser and focus the address bar",
+    description: actionHelpText.browse,
   },
   {
     id: "pages",
     label: "Canvas pages",
     icon: "grid",
-    description: "Open connected-thinking canvas pages",
+    description: actionHelpText.canvasPages,
   },
   {
     id: "apps",
     label: "Runnable apps",
     icon: "timer",
-    description: "Open Daily Flow, Pomodoro, Wealth Lab, and other local tools",
+    description: actionHelpText.runnableApps,
   },
   {
     id: "library",
     label: "Saved links",
     icon: "bookmark",
-    description: "Review pages saved to the local Markdown vault",
+    description: actionHelpText.savedLinks,
   },
   {
     id: "queue",
     label: "Reading queue",
     icon: "folder",
-    description: "Open pages saved for later reading",
+    description: actionHelpText.readingQueue,
   },
   {
     id: "settings",
     label: "Settings",
     icon: "settings",
-    description: "Change appearance, privacy, profiles, and browser behavior",
+    description: actionHelpText.settings,
   },
 ];
 
@@ -2709,7 +2710,7 @@ export function LatticeApp() {
           onClick={showDashboard}
           aria-label="Open Dashboard"
           title="Coach Browser"
-          data-action-description="Open the Coach Browser dashboard"
+          data-action-description={actionHelpText.dashboard}
         >
           <img src={coachLogoUrl} alt="" />
         </button>
@@ -2718,7 +2719,7 @@ export function LatticeApp() {
           className="rail-button rail-search-button"
           aria-label="Search everything"
           title={`Search everything (${searchShortcutLabel})`}
-          data-action-description={`Search open tabs, desktops, saved links, or the web. Shortcut: ${searchShortcutLabel}`}
+          data-action-description={actionHelpText.searchEverything(searchShortcutLabel)}
           onClick={openCommandPalette}
         >
           <Icon name="search" />
@@ -2728,7 +2729,7 @@ export function LatticeApp() {
           className="rail-desktop-switcher"
           aria-label={`Expand navigation and change desktop. Active desktop: ${activeDesktop?.name ?? "Desktop 1"}`}
           title={`Active desktop: ${activeDesktop?.name ?? "Desktop 1"}`}
-          data-action-description={`Expand the sidebar and switch desktops. Current desktop: ${activeDesktop?.name ?? "Desktop 1"}`}
+          data-action-description={actionHelpText.desktopList(activeDesktop?.name ?? "Desktop 1")}
           onClick={() => setNavigationView(true)}
         >
           <span className={`rail-desktop-glyph ${activeDesktop?.color ?? "violet"}`}>
@@ -2762,7 +2763,7 @@ export function LatticeApp() {
           title={activeProfile ? `${activeProfile.name} profile` : "Website profiles"}
           aria-label={activeProfile ? `Open ${activeProfile.name} profile menu` : "Open profiles"}
           aria-expanded={profileMenuOpen}
-          data-action-description="Open website profiles and profile privacy controls"
+          data-action-description={actionHelpText.profiles}
           onClick={() => {
             setWorkspaceMenuOpen(false);
             setBrowserMenuOpen(false);
@@ -2976,7 +2977,7 @@ export function LatticeApp() {
             onClick={showDashboard}
             aria-label="Open Coach Browser dashboard"
             title="Coach Browser"
-            data-action-description="Open the Coach Browser dashboard"
+            data-action-description={actionHelpText.dashboard}
           >
             <img src={coachLogoUrl} alt="" />
           </button>
@@ -2985,7 +2986,7 @@ export function LatticeApp() {
             type="button"
             aria-label="Open workspace menu"
             aria-expanded={workspaceMenuOpen}
-            data-action-description="Open website profiles, settings, archived desktops, and tab controls"
+            data-action-description={actionHelpText.workspaceMenu}
             onClick={() => {
               setConfirmHardDeleteDesktopId(null);
               setWorkspaceMenuOpen((open) => !open);
@@ -3004,7 +3005,7 @@ export function LatticeApp() {
             className="navigation-collapse-button"
             aria-label="Use compact navigation"
             title="Use compact navigation"
-            data-action-description="Collapse the sidebar and use compact navigation"
+            data-action-description={actionHelpText.compactNavigation}
             onClick={() => setNavigationView(false)}
           >
             <Icon name="arrow-left" />
@@ -3054,7 +3055,7 @@ export function LatticeApp() {
         <button
           type="button"
           className="panel-search"
-          data-action-description={`Search open tabs, desktops, saved links, or the web. Shortcut: ${searchShortcutLabel}`}
+          data-action-description={actionHelpText.searchEverything(searchShortcutLabel)}
           onClick={openCommandPalette}
         >
           <Icon name="search" />
@@ -3121,7 +3122,7 @@ export function LatticeApp() {
             type="button"
             onClick={() => setAddingDesktop(true)}
             aria-label="Add desktop"
-            data-action-description="Create a new desktop for a separate group of tabs and saved links"
+            data-action-description={actionHelpText.addDesktop}
           >
             <Icon name="plus" />
           </button>
@@ -3183,20 +3184,20 @@ export function LatticeApp() {
                 <div
                   className={active ? "desktop-item active" : "desktop-item"}
                   data-desktop-id={desktop.id}
-                  data-action-description={`Switch to ${desktop.name} and reopen its last active tab or dashboard`}
+                  data-action-description={actionHelpText.desktop(desktop.name)}
                 >
                   <button
                     type="button"
                     className="desktop-open-surface"
                     aria-label={`Switch to ${desktop.name}`}
-                    data-action-description={`Switch to ${desktop.name} and reopen its last active tab or dashboard`}
+                    data-action-description={actionHelpText.desktop(desktop.name)}
                     onClick={() => void selectDesktop(desktop.id)}
                   />
                   <button
                     type="button"
                     className="desktop-select"
                     aria-label={`Switch to ${desktop.name}`}
-                    data-action-description={`Switch to ${desktop.name} and reopen its last active tab or dashboard`}
+                    data-action-description={actionHelpText.desktop(desktop.name)}
                     onClick={(event) => {
                       event.stopPropagation();
                       void selectDesktop(desktop.id);
@@ -3212,7 +3213,7 @@ export function LatticeApp() {
                         type="button"
                         className="desktop-name-button"
                         aria-label={`Switch to ${desktop.name}`}
-                        data-action-description={`Switch to ${desktop.name} and reopen its last active tab or dashboard`}
+                        data-action-description={actionHelpText.desktop(desktop.name)}
                         onClick={(event) => {
                           event.stopPropagation();
                           void selectDesktop(desktop.id);
@@ -3225,7 +3226,7 @@ export function LatticeApp() {
                         className="desktop-rename-button"
                         aria-label={`Rename ${desktop.name}`}
                         title={`Rename ${desktop.name}`}
-                        data-action-description={`Rename ${desktop.name}`}
+                        data-action-description={actionHelpText.renameDesktop(desktop.name)}
                         onClick={(event) => {
                           event.stopPropagation();
                           beginRenameDesktop(desktop.id);
@@ -3238,7 +3239,7 @@ export function LatticeApp() {
                       type="button"
                       className="desktop-summary-button"
                       aria-label={`Switch to ${desktop.name}`}
-                      data-action-description={`Switch to ${desktop.name} and reopen its last active tab or dashboard`}
+                      data-action-description={actionHelpText.desktop(desktop.name)}
                       onClick={(event) => {
                         event.stopPropagation();
                         void selectDesktop(desktop.id);
@@ -3255,7 +3256,7 @@ export function LatticeApp() {
                     data-delete-desktop={desktop.id}
                     aria-label={`Archive ${desktop.name}`}
                     title={`Archive ${desktop.name}`}
-                    data-action-description={`Review options for archiving ${desktop.name}`}
+                    data-action-description={actionHelpText.archiveDesktop(desktop.name)}
                     onClick={(event) => {
                       event.stopPropagation();
                       showDesktopArchiveActions(desktop.id);
@@ -3628,7 +3629,7 @@ export function LatticeApp() {
               <input
                 ref={omniboxRef}
                 value={address}
-                data-action-description="Enter a web address or search query, then press Enter"
+                data-action-description={actionHelpText.addressBar}
                 onChange={(event) => setAddress(event.target.value)}
                 placeholder="Search or enter an address"
                 spellCheck={false}
@@ -3746,11 +3747,9 @@ export function LatticeApp() {
                 type="button"
                 className="dashboard-toolbar-customize"
                 aria-expanded={dashboardCustomizing}
-                data-action-description={
-                  dashboardCustomizing
-                    ? "Close dashboard customization controls"
-                    : "Open dashboard customization controls"
-                }
+                data-action-description={actionHelpText.dashboardCustomization(
+                  dashboardCustomizing,
+                )}
                 onClick={() => setDashboardCustomizing((open) => !open)}
               >
                 <Icon name="settings" />
@@ -3857,7 +3856,7 @@ export function LatticeApp() {
                     <input
                       ref={omniboxRef}
                       value={homeQuery}
-                      data-action-description="Enter a web address or search query, then press Enter or choose Search"
+                      data-action-description={actionHelpText.newTabSearch}
                       onChange={(event) => setHomeQuery(event.target.value)}
                       placeholder="Search the web or enter a URL"
                       aria-label="Search the web or enter a URL"
@@ -4994,7 +4993,7 @@ export function LatticeApp() {
               <input
                 ref={commandInputRef}
                 value={commandQuery}
-                data-action-description="Search open tabs, desktops, saved links, local actions, or the web"
+                data-action-description={actionHelpText.commandSearch}
                 onChange={(event) => setCommandQuery(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key !== "Enter") return;

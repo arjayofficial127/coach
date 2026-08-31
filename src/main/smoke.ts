@@ -672,15 +672,15 @@ export async function runNewTabReactivationSmoke(
       evidence.rendererReportedHeight < minimumFullHeight ||
       !evidence.browserToolbarVisible ||
       !evidence.nativeViewHidden ||
-      !evidence.actionPopovers.compactNavigation.includes("compact navigation") ||
-      !evidence.actionPopovers.searchEverything.includes("Search open tabs") ||
-      !evidence.actionPopovers.desktopRow.includes("Switch to") ||
-      evidence.actionPopovers.openTabs.description !== "Show the Open tabs dashboard section." ||
+      !evidence.actionPopovers.compactNavigation.includes("smaller icon menu") ||
+      !evidence.actionPopovers.searchEverything.includes("Find a tab") ||
+      !evidence.actionPopovers.desktopRow.includes("continue where you left off") ||
+      evidence.actionPopovers.openTabs.description !== "Show Open tabs on the dashboard." ||
       evidence.actionPopovers.openTabs.placement !== "bottom" ||
-      !evidence.actionPopovers.customize.description.includes("Open dashboard customization") ||
-      evidence.actionPopovers.sectionTab.description !== "Show the History dashboard section." ||
+      !evidence.actionPopovers.customize.description.includes("Choose what appears") ||
+      evidence.actionPopovers.sectionTab.description !== "Show History on the dashboard." ||
       evidence.actionPopovers.sectionTab.description.includes("History0") ||
-      !evidence.actionPopovers.sectionToggle.description.includes("History dashboard section") ||
+      !evidence.actionPopovers.sectionToggle.description.includes("History from the dashboard") ||
       !evidence.actionPopovers.sectionDrag.description.includes("Drag History") ||
       !evidence.actionPopovers.tab.description.includes("New tab") ||
       evidence.actionPopovers.tab.placement !== "bottom" ||
