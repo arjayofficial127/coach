@@ -374,6 +374,7 @@ interface DesktopLifecycleDomResult {
 
 interface LayeredActionPopoverEvidence {
   description: string;
+  overflowX: string;
   placement: string;
   topLayer: boolean;
   topmost: boolean;
@@ -523,6 +524,7 @@ export async function runNewTabReactivationSmoke(
         const evidence = {
           description: popoverElement.querySelector('.action-popover-description')
             ?.textContent?.trim() ?? '',
+          overflowX: getComputedStyle(popoverElement).overflowX,
           placement: popoverElement.dataset.placement ?? '',
           topLayer: popoverElement.matches(':popover-open'),
           topmost: hit === popoverElement || popoverElement.contains(hit),
@@ -683,7 +685,11 @@ export async function runNewTabReactivationSmoke(
       !evidence.actionPopovers.tab.description.includes("New tab") ||
       evidence.actionPopovers.tab.placement !== "bottom" ||
       layeredActionPopovers.some(
-        (popover) => !popover.topLayer || !popover.topmost || popover.zIndex !== "2147483647",
+        (popover) =>
+          popover.overflowX !== "visible" ||
+          !popover.topLayer ||
+          !popover.topmost ||
+          popover.zIndex !== "2147483647",
       )
     ) {
       throw new Error(`New Tab reactivation regression: ${JSON.stringify(evidence)}`);

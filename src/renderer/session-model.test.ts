@@ -68,6 +68,55 @@ describe("restorable browser sessions", () => {
     expect(parseRestorableSession("not-json", desktopIds)).toEqual({ version: 1, tabs: [] });
   });
 
+  it("collapses legacy duplicate blank tabs while preserving real pages and desktops", () => {
+    const parsed = parseRestorableSession(
+      JSON.stringify({
+        version: 1,
+        tabs: [
+          ...Array.from({ length: 24 }, (_, index) => ({
+            url: "about:blank",
+            desktopId: "research",
+            active: index === 23,
+          })),
+          { url: "about:blank", desktopId: "build", active: false },
+          { url: "https://example.com/build", desktopId: "build", active: false },
+        ],
+      }),
+      desktopIds,
+    );
+
+    expect(parsed.tabs).toEqual([
+      { url: "about:blank", desktopId: "research", active: true },
+      { url: "about:blank", desktopId: "build", active: false },
+      { url: "https://example.com/build", desktopId: "build", active: false },
+    ]);
+  });
+
+  it("persists at most one blank tab per desktop", () => {
+    const blankTab = (id: string) => ({
+      id,
+      url: "about:blank",
+      title: "New tab",
+      loading: false,
+      canGoBack: false,
+      canGoForward: false,
+      error: null,
+    });
+    const session = buildRestorableSession(
+      {
+        activeTabId: "research-2",
+        tabs: [blankTab("research-1"), blankTab("research-2"), blankTab("build-1")],
+      },
+      { "research-1": "research", "research-2": "research", "build-1": "build" },
+      "research",
+    );
+
+    expect(session.tabs).toEqual([
+      { url: "about:blank", desktopId: "research", active: true },
+      { url: "about:blank", desktopId: "build", active: false },
+    ]);
+  });
+
   it("reconnects a reloaded shell to existing native tabs without duplicating them", () => {
     const snapshot = {
       activeTabId: "native-build",

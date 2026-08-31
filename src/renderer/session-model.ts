@@ -13,6 +13,38 @@ export interface RestorableSession {
 
 const MAX_RESTORED_TABS = 24;
 
+function normalizeRestorableTabs(tabs: readonly RestorableTab[]): RestorableTab[] {
+  const normalized: RestorableTab[] = [];
+  const blankTabIndexByDesktop = new Map<string, number>();
+
+  for (const tab of tabs) {
+    const next = { ...tab };
+    if (next.url !== "about:blank") {
+      normalized.push(next);
+      continue;
+    }
+
+    const existingIndex = blankTabIndexByDesktop.get(next.desktopId);
+    if (existingIndex === undefined) {
+      blankTabIndexByDesktop.set(next.desktopId, normalized.length);
+      normalized.push(next);
+      continue;
+    }
+
+    if (next.active) normalized[existingIndex] = next;
+  }
+
+  const bounded = normalized.slice(0, MAX_RESTORED_TABS);
+  if (bounded.length > 0) {
+    const requestedActiveIndex = bounded.findIndex((tab) => tab.active);
+    const activeIndex = requestedActiveIndex < 0 ? 0 : requestedActiveIndex;
+    for (const tab of bounded) tab.active = false;
+    const activeTab = bounded[activeIndex];
+    if (activeTab) activeTab.active = true;
+  }
+  return bounded;
+}
+
 function isRestorableUrl(value: unknown): value is string {
   if (value === "about:blank") return true;
   if (typeof value !== "string" || value.length > 2_048) return false;
@@ -41,8 +73,8 @@ export function parseRestorableSession(
       return { version: 1, tabs: [] };
     }
 
-    const tabs = candidate.tabs
-      .filter((tab): tab is RestorableTab =>
+    const tabs = normalizeRestorableTabs(
+      candidate.tabs.filter((tab): tab is RestorableTab =>
         Boolean(
           tab &&
             typeof tab === "object" &&
@@ -54,17 +86,8 @@ export function parseRestorableSession(
             "active" in tab &&
             typeof tab.active === "boolean",
         ),
-      )
-      .slice(0, MAX_RESTORED_TABS)
-      .map((tab) => ({ ...tab }));
-
-    if (tabs.length > 0) {
-      const requestedActiveIndex = tabs.findIndex((tab) => tab.active);
-      const activeIndex = requestedActiveIndex < 0 ? 0 : requestedActiveIndex;
-      for (const tab of tabs) tab.active = false;
-      const activeTab = tabs[activeIndex];
-      if (activeTab) activeTab.active = true;
-    }
+      ),
+    );
     return { version: 1, tabs };
   } catch {
     return { version: 1, tabs: [] };
@@ -76,18 +99,15 @@ export function buildRestorableSession(
   tabDesktops: Readonly<Record<string, string>>,
   fallbackDesktopId: string,
 ): RestorableSession {
-  const tabs = snapshot.tabs
-    .filter((tab) => isRestorableUrl(tab.url))
-    .slice(0, MAX_RESTORED_TABS)
-    .map((tab) => ({
-      url: tab.url,
-      desktopId: tabDesktops[tab.id] ?? fallbackDesktopId,
-      active: tab.id === snapshot.activeTabId,
-    }));
-  if (tabs.length > 0 && !tabs.some((tab) => tab.active)) {
-    const first = tabs[0];
-    if (first) first.active = true;
-  }
+  const tabs = normalizeRestorableTabs(
+    snapshot.tabs
+      .filter((tab) => isRestorableUrl(tab.url))
+      .map((tab) => ({
+        url: tab.url,
+        desktopId: tabDesktops[tab.id] ?? fallbackDesktopId,
+        active: tab.id === snapshot.activeTabId,
+      })),
+  );
   return { version: 1, tabs };
 }
 

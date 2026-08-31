@@ -11,6 +11,7 @@
   border-radius: 10px;
   background: #1c1d22;
   margin: 0;
+  overflow: visible;
   padding: 9px 11px 10px;
   color: #f7f7f5;
   box-shadow:
@@ -65,9 +66,12 @@
 }
 
 .action-popover-description {
+  min-width: 0;
   color: #f3f2f6;
   font-size: 11px;
   font-weight: 520;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 @keyframes action-popover-in {
