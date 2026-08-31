@@ -398,6 +398,7 @@ export async function runNewTabReactivationSmoke(
     compactNavigation: string;
     searchEverything: string;
     desktopRow: string;
+    openTabs: LayeredActionPopoverEvidence;
     customize: LayeredActionPopoverEvidence;
     sectionTab: LayeredActionPopoverEvidence;
     sectionToggle: LayeredActionPopoverEvidence;
@@ -538,6 +539,10 @@ export async function runNewTabReactivationSmoke(
         );
         return evidence;
       };
+      const openTabsPopover = await layeredPopoverFor(
+        document.querySelector('[data-dashboard-section="open-tabs"]'),
+        'Open tabs section tab'
+      );
       const sectionTabPopover = await layeredPopoverFor(
         document.querySelector('[data-dashboard-section="history"]'),
         'History section tab'
@@ -581,6 +586,7 @@ export async function runNewTabReactivationSmoke(
       );
       const actionPopovers = {
         ...sidebarActionPopovers,
+        openTabs: openTabsPopover,
         customize: customizePopover,
         sectionTab: sectionTabPopover,
         sectionToggle: sectionTogglePopover,
@@ -635,6 +641,7 @@ export async function runNewTabReactivationSmoke(
         compactNavigation: string;
         searchEverything: string;
         desktopRow: string;
+        openTabs: LayeredActionPopoverEvidence;
         customize: LayeredActionPopoverEvidence;
         sectionTab: LayeredActionPopoverEvidence;
         sectionToggle: LayeredActionPopoverEvidence;
@@ -650,6 +657,7 @@ export async function runNewTabReactivationSmoke(
     };
     const minimumFullHeight = Math.max(300, evidence.windowHeight * 0.5);
     const layeredActionPopovers = [
+      evidence.actionPopovers.openTabs,
       evidence.actionPopovers.customize,
       evidence.actionPopovers.sectionTab,
       evidence.actionPopovers.sectionToggle,
@@ -665,6 +673,8 @@ export async function runNewTabReactivationSmoke(
       !evidence.actionPopovers.compactNavigation.includes("compact navigation") ||
       !evidence.actionPopovers.searchEverything.includes("Search open tabs") ||
       !evidence.actionPopovers.desktopRow.includes("Switch to") ||
+      evidence.actionPopovers.openTabs.description !== "Show the Open tabs dashboard section." ||
+      evidence.actionPopovers.openTabs.placement !== "bottom" ||
       !evidence.actionPopovers.customize.description.includes("Open dashboard customization") ||
       evidence.actionPopovers.sectionTab.description !== "Show the History dashboard section." ||
       evidence.actionPopovers.sectionTab.description.includes("History0") ||

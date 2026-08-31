@@ -928,6 +928,7 @@ export function DashboardSurface({
               aria-current={activeSection === id ? "page" : undefined}
               data-dashboard-section={id}
               data-action-description={`Show the ${SECTION_LABELS[id]} dashboard section`}
+              data-action-popover-placement="bottom"
               onClick={() => setActiveSection(id)}
             >
               <Icon name={SECTION_ICONS[id]} />

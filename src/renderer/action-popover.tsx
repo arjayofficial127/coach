@@ -28,6 +28,13 @@ const HOVER_DELAY_MS = 280;
 
 type Placement = "top" | "right" | "bottom" | "left";
 
+function placementOverride(element: HTMLElement): Placement | null {
+  const value = element.dataset.actionPopoverPlacement;
+  return value === "top" || value === "right" || value === "bottom" || value === "left"
+    ? value
+    : null;
+}
+
 interface PopoverTarget {
   element: HTMLElement;
   description: string;
@@ -232,10 +239,17 @@ export function ActionPopover() {
       const popoverBounds = popover.getBoundingClientRect();
       const margin = 10;
       const gap = 11;
-      const preferred: Placement[] =
+      const defaultPreferred: Placement[] =
         targetBounds.right < window.innerWidth * 0.48
           ? ["right", "bottom", "top", "left"]
           : ["bottom", "top", "left", "right"];
+      const requestedPlacement = placementOverride(target.element);
+      const preferred: Placement[] = requestedPlacement
+        ? [
+            requestedPlacement,
+            ...defaultPreferred.filter((option) => option !== requestedPlacement),
+          ]
+        : defaultPreferred;
       let placement: Placement = preferred[0] ?? "right";
       let candidate = positionCandidate(placement, targetBounds, popoverBounds, gap);
       for (const option of preferred) {
