@@ -1,5 +1,6 @@
 export const actionHelpText = {
   dashboard: "Go to your dashboard",
+  navigationDashboard: "Open Dashboard",
   searchEverything: (shortcut: string) =>
     `Find a tab, desktop, saved link, or webpage. Keyboard shortcut: ${shortcut}`,
   desktopList: (name: string) => `Open the desktop list. You are currently in ${name}`,
@@ -11,10 +12,12 @@ export const actionHelpText = {
   readingQueue: "See webpages you want to read later",
   settings: "Change how Coach Browser looks and works",
   profiles: "Choose a browsing profile or change its privacy settings",
+  connectObsidian: "Connect Obsidian to save webpages as notes",
   workspaceMenu: "Manage your profiles, desktops, tabs, and settings",
   compactNavigation: "Hide the full sidebar and use the smaller icon menu",
   addDesktop: "Create a separate space for another group of tabs and saved links",
   desktop: (name: string) => `Go to ${name} and continue where you left off`,
+  desktopDashboard: (name: string) => `Open ${name} Dashboard`,
   renameDesktop: (name: string) => `Change the name of ${name}`,
   archiveDesktop: (name: string) =>
     `Move ${name} out of the sidebar without deleting its saved information`,

@@ -3365,6 +3365,7 @@ export function LatticeApp() {
             type="button"
             className={surface === "dashboard" ? "navigation-row active" : "navigation-row"}
             aria-current={surface === "dashboard" ? "page" : undefined}
+            data-action-description={actionHelpText.navigationDashboard}
             onClick={showDashboard}
           >
             <span className="navigation-row-icon violet">
@@ -3379,6 +3380,7 @@ export function LatticeApp() {
             type="button"
             className={surface === "browser" ? "navigation-row active" : "navigation-row"}
             aria-current={surface === "browser" ? "page" : undefined}
+            data-action-description={actionHelpText.browse}
             onClick={() => void showBrowser()}
           >
             <span className="navigation-row-icon cyan">
@@ -3397,6 +3399,7 @@ export function LatticeApp() {
                 : "library-row navigation-row"
             }
             aria-current={surface === "pages" ? "page" : undefined}
+            data-action-description={actionHelpText.canvasPages}
             onClick={() => void showCanvasPages()}
           >
             <span className="navigation-row-icon amber">
@@ -3406,12 +3409,13 @@ export function LatticeApp() {
               <strong>Canvas pages</strong>
               <small>Connected thinking space</small>
             </span>
-            <b>{canvasPages.length}</b>
+            <b aria-hidden="true">{canvasPages.length}</b>
           </button>
           <button
             type="button"
             className={surface === "apps" ? "navigation-row active" : "navigation-row"}
             aria-current={surface === "apps" ? "page" : undefined}
+            data-action-description={actionHelpText.runnableApps}
             onClick={showRunnableApps}
           >
             <span className="navigation-row-icon green">
@@ -3433,6 +3437,7 @@ export function LatticeApp() {
             type="button"
             className={surface === "settings" ? "navigation-row active" : "navigation-row"}
             aria-current={surface === "settings" ? "page" : undefined}
+            data-action-description={actionHelpText.settings}
             onClick={() => void showSettings()}
           >
             <span className="navigation-row-icon settings">
@@ -3452,21 +3457,23 @@ export function LatticeApp() {
           type="button"
           className={surface === "library" ? "library-row active" : "library-row"}
           aria-current={surface === "library" ? "page" : undefined}
+          data-action-description={actionHelpText.savedLinks}
           onClick={() => void showLibrary()}
         >
           <Icon name="bookmark" />
           <span>Saved links</span>
-          <b>{links.length}</b>
+          <b aria-hidden="true">{links.length}</b>
         </button>
         <button
           type="button"
           className={surface === "queue" ? "library-row active" : "library-row"}
           aria-current={surface === "queue" ? "page" : undefined}
+          data-action-description={actionHelpText.readingQueue}
           onClick={() => void showReadingQueue()}
         >
           <Icon name="folder" />
           <span>Reading queue</span>
-          <b>{queueCount}</b>
+          <b aria-hidden="true">{queueCount}</b>
         </button>
         <div className="workspace-spacer" />
         <button
@@ -3474,6 +3481,7 @@ export function LatticeApp() {
           className="workspace-profile-button"
           aria-label={activeProfile ? `Open ${activeProfile.name} profile menu` : "Open profiles"}
           aria-expanded={profileMenuOpen}
+          data-action-description={actionHelpText.profiles}
           onClick={() => {
             setWorkspaceMenuOpen(false);
             setBrowserMenuOpen(false);
@@ -3506,7 +3514,11 @@ export function LatticeApp() {
             </span>
           </div>
           {!vault && (
-            <button type="button" onClick={() => void connectVault(false)}>
+            <button
+              type="button"
+              data-action-description={actionHelpText.connectObsidian}
+              onClick={() => void connectVault(false)}
+            >
               Connect
             </button>
           )}
@@ -3531,13 +3543,19 @@ export function LatticeApp() {
             className={surface === "dashboard" ? "desktop-context active" : "desktop-context"}
             type="button"
             aria-current={surface === "dashboard" ? "page" : undefined}
+            aria-label={actionHelpText.desktopDashboard(activeDesktop?.name ?? "Desk 1")}
+            data-action-description={actionHelpText.desktopDashboard(
+              activeDesktop?.name ?? "Desk 1",
+            )}
             onClick={showDashboard}
           >
             <span className={`favicon desktop-tab-icon ${activeDesktop?.color ?? "violet"}`}>
               <Icon name="desktop" />
             </span>
             <span className="desktop-context-name">{activeDesktop?.name ?? "Desk 1"}</span>
-            <span className="desktop-context-count">{desktopTabs.length}</span>
+            <span className="desktop-context-count" aria-hidden="true">
+              {desktopTabs.length}
+            </span>
           </button>
           <div className="tabs-viewport">
             {desktopTabs.map((tab) => (

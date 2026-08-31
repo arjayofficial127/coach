@@ -399,6 +399,14 @@ export async function runNewTabReactivationSmoke(
     compactNavigation: string;
     searchEverything: string;
     desktopRow: string;
+    navigationDashboard: string;
+    navigationBrowse: string;
+    navigationCanvas: string;
+    navigationApps: string;
+    navigationSettings: string;
+    navigationSavedLinks: string;
+    navigationReadingQueue: string;
+    desktopDashboard: string;
     openTabs: LayeredActionPopoverEvidence;
     customize: LayeredActionPopoverEvidence;
     sectionTab: LayeredActionPopoverEvidence;
@@ -486,7 +494,15 @@ export async function runNewTabReactivationSmoke(
       const sidebarActionPopovers = {
         compactNavigation: await popoverFor('.navigation-collapse-button'),
         searchEverything: await popoverFor('.panel-search'),
-        desktopRow: await popoverFor('.desktop-item[data-desktop-id]')
+        desktopRow: await popoverFor('.desktop-item[data-desktop-id]'),
+        navigationDashboard: await popoverFor('.focus-navigation .navigation-row:nth-of-type(1)'),
+        navigationBrowse: await popoverFor('.focus-navigation .navigation-row:nth-of-type(2)'),
+        navigationCanvas: await popoverFor('.focus-navigation .navigation-row:nth-of-type(3)'),
+        navigationApps: await popoverFor('.focus-navigation .navigation-row:nth-of-type(4)'),
+        navigationSettings: await popoverFor('.focus-navigation .navigation-row:nth-of-type(5)'),
+        navigationSavedLinks: await popoverFor('.library-label + .library-row'),
+        navigationReadingQueue: await popoverFor('.library-label + .library-row + .library-row'),
+        desktopDashboard: await popoverFor('.desktop-context')
       };
       const dashboardButton = document.querySelector('.desktop-context');
       if (!(dashboardButton instanceof HTMLButtonElement)) {
@@ -643,6 +659,14 @@ export async function runNewTabReactivationSmoke(
         compactNavigation: string;
         searchEverything: string;
         desktopRow: string;
+        navigationDashboard: string;
+        navigationBrowse: string;
+        navigationCanvas: string;
+        navigationApps: string;
+        navigationSettings: string;
+        navigationSavedLinks: string;
+        navigationReadingQueue: string;
+        desktopDashboard: string;
         openTabs: LayeredActionPopoverEvidence;
         customize: LayeredActionPopoverEvidence;
         sectionTab: LayeredActionPopoverEvidence;
@@ -675,6 +699,16 @@ export async function runNewTabReactivationSmoke(
       !evidence.actionPopovers.compactNavigation.includes("smaller icon menu") ||
       !evidence.actionPopovers.searchEverything.includes("Find a tab") ||
       !evidence.actionPopovers.desktopRow.includes("continue where you left off") ||
+      evidence.actionPopovers.navigationDashboard !== "Open Dashboard." ||
+      evidence.actionPopovers.navigationBrowse !== "Browse the web or type a website address." ||
+      evidence.actionPopovers.navigationCanvas !== "Open your visual notes and connected pages." ||
+      evidence.actionPopovers.navigationApps !==
+        "Open Daily Flow, Pomodoro, Wealth Lab, and your other tools." ||
+      evidence.actionPopovers.navigationSettings !== "Change how Coach Browser looks and works." ||
+      evidence.actionPopovers.navigationSavedLinks !== "See webpages you have saved." ||
+      evidence.actionPopovers.navigationReadingQueue !== "See webpages you want to read later." ||
+      evidence.actionPopovers.desktopDashboard !== "Open Desk 1 Dashboard." ||
+      evidence.actionPopovers.desktopDashboard.includes("Desk 10") ||
       evidence.actionPopovers.openTabs.description !== "Show Open tabs on the dashboard." ||
       evidence.actionPopovers.openTabs.placement !== "bottom" ||
       !evidence.actionPopovers.customize.description.includes("Choose what appears") ||

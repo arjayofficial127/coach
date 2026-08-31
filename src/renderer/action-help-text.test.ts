@@ -4,6 +4,7 @@ import { actionHelpText } from "./action-help-text";
 function examples(): string[] {
   return [
     actionHelpText.dashboard,
+    actionHelpText.navigationDashboard,
     actionHelpText.searchEverything("Ctrl K"),
     actionHelpText.desktopList("Desk 1"),
     actionHelpText.dashboardOverview,
@@ -14,10 +15,12 @@ function examples(): string[] {
     actionHelpText.readingQueue,
     actionHelpText.settings,
     actionHelpText.profiles,
+    actionHelpText.connectObsidian,
     actionHelpText.workspaceMenu,
     actionHelpText.compactNavigation,
     actionHelpText.addDesktop,
     actionHelpText.desktop("Desk 1"),
+    actionHelpText.desktopDashboard("Desk 1"),
     actionHelpText.renameDesktop("Desk 1"),
     actionHelpText.archiveDesktop("Desk 1"),
     actionHelpText.addressBar,
@@ -45,7 +48,7 @@ describe("curated action help text", () => {
   it("states an outcome and stays concise", () => {
     for (const text of examples()) {
       expect(text).toMatch(
-        /^(Browse|Change|Choose|Close|Create|Drag|Find|Go|Hide|Manage|Move|Open|See|Show|Type)\b/,
+        /^(Browse|Change|Choose|Close|Connect|Create|Drag|Find|Go|Hide|Manage|Move|Open|See|Show|Type)\b/,
       );
       expect(text.length).toBeLessThanOrEqual(120);
     }
