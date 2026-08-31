@@ -926,11 +926,13 @@ export function DashboardSurface({
               type="button"
               className={activeSection === id ? "active" : ""}
               aria-current={activeSection === id ? "page" : undefined}
+              data-dashboard-section={id}
+              data-action-description={`Show the ${SECTION_LABELS[id]} dashboard section`}
               onClick={() => setActiveSection(id)}
             >
               <Icon name={SECTION_ICONS[id]} />
               <span>{SECTION_LABELS[id]}</span>
-              <em>{count}</em>
+              <em aria-hidden="true">{count}</em>
             </button>
           );
         })}
@@ -1202,7 +1204,12 @@ export function DashboardSurface({
           >
             <header>
               <strong>Customize dashboard</strong>
-              <button type="button" onClick={() => setCustomizing(false)}>
+              <button
+                type="button"
+                aria-label="Close dashboard customization"
+                data-action-description="Close dashboard customization controls"
+                onClick={() => setCustomizing(false)}
+              >
                 <Icon name="close" />
               </button>
             </header>
@@ -1280,6 +1287,8 @@ export function DashboardSurface({
                       <button
                         type="button"
                         aria-pressed={enabled[id]}
+                        data-dashboard-section-toggle={id}
+                        data-action-description={`${enabled[id] ? "Hide" : "Show"} the ${SECTION_LABELS[id]} dashboard section`}
                         onClick={() => {
                           if (activeSection === id && enabled[id]) setActiveSection("overview");
                           setEnabled((current) => ({ ...current, [id]: !current[id] }));
@@ -1294,6 +1303,8 @@ export function DashboardSurface({
                       role="img"
                       aria-label={`Drag ${SECTION_LABELS[id]} to reorder section tabs`}
                       title="Drag to reorder section tabs"
+                      data-dashboard-section-drag={id}
+                      data-action-description={`Drag ${SECTION_LABELS[id]} to reorder dashboard section tabs`}
                       draggable
                       onDragStart={() => setDraggedSectionId(id)}
                       onDragEnd={() => setDraggedSectionId(null)}

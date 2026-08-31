@@ -18,7 +18,7 @@ export interface ActionDescriptionInput {
 }
 
 const actionLead =
-  /^(add|apply|archive|cancel|capture|change|choose|clear|close|collapse|connect|continue|create|delete|dismiss|download|edit|enter|expand|focus|go|hide|move|open|pause|pin|play|redo|reload|remove|rename|reset|restore|resume|reveal|run|save|search|select|send|set|show|start|stop|switch|toggle|undo|unpin|update|upload|use|view|zoom)\b/i;
+  /^(add|apply|archive|cancel|capture|change|choose|clear|close|collapse|connect|continue|create|delete|dismiss|download|drag|edit|enter|expand|focus|go|hide|move|open|pause|pin|play|redo|reload|remove|rename|reset|restore|resume|reveal|run|save|search|select|send|set|show|start|stop|switch|toggle|undo|unpin|update|upload|use|view|zoom)\b/i;
 
 function normalizeText(value?: string | null): string {
   return value?.replace(/\s+/g, " ").trim() ?? "";

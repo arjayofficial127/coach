@@ -3746,6 +3746,11 @@ export function LatticeApp() {
                 type="button"
                 className="dashboard-toolbar-customize"
                 aria-expanded={dashboardCustomizing}
+                data-action-description={
+                  dashboardCustomizing
+                    ? "Close dashboard customization controls"
+                    : "Open dashboard customization controls"
+                }
                 onClick={() => setDashboardCustomizing((open) => !open)}
               >
                 <Icon name="settings" />

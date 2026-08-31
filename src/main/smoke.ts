@@ -372,6 +372,14 @@ interface DesktopLifecycleDomResult {
   researchSummary: string;
 }
 
+interface LayeredActionPopoverEvidence {
+  description: string;
+  placement: string;
+  topLayer: boolean;
+  topmost: boolean;
+  zIndex: string;
+}
+
 function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
@@ -390,13 +398,11 @@ export async function runNewTabReactivationSmoke(
     compactNavigation: string;
     searchEverything: string;
     desktopRow: string;
-    tab: {
-      description: string;
-      placement: string;
-      topLayer: boolean;
-      topmost: boolean;
-      zIndex: string;
-    };
+    customize: LayeredActionPopoverEvidence;
+    sectionTab: LayeredActionPopoverEvidence;
+    sectionToggle: LayeredActionPopoverEvidence;
+    sectionDrag: LayeredActionPopoverEvidence;
+    tab: LayeredActionPopoverEvidence;
   };
 }> {
   const window = new BrowserWindow({
@@ -490,54 +496,97 @@ export async function runNewTabReactivationSmoke(
           Boolean(document.querySelector('.dashboard-content-shell')),
         'Dashboard did not activate for the tab popover check'
       );
+      const layeredPopoverFor = async (element, label) => {
+        if (!(element instanceof HTMLElement)) throw new Error(label + ' target was not available');
+        element.dispatchEvent(new PointerEvent('pointerover', {
+          bubbles: true,
+          pointerType: 'mouse'
+        }));
+        await waitFor(
+          () => Boolean(document.querySelector('.action-popover')),
+          label + ' action popover did not appear'
+        );
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const popoverElement = document.querySelector('.action-popover');
+        if (!(popoverElement instanceof HTMLElement)) {
+          throw new Error(label + ' action popover was not measurable');
+        }
+        const bounds = popoverElement.getBoundingClientRect();
+        const previousPointerEvents = popoverElement.style.pointerEvents;
+        popoverElement.style.pointerEvents = 'auto';
+        const hit = document.elementFromPoint(
+          bounds.left + bounds.width / 2,
+          bounds.top + bounds.height / 2
+        );
+        popoverElement.style.pointerEvents = previousPointerEvents;
+        const evidence = {
+          description: popoverElement.querySelector('.action-popover-description')
+            ?.textContent?.trim() ?? '',
+          placement: popoverElement.dataset.placement ?? '',
+          topLayer: popoverElement.matches(':popover-open'),
+          topmost: hit === popoverElement || popoverElement.contains(hit),
+          zIndex: getComputedStyle(popoverElement).zIndex
+        };
+        element.dispatchEvent(new PointerEvent('pointerout', {
+          bubbles: true,
+          pointerType: 'mouse',
+          relatedTarget: document.body
+        }));
+        await waitFor(
+          () => !document.querySelector('.action-popover'),
+          label + ' action popover did not close'
+        );
+        return evidence;
+      };
+      const sectionTabPopover = await layeredPopoverFor(
+        document.querySelector('[data-dashboard-section="history"]'),
+        'History section tab'
+      );
+      const customizeButton = document.querySelector('.dashboard-toolbar-customize');
+      const customizePopover = await layeredPopoverFor(customizeButton, 'Customize dashboard');
+      if (!(customizeButton instanceof HTMLButtonElement)) {
+        throw new Error('Customize dashboard button was not available');
+      }
+      customizeButton.click();
+      await waitFor(
+        () => Boolean(document.querySelector('.dashboard-customizer')),
+        'Dashboard customizer did not open'
+      );
+      const sectionTogglePopover = await layeredPopoverFor(
+        document.querySelector('[data-dashboard-section-toggle="history"]'),
+        'History section toggle'
+      );
+      const sectionDragPopover = await layeredPopoverFor(
+        document.querySelector('[data-dashboard-section-drag="history"]'),
+        'History section drag handle'
+      );
+      const closeCustomizerButton = document.querySelector('.dashboard-customizer > header button');
+      if (!(closeCustomizerButton instanceof HTMLButtonElement)) {
+        throw new Error('Close dashboard customizer button was not available');
+      }
+      closeCustomizerButton.click();
+      await waitFor(
+        () => !document.querySelector('.dashboard-customizer'),
+        'Dashboard customizer did not close'
+      );
       const tabPopoverTarget = document.querySelector('.browser-tab .tab-select');
+      const tabPopover = await layeredPopoverFor(tabPopoverTarget, 'Browser tab');
       if (!(tabPopoverTarget instanceof HTMLButtonElement)) {
         throw new Error('Browser tab popover target was not available');
       }
-      tabPopoverTarget.dispatchEvent(new PointerEvent('pointerover', {
-        bubbles: true,
-        pointerType: 'mouse'
-      }));
-      await waitFor(
-        () => Boolean(document.querySelector('.action-popover')),
-        'Tab action popover did not appear'
-      );
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      const tabPopoverElement = document.querySelector('.action-popover');
-      if (!(tabPopoverElement instanceof HTMLElement)) {
-        throw new Error('Tab action popover was not measurable');
-      }
-      const tabPopoverBounds = tabPopoverElement.getBoundingClientRect();
-      const previousPointerEvents = tabPopoverElement.style.pointerEvents;
-      tabPopoverElement.style.pointerEvents = 'auto';
-      const tabPopoverHit = document.elementFromPoint(
-        tabPopoverBounds.left + tabPopoverBounds.width / 2,
-        tabPopoverBounds.top + tabPopoverBounds.height / 2
-      );
-      tabPopoverElement.style.pointerEvents = previousPointerEvents;
-      const tabPopover = {
-        description: tabPopoverElement.querySelector('.action-popover-description')
-          ?.textContent?.trim() ?? '',
-        placement: tabPopoverElement.dataset.placement ?? '',
-        topLayer: tabPopoverElement.matches(':popover-open'),
-        topmost: tabPopoverHit === tabPopoverElement || tabPopoverElement.contains(tabPopoverHit),
-        zIndex: getComputedStyle(tabPopoverElement).zIndex
-      };
-      tabPopoverTarget.dispatchEvent(new PointerEvent('pointerout', {
-        bubbles: true,
-        pointerType: 'mouse',
-        relatedTarget: document.body
-      }));
-      await waitFor(
-        () => !document.querySelector('.action-popover'),
-        'Tab action popover did not close'
-      );
       tabPopoverTarget.click();
       await waitFor(
         () => Boolean(document.querySelector('.new-tab-surface')),
         'New Tab did not reopen after the tab popover check'
       );
-      const actionPopovers = { ...sidebarActionPopovers, tab: tabPopover };
+      const actionPopovers = {
+        ...sidebarActionPopovers,
+        customize: customizePopover,
+        sectionTab: sectionTabPopover,
+        sectionToggle: sectionTogglePopover,
+        sectionDrag: sectionDragPopover,
+        tab: tabPopover
+      };
       const initialTabCount = document.querySelectorAll('.browser-tab').length;
       document.dispatchEvent(
         new KeyboardEvent('keydown', { key: 't', ctrlKey: true, bubbles: true })
@@ -586,13 +635,11 @@ export async function runNewTabReactivationSmoke(
         compactNavigation: string;
         searchEverything: string;
         desktopRow: string;
-        tab: {
-          description: string;
-          placement: string;
-          topLayer: boolean;
-          topmost: boolean;
-          zIndex: string;
-        };
+        customize: LayeredActionPopoverEvidence;
+        sectionTab: LayeredActionPopoverEvidence;
+        sectionToggle: LayeredActionPopoverEvidence;
+        sectionDrag: LayeredActionPopoverEvidence;
+        tab: LayeredActionPopoverEvidence;
       };
     };
     await delay(100);
@@ -602,6 +649,13 @@ export async function runNewTabReactivationSmoke(
       nativeViewHidden: !runtime.isVisible(),
     };
     const minimumFullHeight = Math.max(300, evidence.windowHeight * 0.5);
+    const layeredActionPopovers = [
+      evidence.actionPopovers.customize,
+      evidence.actionPopovers.sectionTab,
+      evidence.actionPopovers.sectionToggle,
+      evidence.actionPopovers.sectionDrag,
+      evidence.actionPopovers.tab,
+    ];
     if (
       evidence.initialHomeHeight < minimumFullHeight ||
       evidence.reactivatedSurfaceHeight < minimumFullHeight ||
@@ -611,11 +665,16 @@ export async function runNewTabReactivationSmoke(
       !evidence.actionPopovers.compactNavigation.includes("compact navigation") ||
       !evidence.actionPopovers.searchEverything.includes("Search open tabs") ||
       !evidence.actionPopovers.desktopRow.includes("Switch to") ||
+      !evidence.actionPopovers.customize.description.includes("Open dashboard customization") ||
+      evidence.actionPopovers.sectionTab.description !== "Show the History dashboard section." ||
+      evidence.actionPopovers.sectionTab.description.includes("History0") ||
+      !evidence.actionPopovers.sectionToggle.description.includes("History dashboard section") ||
+      !evidence.actionPopovers.sectionDrag.description.includes("Drag History") ||
       !evidence.actionPopovers.tab.description.includes("New tab") ||
       evidence.actionPopovers.tab.placement !== "bottom" ||
-      !evidence.actionPopovers.tab.topLayer ||
-      !evidence.actionPopovers.tab.topmost ||
-      evidence.actionPopovers.tab.zIndex !== "2147483647"
+      layeredActionPopovers.some(
+        (popover) => !popover.topLayer || !popover.topmost || popover.zIndex !== "2147483647",
+      )
     ) {
       throw new Error(`New Tab reactivation regression: ${JSON.stringify(evidence)}`);
     }

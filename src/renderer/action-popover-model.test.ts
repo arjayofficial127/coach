@@ -19,6 +19,9 @@ describe("action popover descriptions", () => {
     expect(actionDescription({ kind: "button", text: "Settings & appearance" })).toBe(
       "Activate Settings & appearance.",
     );
+    expect(actionDescription({ kind: "generic", title: "Drag to reorder tabs" })).toBe(
+      "Drag to reorder tabs.",
+    );
   });
 
   it("describes fields and supplies a non-empty fallback for unlabelled controls", () => {

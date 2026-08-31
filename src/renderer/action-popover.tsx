@@ -16,6 +16,7 @@ const ACTION_SELECTOR = [
   "textarea",
   "label",
   "summary",
+  "[draggable='true']",
   "[role='button']",
   "[role='link']",
   "[role='tab']",
