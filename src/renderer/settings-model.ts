@@ -18,10 +18,11 @@ export interface ThemeCatalogEntry {
 }
 
 export interface SettingsPreferences {
-  version: 3;
+  version: 4;
   restoreTabs: boolean;
   activeTheme: ThemeId;
   customTheme: CustomThemePreferences;
+  searchProvider: SearchProviderId;
 }
 
 export const MAX_CUSTOM_THEME_NAME_LENGTH = 40;
@@ -54,10 +55,11 @@ export const DEFAULT_CUSTOM_THEME: CustomThemePreferences = {
 };
 
 export const DEFAULT_SETTINGS: SettingsPreferences = {
-  version: 3,
+  version: 4,
   restoreTabs: true,
   activeTheme: "paper-felt",
   customTheme: DEFAULT_CUSTOM_THEME,
+  searchProvider: "google",
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -103,20 +105,25 @@ export function parseSettingsPreferences(serialized: string | null): SettingsPre
       return { ...DEFAULT_SETTINGS, restoreTabs: candidate.restoreTabs };
     }
 
-    if (candidate.version !== 2 && candidate.version !== 3) return DEFAULT_SETTINGS;
+    if (![2, 3, 4].includes(candidate.version as number)) return DEFAULT_SETTINGS;
     const storedTheme = isThemeId(candidate.activeTheme)
       ? candidate.activeTheme
       : DEFAULT_SETTINGS.activeTheme;
     return {
-      version: 3,
+      version: 4,
       restoreTabs: candidate.restoreTabs,
       activeTheme:
         candidate.version === 2 && storedTheme === "lattice-dark"
           ? DEFAULT_SETTINGS.activeTheme
           : storedTheme,
       customTheme: normalizeCustomTheme(candidate.customTheme),
+      searchProvider: isSearchProviderId(candidate.searchProvider)
+        ? candidate.searchProvider
+        : DEFAULT_SETTINGS.searchProvider,
     };
   } catch {
     return DEFAULT_SETTINGS;
   }
 }
+
+import { isSearchProviderId, type SearchProviderId } from "../shared/lattice-search";

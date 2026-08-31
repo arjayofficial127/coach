@@ -1,18 +1,7 @@
-export function normalizeHttpUrl(input: string): string {
-  const trimmed = input.trim();
-  if (trimmed.length === 0 || trimmed.length > 2048) {
-    throw new Error("Enter a web address up to 2,048 characters.");
-  }
+import { resolveNavigationInput } from "../../shared/lattice-search";
 
-  const candidate = /^[a-z][a-z\d+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  const url = new URL(candidate);
-  if (url.protocol !== "https:") {
-    throw new Error("Only HTTPS addresses are allowed.");
-  }
-  if (!url.hostname) {
-    throw new Error("The address must include a hostname.");
-  }
-  return url.toString();
+export function normalizeHttpUrl(input: string): string {
+  return resolveNavigationInput(input);
 }
 
 export function isAllowedRemoteNavigation(input: string): boolean {

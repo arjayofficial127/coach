@@ -11,7 +11,7 @@ describe("settings preferences", () => {
   it("repairs malformed and unsupported values", () => {
     expect(parseSettingsPreferences(null)).toEqual(DEFAULT_SETTINGS);
     expect(parseSettingsPreferences("not-json")).toEqual(DEFAULT_SETTINGS);
-    expect(parseSettingsPreferences('{"version":4,"restoreTabs":false}')).toEqual(DEFAULT_SETTINGS);
+    expect(parseSettingsPreferences('{"version":5,"restoreTabs":false}')).toEqual(DEFAULT_SETTINGS);
     expect(parseSettingsPreferences('{"version":2,"restoreTabs":"yes"}')).toEqual(DEFAULT_SETTINGS);
   });
 
@@ -45,7 +45,7 @@ describe("settings preferences", () => {
         }),
       ),
     ).toEqual({
-      version: 3,
+      version: 4,
       restoreTabs: true,
       activeTheme: "custom",
       customTheme: {
@@ -56,6 +56,7 @@ describe("settings preferences", () => {
         muted: "#aabbcc",
         accent: "#45aa88",
       },
+      searchProvider: "google",
     });
   });
 
@@ -63,7 +64,7 @@ describe("settings preferences", () => {
     expect(
       parseSettingsPreferences(
         JSON.stringify({
-          version: 3,
+          version: 4,
           restoreTabs: false,
           activeTheme: "missing-theme",
           customTheme: {
@@ -77,7 +78,7 @@ describe("settings preferences", () => {
         }),
       ),
     ).toEqual({
-      version: 3,
+      version: 4,
       restoreTabs: false,
       activeTheme: "paper-felt",
       customTheme: {
@@ -85,6 +86,7 @@ describe("settings preferences", () => {
         surface: "#123456",
         muted: "#abcdef",
       },
+      searchProvider: "google",
     });
   });
 
@@ -96,7 +98,7 @@ describe("settings preferences", () => {
       customTheme: DEFAULT_CUSTOM_THEME,
     });
     const currentDark = JSON.stringify({
-      version: 3,
+      version: 4,
       restoreTabs: true,
       activeTheme: "lattice-dark",
       customTheme: DEFAULT_CUSTOM_THEME,
@@ -104,6 +106,25 @@ describe("settings preferences", () => {
 
     expect(parseSettingsPreferences(legacyDark).activeTheme).toBe("paper-felt");
     expect(parseSettingsPreferences(currentDark).activeTheme).toBe("lattice-dark");
+  });
+
+  it("keeps a supported search provider and repairs an unknown one", () => {
+    expect(
+      parseSettingsPreferences(
+        JSON.stringify({
+          ...DEFAULT_SETTINGS,
+          searchProvider: "duckduckgo",
+        }),
+      ).searchProvider,
+    ).toBe("duckduckgo");
+    expect(
+      parseSettingsPreferences(
+        JSON.stringify({
+          ...DEFAULT_SETTINGS,
+          searchProvider: "missing",
+        }),
+      ).searchProvider,
+    ).toBe("google");
   });
 
   it("normalizes an absent custom palette into a fresh default value", () => {

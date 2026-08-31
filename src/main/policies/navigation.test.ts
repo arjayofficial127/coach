@@ -6,6 +6,13 @@ describe("navigation policy", () => {
     expect(normalizeHttpUrl("example.com")).toBe("https://example.com/");
   });
 
+  it("sends plain words and phrases to web search", () => {
+    expect(normalizeHttpUrl("test")).toBe("https://www.google.com/search?q=test");
+    expect(normalizeHttpUrl("how to focus")).toBe(
+      "https://www.google.com/search?q=how%20to%20focus",
+    );
+  });
+
   it("allows HTTPS and the empty-page sentinel", () => {
     expect(isAllowedRemoteNavigation("https://example.com/path")).toBe(true);
     expect(isAllowedRemoteNavigation("about:blank")).toBe(true);
