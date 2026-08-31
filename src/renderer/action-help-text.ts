@@ -18,6 +18,17 @@ export const actionHelpText = {
   addDesktop: "Create a separate space for another group of tabs and saved links",
   desktop: (name: string) => `Go to ${name} and continue where you left off`,
   desktopDashboard: (name: string) => `Open ${name} Dashboard`,
+  showAllOpenTabs: "Show all open tabs",
+  newDashboardTab: "Open a new tab",
+  dashboardTabGrid: "Show open tabs as cards",
+  dashboardTabList: "Show open tabs as a list",
+  openDashboardTab: (name: string) => `Open ${name}`,
+  pinDashboardTab: (name: string, pinned: boolean) =>
+    pinned ? `Remove ${name} from pinned tabs` : `Keep ${name} pinned for quick access`,
+  favoriteDashboardTab: (name: string, favorite: boolean) =>
+    favorite ? `Remove ${name} from Favorites` : `Save ${name} to Favorites`,
+  moveDashboardTab: (name: string) => `Drag ${name} to change its position`,
+  closeDashboardTab: (name: string) => `Close ${name}`,
   renameDesktop: (name: string) => `Change the name of ${name}`,
   archiveDesktop: (name: string) =>
     `Move ${name} out of the sidebar without deleting its saved information`,

@@ -407,6 +407,12 @@ export async function runNewTabReactivationSmoke(
     navigationSavedLinks: string;
     navigationReadingQueue: string;
     desktopDashboard: string;
+    dashboardTab: LayeredActionPopoverEvidence;
+    dashboardTabPin: LayeredActionPopoverEvidence;
+    dashboardTabFavorite: LayeredActionPopoverEvidence;
+    dashboardTabMove: LayeredActionPopoverEvidence;
+    dashboardTabOpen: LayeredActionPopoverEvidence;
+    dashboardTabClose: LayeredActionPopoverEvidence;
     openTabs: LayeredActionPopoverEvidence;
     customize: LayeredActionPopoverEvidence;
     sectionTab: LayeredActionPopoverEvidence;
@@ -561,6 +567,30 @@ export async function runNewTabReactivationSmoke(
         document.querySelector('[data-dashboard-section="open-tabs"]'),
         'Open tabs section tab'
       );
+      const dashboardTabPopover = await layeredPopoverFor(
+        document.querySelector('.dashboard-tab-card'),
+        'Dashboard open tab card'
+      );
+      const dashboardTabPinPopover = await layeredPopoverFor(
+        document.querySelector('.dashboard-tab-card [aria-label="Pin tab"]'),
+        'Dashboard open tab pin action'
+      );
+      const dashboardTabFavoritePopover = await layeredPopoverFor(
+        document.querySelector('.dashboard-tab-card [aria-label="Add favorite"]'),
+        'Dashboard open tab favorite action'
+      );
+      const dashboardTabMovePopover = await layeredPopoverFor(
+        document.querySelector('.dashboard-tab-card .dashboard-tab-drag'),
+        'Dashboard open tab move action'
+      );
+      const dashboardTabOpenPopover = await layeredPopoverFor(
+        document.querySelector('.dashboard-tab-card [aria-label="Open tab"]'),
+        'Dashboard open tab open action'
+      );
+      const dashboardTabClosePopover = await layeredPopoverFor(
+        document.querySelector('.dashboard-tab-card [aria-label="Close tab"]'),
+        'Dashboard open tab close action'
+      );
       const sectionTabPopover = await layeredPopoverFor(
         document.querySelector('[data-dashboard-section="history"]'),
         'History section tab'
@@ -604,6 +634,12 @@ export async function runNewTabReactivationSmoke(
       );
       const actionPopovers = {
         ...sidebarActionPopovers,
+        dashboardTab: dashboardTabPopover,
+        dashboardTabPin: dashboardTabPinPopover,
+        dashboardTabFavorite: dashboardTabFavoritePopover,
+        dashboardTabMove: dashboardTabMovePopover,
+        dashboardTabOpen: dashboardTabOpenPopover,
+        dashboardTabClose: dashboardTabClosePopover,
         openTabs: openTabsPopover,
         customize: customizePopover,
         sectionTab: sectionTabPopover,
@@ -667,6 +703,12 @@ export async function runNewTabReactivationSmoke(
         navigationSavedLinks: string;
         navigationReadingQueue: string;
         desktopDashboard: string;
+        dashboardTab: LayeredActionPopoverEvidence;
+        dashboardTabPin: LayeredActionPopoverEvidence;
+        dashboardTabFavorite: LayeredActionPopoverEvidence;
+        dashboardTabMove: LayeredActionPopoverEvidence;
+        dashboardTabOpen: LayeredActionPopoverEvidence;
+        dashboardTabClose: LayeredActionPopoverEvidence;
         openTabs: LayeredActionPopoverEvidence;
         customize: LayeredActionPopoverEvidence;
         sectionTab: LayeredActionPopoverEvidence;
@@ -683,6 +725,12 @@ export async function runNewTabReactivationSmoke(
     };
     const minimumFullHeight = Math.max(300, evidence.windowHeight * 0.5);
     const layeredActionPopovers = [
+      evidence.actionPopovers.dashboardTab,
+      evidence.actionPopovers.dashboardTabPin,
+      evidence.actionPopovers.dashboardTabFavorite,
+      evidence.actionPopovers.dashboardTabMove,
+      evidence.actionPopovers.dashboardTabOpen,
+      evidence.actionPopovers.dashboardTabClose,
       evidence.actionPopovers.openTabs,
       evidence.actionPopovers.customize,
       evidence.actionPopovers.sectionTab,
@@ -709,6 +757,15 @@ export async function runNewTabReactivationSmoke(
       evidence.actionPopovers.navigationReadingQueue !== "See webpages you want to read later." ||
       evidence.actionPopovers.desktopDashboard !== "Open Desk 1 Dashboard." ||
       evidence.actionPopovers.desktopDashboard.includes("Desk 10") ||
+      evidence.actionPopovers.dashboardTab.description !== "Open New tab." ||
+      evidence.actionPopovers.dashboardTab.description.includes("Ready to browse") ||
+      evidence.actionPopovers.dashboardTabPin.description !==
+        "Keep New tab pinned for quick access." ||
+      evidence.actionPopovers.dashboardTabFavorite.description !== "Save New tab to Favorites." ||
+      evidence.actionPopovers.dashboardTabMove.description !==
+        "Drag New tab to change its position." ||
+      evidence.actionPopovers.dashboardTabOpen.description !== "Open New tab." ||
+      evidence.actionPopovers.dashboardTabClose.description !== "Close New tab." ||
       evidence.actionPopovers.openTabs.description !== "Show Open tabs on the dashboard." ||
       evidence.actionPopovers.openTabs.placement !== "bottom" ||
       !evidence.actionPopovers.customize.description.includes("Choose what appears") ||

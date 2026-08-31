@@ -981,7 +981,11 @@ export function DashboardSurface({
       {(activeSection === "overview" || activeSection === "open-tabs") && (
         <section className="dashboard-open-tabs">
           <header className="dashboard-section-header">
-            <button type="button" onClick={() => setActiveSection("open-tabs")}>
+            <button
+              type="button"
+              data-action-description={actionHelpText.showAllOpenTabs}
+              onClick={() => setActiveSection("open-tabs")}
+            >
               Open tabs
             </button>
             <div className="dashboard-tab-tools">
@@ -990,6 +994,7 @@ export function DashboardSurface({
                 type="button"
                 onClick={onNewTab}
                 aria-label="Open new tab"
+                data-action-description={actionHelpText.newDashboardTab}
               >
                 <Icon name="plus" />
               </button>
@@ -999,6 +1004,7 @@ export function DashboardSurface({
                   className={tabViewMode === "grid" ? "active" : ""}
                   aria-label="Grid view"
                   aria-pressed={tabViewMode === "grid"}
+                  data-action-description={actionHelpText.dashboardTabGrid}
                   onClick={() => setTabViewMode("grid")}
                 >
                   <Icon name="grid" />
@@ -1008,18 +1014,24 @@ export function DashboardSurface({
                   className={tabViewMode === "list" ? "active" : ""}
                   aria-label="List view"
                   aria-pressed={tabViewMode === "list"}
+                  data-action-description={actionHelpText.dashboardTabList}
                   onClick={() => setTabViewMode("list")}
                 >
                   <Icon name="library" />
                 </button>
               </div>
-              <button type="button" onClick={() => setActiveSection("open-tabs")}>
+              <button
+                type="button"
+                data-action-description={actionHelpText.showAllOpenTabs}
+                onClick={() => setActiveSection("open-tabs")}
+              >
                 See all
               </button>
               <button
                 type="button"
                 onClick={() => setActiveSection("open-tabs")}
                 aria-label="See all open tabs"
+                data-action-description={actionHelpText.showAllOpenTabs}
               >
                 {sectionCounts["open-tabs"]}
               </button>
@@ -1032,6 +1044,8 @@ export function DashboardSurface({
                 key={tab.id}
                 type="button"
                 draggable
+                aria-label={actionHelpText.openDashboardTab(tab.title || "New tab")}
+                data-action-description={actionHelpText.openDashboardTab(tab.title || "New tab")}
                 onDragStart={() => setDraggedTabId(tab.id)}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={() => moveTab(tab.id)}
@@ -1070,6 +1084,10 @@ export function DashboardSurface({
                     tabIndex={0}
                     className="dashboard-tab-action"
                     aria-label={pinnedTabIds.includes(tab.id) ? "Unpin tab" : "Pin tab"}
+                    data-action-description={actionHelpText.pinDashboardTab(
+                      tab.title || "New tab",
+                      pinnedTabIds.includes(tab.id),
+                    )}
                     onClick={(event) => {
                       event.stopPropagation();
                       togglePinned(tab.id);
@@ -1091,6 +1109,10 @@ export function DashboardSurface({
                     aria-label={
                       highlightedUrls.includes(tab.url) ? "Remove favorite" : "Add favorite"
                     }
+                    data-action-description={actionHelpText.favoriteDashboardTab(
+                      tab.title || "New tab",
+                      highlightedUrls.includes(tab.url),
+                    )}
                     onClick={(event) => {
                       event.stopPropagation();
                       toggleHighlight(tab.url, tab.title || displayHost(tab.url));
@@ -1104,7 +1126,14 @@ export function DashboardSurface({
                   >
                     {highlightedUrls.includes(tab.url) ? "★" : "☆"}
                   </span>
-                  <span className="dashboard-tab-drag" role="img" aria-label="Drag to reorder">
+                  <span
+                    className="dashboard-tab-drag"
+                    role="img"
+                    aria-label="Drag to reorder"
+                    data-action-description={actionHelpText.moveDashboardTab(
+                      tab.title || "New tab",
+                    )}
+                  >
                     <Icon name="move" />
                   </span>
                   {/* biome-ignore lint/a11y/useSemanticElements: a real button cannot be nested inside the tab-card button */}
@@ -1113,6 +1142,9 @@ export function DashboardSurface({
                     tabIndex={0}
                     className="dashboard-tab-action"
                     aria-label="Open tab"
+                    data-action-description={actionHelpText.openDashboardTab(
+                      tab.title || "New tab",
+                    )}
                     onClick={(event) => {
                       event.stopPropagation();
                       onOpenTab(tab);
@@ -1132,6 +1164,9 @@ export function DashboardSurface({
                     tabIndex={0}
                     className="dashboard-tab-action"
                     aria-label="Close tab"
+                    data-action-description={actionHelpText.closeDashboardTab(
+                      tab.title || "New tab",
+                    )}
                     onClick={(event) => {
                       event.stopPropagation();
                       onCloseTab(tab);

@@ -21,6 +21,17 @@ function examples(): string[] {
     actionHelpText.addDesktop,
     actionHelpText.desktop("Desk 1"),
     actionHelpText.desktopDashboard("Desk 1"),
+    actionHelpText.showAllOpenTabs,
+    actionHelpText.newDashboardTab,
+    actionHelpText.dashboardTabGrid,
+    actionHelpText.dashboardTabList,
+    actionHelpText.openDashboardTab("New tab"),
+    actionHelpText.pinDashboardTab("New tab", false),
+    actionHelpText.pinDashboardTab("New tab", true),
+    actionHelpText.favoriteDashboardTab("New tab", false),
+    actionHelpText.favoriteDashboardTab("New tab", true),
+    actionHelpText.moveDashboardTab("New tab"),
+    actionHelpText.closeDashboardTab("New tab"),
     actionHelpText.renameDesktop("Desk 1"),
     actionHelpText.archiveDesktop("Desk 1"),
     actionHelpText.addressBar,
@@ -48,7 +59,7 @@ describe("curated action help text", () => {
   it("states an outcome and stays concise", () => {
     for (const text of examples()) {
       expect(text).toMatch(
-        /^(Browse|Change|Choose|Close|Connect|Create|Drag|Find|Go|Hide|Manage|Move|Open|See|Show|Type)\b/,
+        /^(Browse|Change|Choose|Close|Connect|Create|Drag|Find|Go|Hide|Keep|Manage|Move|Open|Remove|Save|See|Show|Type)\b/,
       );
       expect(text.length).toBeLessThanOrEqual(120);
     }
