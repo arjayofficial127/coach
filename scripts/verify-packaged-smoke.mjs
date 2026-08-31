@@ -269,7 +269,9 @@ if (
   evidence.navigation?.newTabShortcutCount !== 5 ||
   evidence.navigation?.newTabContinueItemCount < 1 ||
   evidence.navigation?.newTabQuickAccessCount !== 6 ||
-  !evidence.navigation?.quickCaptureVisible ||
+  evidence.navigation?.newTabLatticeBarCount !== 1 ||
+  !evidence.navigation?.newTabQuickCaptureAbsent ||
+  !evidence.navigation?.newTabBrowserToolbarHidden ||
   evidence.navigation?.capturedInboxCount < 1 ||
   !evidence.navigation?.capturedNoteVisibleInInbox ||
   !evidence.navigation?.newTabNativeViewHidden ||

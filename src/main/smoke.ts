@@ -115,7 +115,9 @@ export interface PhaseNineSmokeEvidence {
     newTabShortcutCount: number;
     newTabContinueItemCount: number;
     newTabQuickAccessCount: number;
-    quickCaptureVisible: boolean;
+    newTabLatticeBarCount: number;
+    newTabQuickCaptureAbsent: boolean;
+    newTabBrowserToolbarHidden: boolean;
     capturedInboxCount: number;
     capturedNoteVisibleInInbox: boolean;
     newTabNativeViewHidden: boolean;
@@ -395,7 +397,7 @@ export async function runNewTabReactivationSmoke(
   reactivatedSurfaceHeight: number;
   rendererReportedHeight: number;
   windowHeight: number;
-  browserToolbarVisible: boolean;
+  browserToolbarHidden: boolean;
   nativeViewHidden: boolean;
   screenshotPath: string;
   screenshotBytes: number;
@@ -404,8 +406,15 @@ export async function runNewTabReactivationSmoke(
     shortcutCount: number;
     continuePanel: boolean;
     quickAccessCount: number;
-    quickCaptureHeading: string;
-    searchVisible: boolean;
+    latticeBarCount: number;
+    quickCaptureAbsent: boolean;
+    searchPlaceholder: string;
+  };
+  intentChecks: {
+    googleSearch: boolean;
+    youtubeSearch: boolean;
+    saveAsNote: boolean;
+    oneControlInNoteMode: boolean;
   };
   reactivatedLaunchpadVisible: boolean;
   actionPopovers: {
@@ -491,9 +500,10 @@ export async function runNewTabReactivationSmoke(
         shortcutCount: document.querySelectorAll('.new-tab-shortcut').length,
         continuePanel: Boolean(document.querySelector('.new-tab-continue-card')),
         quickAccessCount: document.querySelectorAll('.new-tab-quick-access-grid > button').length,
-        quickCaptureHeading: document.querySelector('.quick-note header strong')
-          ?.textContent?.trim() ?? '',
-        searchVisible: Boolean(document.querySelector('.new-tab-search input'))
+        latticeBarCount: document.querySelectorAll('.new-tab-search input, .new-tab-search textarea').length,
+        quickCaptureAbsent: !document.querySelector('.quick-note'),
+        searchPlaceholder: document.querySelector('.new-tab-search input')
+          ?.getAttribute('placeholder') ?? ''
       };
       const popoverFor = async (selector) => {
         const element = document.querySelector(selector);
@@ -654,6 +664,66 @@ export async function runNewTabReactivationSmoke(
         () => Boolean(document.querySelector('.new-tab-surface')),
         'New Tab did not reopen after the tab popover check'
       );
+      const setLatticeValue = (value) => {
+        const control = document.querySelector('.new-tab-search input, .new-tab-search textarea');
+        if (!(control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement)) {
+          throw new Error('Lattice Bar control was not available');
+        }
+        const prototype = control instanceof HTMLInputElement
+          ? HTMLInputElement.prototype
+          : HTMLTextAreaElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
+        if (!setter) throw new Error('Lattice Bar value setter was unavailable');
+        setter.call(control, value);
+        control.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      setLatticeValue('test');
+      await waitFor(
+        () => document.querySelector('.lattice-web-primary strong')?.textContent?.includes('Google') &&
+          Boolean(document.querySelector('.lattice-save-note-action')),
+        'Plain text did not produce Google and note actions'
+      );
+      const googleSearch = document.querySelector('.lattice-web-primary strong')
+        ?.textContent?.includes('Search Google for') ?? false;
+      const saveAsNote = document.querySelector('.lattice-save-note-action strong')
+        ?.textContent?.includes('Save “test” as a note') ?? false;
+      setLatticeValue('youtube how to focus');
+      await waitFor(
+        () => document.querySelector('.lattice-web-primary strong')
+          ?.textContent?.includes('Search YouTube for'),
+        'Named YouTube intent did not appear'
+      );
+      const youtubeSearch = document.querySelector('.lattice-web-primary strong')
+        ?.textContent?.includes('Search YouTube for “how to focus”') ?? false;
+      setLatticeValue('remember this idea');
+      await waitFor(
+        () => Boolean(document.querySelector('.lattice-save-note-action')),
+        'Save-as-note action did not appear'
+      );
+      const noteAction = document.querySelector('.lattice-save-note-action');
+      if (!(noteAction instanceof HTMLButtonElement)) throw new Error('Save-as-note action missing');
+      noteAction.click();
+      await waitFor(
+        () => Boolean(document.querySelector('.new-tab-search.note-mode textarea')),
+        'The Lattice Bar did not enter note mode'
+      );
+      const oneControlInNoteMode =
+        document.querySelectorAll('.new-tab-search input, .new-tab-search textarea').length === 1 &&
+        !document.querySelector('.quick-note');
+      const backToSearch = [...document.querySelectorAll('.lattice-note-context button')]
+        .find((button) => button.textContent?.includes('Back to search'));
+      if (!(backToSearch instanceof HTMLButtonElement)) throw new Error('Back to search missing');
+      backToSearch.click();
+      await waitFor(
+        () => Boolean(document.querySelector('.new-tab-search input')),
+        'The Lattice Bar did not leave note mode'
+      );
+      setLatticeValue('');
+      await waitFor(
+        () => Boolean(document.querySelector('.new-tab-overview-grid')),
+        'The New Tab overview did not return after clearing the query'
+      );
+      const intentChecks = { googleSearch, youtubeSearch, saveAsNote, oneControlInNoteMode };
       const actionPopovers = {
         ...sidebarActionPopovers,
         dashboardTab: dashboardTabPopover,
@@ -675,8 +745,9 @@ export async function runNewTabReactivationSmoke(
       );
       await waitFor(
         () => document.querySelectorAll('.browser-tab').length > initialTabCount &&
-          Boolean(document.querySelector('.browser-toolbar')),
-        'Ctrl+T did not create a browser New Tab'
+          Boolean(document.querySelector('.new-tab-surface')) &&
+          !document.querySelector('.browser-toolbar'),
+        'Ctrl+T did not create the one-input New Tab'
       );
       const activeTab = document.querySelector('.browser-tab.active');
       const returnButton = activeTab?.querySelector('.tab-select');
@@ -705,8 +776,9 @@ export async function runNewTabReactivationSmoke(
         reactivatedSurfaceHeight: document.querySelector('.new-tab-surface')
           ?.getBoundingClientRect().height ?? 0,
         windowHeight: window.innerHeight,
-        browserToolbarVisible: Boolean(document.querySelector('.browser-toolbar')),
+        browserToolbarHidden: !document.querySelector('.browser-toolbar'),
         newTabLaunchpad,
+        intentChecks,
         reactivatedLaunchpadVisible:
           Boolean(document.querySelector('.new-tab-continue-card')) &&
           document.querySelectorAll('.new-tab-quick-access-grid > button').length === 6,
@@ -716,14 +788,21 @@ export async function runNewTabReactivationSmoke(
       initialHomeHeight: number;
       reactivatedSurfaceHeight: number;
       windowHeight: number;
-      browserToolbarVisible: boolean;
+      browserToolbarHidden: boolean;
       newTabLaunchpad: {
         heading: string;
         shortcutCount: number;
         continuePanel: boolean;
         quickAccessCount: number;
-        quickCaptureHeading: string;
-        searchVisible: boolean;
+        latticeBarCount: number;
+        quickCaptureAbsent: boolean;
+        searchPlaceholder: string;
+      };
+      intentChecks: {
+        googleSearch: boolean;
+        youtubeSearch: boolean;
+        saveAsNote: boolean;
+        oneControlInNoteMode: boolean;
       };
       reactivatedLaunchpadVisible: boolean;
       actionPopovers: {
@@ -755,6 +834,23 @@ export async function runNewTabReactivationSmoke(
     await delay(100);
     window.setContentSize(1_536, 1_024);
     await delay(100);
+    await window.webContents.executeJavaScript(`(async () => {
+      const input = document.querySelector('.new-tab-search input');
+      if (!(input instanceof HTMLInputElement)) {
+        throw new Error('Lattice Bar input was unavailable for visual evidence');
+      }
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      setter?.call(input, 'youtube how to focus');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      const deadline = Date.now() + 2000;
+      while (!document.querySelector('.lattice-bar-results') && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      if (!document.querySelector('.lattice-bar-results')) {
+        throw new Error('Lattice Bar results were unavailable for visual evidence');
+      }
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    })()`);
     window.setSkipTaskbar(true);
     window.showInactive();
     await delay(100);
@@ -792,15 +888,20 @@ export async function runNewTabReactivationSmoke(
       evidence.initialHomeHeight < minimumFullHeight ||
       evidence.reactivatedSurfaceHeight < minimumFullHeight ||
       evidence.rendererReportedHeight < minimumFullHeight ||
-      !evidence.browserToolbarVisible ||
+      !evidence.browserToolbarHidden ||
       !evidence.nativeViewHidden ||
       evidence.screenshotBytes < 100 ||
       !evidence.newTabLaunchpad.heading.includes("What will we explore today?") ||
       evidence.newTabLaunchpad.shortcutCount !== 5 ||
       !evidence.newTabLaunchpad.continuePanel ||
       evidence.newTabLaunchpad.quickAccessCount !== 6 ||
-      evidence.newTabLaunchpad.quickCaptureHeading !== "Quick capture" ||
-      !evidence.newTabLaunchpad.searchVisible ||
+      evidence.newTabLaunchpad.latticeBarCount !== 1 ||
+      !evidence.newTabLaunchpad.quickCaptureAbsent ||
+      !evidence.newTabLaunchpad.searchPlaceholder.includes("Search this desk") ||
+      !evidence.intentChecks.googleSearch ||
+      !evidence.intentChecks.youtubeSearch ||
+      !evidence.intentChecks.saveAsNote ||
+      !evidence.intentChecks.oneControlInNoteMode ||
       !evidence.reactivatedLaunchpadVisible ||
       !evidence.actionPopovers.compactNavigation.includes("smaller icon menu") ||
       !evidence.actionPopovers.searchEverything.includes("Find a tab") ||
@@ -1312,8 +1413,8 @@ export async function runPhaseNineSmoke(
     while (Date.now() < browserRestoreDeadline && !runtime.isVisible()) await delay(25);
     const browserRestoredAfterShortcuts = runtime.isVisible();
 
-    // The New Tab is a calm launchpad: search, web shortcuts, live continuation,
-    // six stable destinations, and durable capture into Daily Flow's Inbox.
+    // The New Tab is a single intelligent launchpad: local and web search, shortcuts,
+    // live continuation, and durable note capture into Daily Flow's Inbox.
     await window.webContents.executeJavaScript(
       `document.dispatchEvent(new KeyboardEvent("keydown", { key: "t", ctrlKey: true, bubbles: true }))`,
     );
@@ -1351,7 +1452,7 @@ export async function runPhaseNineSmoke(
       const surface = document.querySelector('.new-tab-surface');
       const bounds = surface?.getBoundingClientRect();
       return Boolean(
-        document.querySelector('.browser-toolbar') &&
+        !document.querySelector('.browser-toolbar') &&
         bounds &&
         bounds.height >= Math.max(300, window.innerHeight * 0.5)
       );
@@ -1364,34 +1465,68 @@ export async function runPhaseNineSmoke(
       while (!document.querySelector('.new-tab-surface') && Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 25));
       }
-      const note = document.querySelector('.quick-note textarea');
-      if (!(note instanceof HTMLTextAreaElement)) throw new Error("Quick capture note missing");
-      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
-      setter?.call(note, "Review the browser inbox architecture");
-      note.dispatchEvent(new Event("input", { bubbles: true }));
+      const input = document.querySelector('.new-tab-search input');
+      if (!(input instanceof HTMLInputElement)) throw new Error("Lattice Bar input missing");
+      const inputSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      inputSetter?.call(input, "Review the browser inbox architecture");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
       await new Promise((resolve) => setTimeout(resolve, 30));
-      const capture = document.querySelector('.quick-note-submit-group > button');
+      const saveAsNote = document.querySelector('.lattice-save-note-action');
+      if (!(saveAsNote instanceof HTMLButtonElement)) {
+        throw new Error("Save as note action unavailable");
+      }
+      saveAsNote.click();
+      const noteModeDeadline = Date.now() + 1000;
+      while (!document.querySelector('.new-tab-search.note-mode textarea') &&
+        Date.now() < noteModeDeadline) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      const note = document.querySelector('.new-tab-search.note-mode textarea');
+      if (!(note instanceof HTMLTextAreaElement) ||
+          note.value !== "Review the browser inbox architecture") {
+        throw new Error("Lattice Bar note mode did not preserve the thought");
+      }
+      const capture = document.querySelector('.lattice-bar-submit');
       if (!(capture instanceof HTMLButtonElement) || capture.disabled) {
-        throw new Error("Quick capture action unavailable");
+        throw new Error("Save note action unavailable");
       }
       capture.click();
-      await new Promise((resolve) => setTimeout(resolve, 75));
-      const waiting = document.querySelector('.quick-note-inbox span')?.textContent ?? "";
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const storageKey = Object.keys(localStorage).find((key) =>
+        key.startsWith('lattice.runnable-apps.v1.profile.')
+      );
+      const stored = storageKey ? JSON.parse(localStorage.getItem(storageKey) ?? '{}') : {};
+      const items = Array.isArray(stored?.bulletJournal?.items)
+        ? stored.bulletJournal.items
+        : [];
+      const capturedNoteVisibleInInbox = items.some((item) =>
+        item?.original?.text === "Review the browser inbox architecture" &&
+        item?.original?.kind === "note" &&
+        Array.isArray(item?.activity) &&
+        item.activity.length === 0
+      );
       return {
         newTabHeading: document.querySelector('.new-tab-heading h1')?.textContent?.trim() ?? "",
         newTabShortcutCount: document.querySelectorAll('.new-tab-shortcut').length,
         newTabContinueItemCount: document.querySelectorAll('.new-tab-continue-list > button').length,
         newTabQuickAccessCount: document.querySelectorAll('.new-tab-quick-access-grid > button').length,
-        quickCaptureVisible: Boolean(document.querySelector('.quick-note')),
-        capturedInboxCount: Number.parseInt(waiting, 10) || 0
+        newTabLatticeBarCount: document.querySelectorAll('.new-tab-search').length,
+        newTabQuickCaptureAbsent: !document.querySelector('.quick-note'),
+        newTabBrowserToolbarHidden: !document.querySelector('.browser-toolbar'),
+        capturedInboxCount: items.length,
+        capturedNoteVisibleInInbox
       };
     })()`)) as {
       newTabHeading: string;
       newTabShortcutCount: number;
       newTabContinueItemCount: number;
       newTabQuickAccessCount: number;
-      quickCaptureVisible: boolean;
+      newTabLatticeBarCount: number;
+      newTabQuickCaptureAbsent: boolean;
+      newTabBrowserToolbarHidden: boolean;
       capturedInboxCount: number;
+      capturedNoteVisibleInInbox: boolean;
     };
 
     window.setSkipTaskbar(true);
@@ -1403,19 +1538,6 @@ export async function runPhaseNineSmoke(
     const newTabScreenshotPath = path.join(smokeRoot, "phase-16-new-tab.png");
     await writeFile(newTabScreenshotPath, newTabScreenshot);
     window.hide();
-
-    const capturedNoteVisibleInInbox = (await window.webContents.executeJavaScript(`(async () => {
-      const openInbox = document.querySelector('.quick-note-inbox');
-      if (!(openInbox instanceof HTMLButtonElement)) throw new Error("Capture Inbox action missing");
-      openInbox.click();
-      const deadline = Date.now() + 2000;
-      while (!document.querySelector('.journal-items') && Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 25));
-      }
-      return [...document.querySelectorAll('[data-journal-item]')].some((item) =>
-        item.textContent?.includes('Review the browser inbox architecture')
-      );
-    })()`)) as boolean;
 
     await window.webContents.executeJavaScript(
       `document.dispatchEvent(new KeyboardEvent("keydown", { key: "w", ctrlKey: true, bubbles: true }))`,
@@ -2896,7 +3018,6 @@ export async function runPhaseNineSmoke(
         shortcutRouteSequence,
         browserRestoredAfterShortcuts,
         ...newTabDom,
-        capturedNoteVisibleInInbox,
         newTabNativeViewHidden,
         newTabNativeViewHiddenAfterReactivation,
         newTabReactivationPreservedLayout,

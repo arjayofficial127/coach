@@ -327,7 +327,9 @@ if (
   smoke.navigation?.newTabShortcutCount !== 5 ||
   smoke.navigation?.newTabContinueItemCount < 1 ||
   smoke.navigation?.newTabQuickAccessCount !== 6 ||
-  !smoke.navigation?.quickCaptureVisible ||
+  smoke.navigation?.newTabLatticeBarCount !== 1 ||
+  !smoke.navigation?.newTabQuickCaptureAbsent ||
+  !smoke.navigation?.newTabBrowserToolbarHidden ||
   smoke.navigation?.capturedInboxCount < 1 ||
   !smoke.navigation?.capturedNoteVisibleInInbox
 ) {

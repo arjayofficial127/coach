@@ -35,8 +35,9 @@ export const actionHelpText = {
   addressBar: "Type a website address or search term, then press Enter",
   dashboardCustomization: (open: boolean) =>
     open ? "Close dashboard customization" : "Choose what appears on your dashboard",
-  newTabSearch: "Type a website address or search term, then press Enter or choose Search",
-  newTabSearchButton: "Search the web or open this address",
+  newTabSearch:
+    "Type to find this desk, search the web, open a website, find a file, or keep a note",
+  newTabSearchButton: "Open the best website or web search for what you typed",
   newTabShortcut: (name: string) => `Open ${name}`,
   manageNewTabShortcuts: "Open saved links to add or manage shortcuts",
   continueNewTabItem: (name: string) => `Continue with ${name}`,
@@ -45,6 +46,15 @@ export const actionHelpText = {
   quickCaptureNote: "Type a note to save in your Daily Flow Inbox",
   captureQuickNote: "Save this note in your Daily Flow Inbox",
   openQuickCaptureInbox: "Open your Daily Flow Inbox",
+  latticeNoteEditor: "Type or expand the note you want to keep in your Daily Flow Inbox",
+  searchProvider: (name: string) => `Use ${name} for ordinary web searches`,
+  clearSearchHistory:
+    "Remove recent addresses used for private website suggestions in this profile",
+  openWebResult: (name: string) => `Open ${name}`,
+  openWebsite: (name: string) => `Open ${name}`,
+  revealSearchFile: (name: string) => `Reveal ${name} in its folder`,
+  saveSearchAsNote: (text: string) =>
+    `Save “${text.slice(0, 60)}” as a note in your Daily Flow Inbox`,
   commandSearch: "Type to find a tab, desktop, saved link, app command, or webpage",
   dashboardSection: (name: string) => `Show ${name} on the dashboard`,
   dashboardSectionToggle: (name: string, shown: boolean) =>

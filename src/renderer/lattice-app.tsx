@@ -1,6 +1,7 @@
 import {
   type CSSProperties,
   type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -20,8 +21,17 @@ import type {
   ShellAppearance,
   ShellCommand,
   VaultInfo,
+  VaultReferenceEntry,
   VaultReferenceIndex,
 } from "../shared/contracts";
+import {
+  providerById,
+  resolveSearchIntent,
+  SEARCH_PROVIDERS,
+  type SearchIntent,
+  TRUSTED_SITES,
+  type TrustedSite,
+} from "../shared/lattice-search";
 import {
   clampZoomPercent,
   DEFAULT_ZOOM_PERCENT,
@@ -56,6 +66,14 @@ import {
   surfaceDetails,
 } from "./focus-model";
 import { Icon, type IconName } from "./icon";
+import {
+  type LatticeSearchDocument,
+  type LearnedSite,
+  learnSitesFromHistory,
+  parseStoredHistory,
+  rankLatticeDocuments,
+  serializeStoredHistory,
+} from "./lattice-search-model";
 import {
   canPersistProfileShell,
   profileStorageKey,
@@ -110,6 +128,7 @@ const SETTINGS_STORAGE_KEY = "lattice.settings.v2";
 const LEGACY_SETTINGS_STORAGE_KEY = "lattice.settings.v1";
 const ZOOM_STORAGE_KEY = "lattice.shell-zoom.v1";
 const NAVIGATION_STORAGE_KEY = "lattice.navigation-mode.v1";
+const BROWSER_HISTORY_STORAGE_KEY = "lattice.browser-history.v1";
 const emptySnapshot: BrowserSnapshot = { activeTabId: "", tabs: [] };
 const emptyReferenceIndex: VaultReferenceIndex = {
   generatedAt: "",
@@ -163,9 +182,39 @@ type NewTabSuggestion =
       appId: RunnableAppId;
     }
   | { kind: "tab"; id: string; label: string; detail: string; tab: BrowserState }
+  | {
+      kind: "history";
+      id: string;
+      label: string;
+      detail: string;
+      history: DashboardHistoryItem;
+    }
   | { kind: "link"; id: string; label: string; detail: string; link: SavedLinkRecord }
   | { kind: "canvas"; id: string; label: string; detail: string; pageId: string }
-  | { kind: "file"; id: string; label: string; detail: string; pageId: string };
+  | {
+      kind: "file";
+      id: string;
+      label: string;
+      detail: string;
+      entry: VaultReferenceEntry;
+      pageId: string;
+      nodeId: string;
+      linkId?: string;
+    };
+
+interface QuickAccessMatch {
+  id: string;
+  label: string;
+  detail: string;
+  icon: IconName;
+  accent: "daily-flow" | "pomodoro" | "wealth-lab" | "link" | "canvas" | "queue";
+  keywords: string;
+  target: "daily-flow" | "pomodoro" | "wealth-lab" | "library" | "pages" | "queue";
+}
+
+type WebsiteMatch =
+  | { kind: "trusted"; id: string; label: string; detail: string; site: TrustedSite }
+  | { kind: "learned"; id: string; label: string; detail: string; site: LearnedSite };
 
 const NEW_TAB_SHORTCUTS = [
   { id: "google", label: "Google", mark: "G", url: "https://www.google.com/" },
@@ -364,6 +413,22 @@ function formatCount(count: number, singular: string, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
+function canvasFileTarget(entry: VaultReferenceEntry): {
+  pageId: string;
+  nodeId: string;
+  linkId?: string;
+} | null {
+  if (entry.source.kind !== "page") return null;
+  const [, nodeId, ...candidateParts] = entry.id.split(":");
+  if (!nodeId || candidateParts.length === 0) return null;
+  const candidateId = candidateParts.join(":");
+  return {
+    pageId: entry.source.id,
+    nodeId,
+    linkId: candidateId === `${nodeId}:file` ? undefined : candidateId,
+  };
+}
+
 function colorLuminance(hex: string): number {
   const value = hex.replace("#", "");
   if (!/^[0-9a-f]{6}$/i.test(value)) return 0.5;
@@ -382,6 +447,7 @@ export function LatticeApp() {
   const workspaceHeadingRef = useRef<HTMLDivElement>(null);
   const webStageRef = useRef<HTMLElement>(null);
   const omniboxRef = useRef<HTMLInputElement>(null);
+  const latticeBarRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const commandInputRef = useRef<HTMLInputElement>(null);
   const newDesktopInputRef = useRef<HTMLInputElement>(null);
   const desktopRenameInputRef = useRef<HTMLInputElement>(null);
@@ -394,7 +460,6 @@ export function LatticeApp() {
   const pendingRecoveryRef = useRef<PendingRecovery | null>(null);
   const recoveryTimerRef = useRef<number | null>(null);
   const canvasDirtyRef = useRef(false);
-  const quickNoteCaptureBusyRef = useRef(false);
   // Ctrl/Cmd+T can arrive from both the embedded browser and the shell
   // keyboard handler. Keep tab creation single-flight so one gesture cannot
   // create a burst of duplicate tabs while the IPC request is in flight.
@@ -404,7 +469,6 @@ export function LatticeApp() {
   const [customThemeDraft, setCustomThemeDraft] =
     useState<CustomThemePreferences>(DEFAULT_CUSTOM_THEME);
   const [focusIntention, setFocusIntention] = useState("");
-  const [quickNote, setQuickNote] = useState("");
   const [capturingQuickNote, setCapturingQuickNote] = useState(false);
   const [runnableApps, setRunnableApps] = useState<RunnableAppsState>(DEFAULT_RUNNABLE_APPS_STATE);
   const [runnableAppTarget, setRunnableAppTarget] = useState<RunnableAppId>("pomodoro");
@@ -440,6 +504,11 @@ export function LatticeApp() {
   const [surface, setSurface] = useState<Surface>("home");
   const [address, setAddress] = useState("");
   const [homeQuery, setHomeQuery] = useState("");
+  const [latticeNoteMode, setLatticeNoteMode] = useState(false);
+  const [searchEverywhere, setSearchEverywhere] = useState(false);
+  const [showAllLatticeResults, setShowAllLatticeResults] = useState(false);
+  const [activeLatticeResultIndex, setActiveLatticeResultIndex] = useState(0);
+  const [tabContentMatchIds, setTabContentMatchIds] = useState<Set<string>>(() => new Set());
   const [vault, setVault] = useState<VaultInfo | null>(null);
   const [links, setLinks] = useState<SavedLinkRecord[]>([]);
   const [canvasPages, setCanvasPages] = useState<CanvasPageSummary[]>([]);
@@ -674,7 +743,7 @@ export function LatticeApp() {
       siteIconDataUrl: activeTab.siteIconDataUrl ?? null,
     };
     setBrowserHistory((current) =>
-      [item, ...current.filter((entry) => entry.url !== item.url)].slice(0, 100),
+      [item, ...current.filter((entry) => entry.url !== item.url)].slice(0, 300),
     );
   }, [activeTab, workspace.activeDesktopId]);
   useEffect(() => {
@@ -809,100 +878,378 @@ export function LatticeApp() {
       null,
     [canvasPages],
   );
-  const newTabSuggestions = useMemo<NewTabSuggestion[]>(() => {
-    const appSuggestions: NewTabSuggestion[] = [
-      {
-        kind: "app",
-        id: "new-tab-app-daily-flow",
-        label: "Daily Flow",
-        detail: `${formatCount(dailyFlowInboxCount, "capture")} in Inbox`,
-        appId: "daily-flow",
-      },
-      {
-        kind: "app",
-        id: "new-tab-app-pomodoro",
-        label: "Pomodoro",
-        detail: runnableApps.pomodoro.activeRun
-          ? `Running · ${runnableApps.pomodoro.activeRun.task}`
-          : "Start one focused timer",
-        appId: "pomodoro",
-      },
-      {
-        kind: "app",
-        id: "new-tab-app-wealth-lab",
-        label: "Wealth Lab",
-        detail: "Money, earning ideas, and investments",
-        appId: "wealth-lab",
-      },
-    ];
-    const tabSuggestions: NewTabSuggestion[] = desktopTabs
-      .filter((tab) => tab.url !== "about:blank")
-      .slice(0, 3)
-      .map((tab) => ({
+  const learnedSites = useMemo(
+    () => learnSitesFromHistory(browserHistory, TRUSTED_SITES),
+    [browserHistory],
+  );
+  const intentResolution = useMemo<{ intent: SearchIntent; error: string | null }>(() => {
+    try {
+      return {
+        intent: resolveSearchIntent(homeQuery, settings.searchProvider),
+        error: null,
+      };
+    } catch (error) {
+      return {
+        intent: { kind: "empty" },
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }, [homeQuery, settings.searchProvider]);
+  const newTabSearchData = useMemo(() => {
+    const openUrls = new Set(snapshot.tabs.map((tab) => tab.url));
+    const folderDesktopId = (folder: string) =>
+      workspace.desktops.find(
+        (desktop) => desktop.name.toLowerCase() === folder.trim().toLowerCase(),
+      )?.id;
+    const suggestions: NewTabSuggestion[] = [];
+    const documents: LatticeSearchDocument[] = [];
+    const fileDocuments: LatticeSearchDocument[] = [];
+
+    for (const tab of snapshot.tabs) {
+      if (tab.url === "about:blank") continue;
+      const suggestion: NewTabSuggestion = {
         kind: "tab",
-        id: `new-tab-history-${tab.id}`,
+        id: `new-tab-tab-${tab.id}`,
         label: displayTitle(tab),
-        detail: `Recent tab · ${displayHost(tab.url)}`,
+        detail: `Open tab · ${displayHost(tab.url)}`,
         tab,
-      }));
-    const linkSuggestions: NewTabSuggestion[] = links.slice(0, 3).map((link) => ({
-      kind: "link",
-      id: `new-tab-link-${link.id}`,
-      label: link.title,
-      detail: `Saved link · ${displayHost(link.url)}`,
-      link,
-    }));
-    const fileSuggestions: NewTabSuggestion[] = referenceIndex.entries
-      .filter(
-        (entry) =>
-          entry.status === "resolved" &&
-          entry.source.kind === "page" &&
-          ["document", "image", "file"].includes(entry.kind),
-      )
-      .slice(0, 2)
-      .map((entry) => ({
+      };
+      suggestions.push(suggestion);
+      documents.push({
+        id: suggestion.id,
+        kind: "tab",
+        label: suggestion.label,
+        detail: suggestion.detail,
+        keywords: `${tab.url} ${displayHost(tab.url)}${tabContentMatchIds.has(tab.id) ? ` ${homeQuery}` : ""}`,
+        desktopId: tabDesktops[tab.id],
+        contentMatch: tabContentMatchIds.has(tab.id),
+      });
+    }
+
+    for (const item of browserHistory) {
+      if (openUrls.has(item.url)) continue;
+      const suggestion: NewTabSuggestion = {
+        kind: "history",
+        id: `new-tab-history-${item.id}`,
+        label: item.title || displayHost(item.url),
+        detail: `History · ${displayHost(item.url)} · ${relativeDate(item.visitedAt)}`,
+        history: item,
+      };
+      suggestions.push(suggestion);
+      documents.push({
+        id: suggestion.id,
+        kind: "history",
+        label: suggestion.label,
+        detail: suggestion.detail,
+        keywords: item.url,
+        desktopId: item.desktopId,
+        updatedAt: item.visitedAt,
+      });
+    }
+
+    for (const link of links) {
+      const suggestion: NewTabSuggestion = {
+        kind: "link",
+        id: `new-tab-link-${link.id}`,
+        label: link.title,
+        detail: `Saved link · ${displayHost(link.url)}`,
+        link,
+      };
+      suggestions.push(suggestion);
+      documents.push({
+        id: suggestion.id,
+        kind: "link",
+        label: suggestion.label,
+        detail: suggestion.detail,
+        keywords: `${link.description} ${link.url} ${link.folder}`,
+        desktopId: link.desktopId || folderDesktopId(link.folder),
+        updatedAt: link.savedAt,
+      });
+    }
+
+    for (const page of canvasPages) {
+      const suggestion: NewTabSuggestion = {
+        kind: "canvas",
+        id: `new-tab-canvas-${page.id}`,
+        label: page.title,
+        detail: `Canvas · ${formatCount(page.nodeCount, "object")}`,
+        pageId: page.id,
+      };
+      suggestions.push(suggestion);
+      documents.push({
+        id: suggestion.id,
+        kind: "canvas",
+        label: suggestion.label,
+        detail: suggestion.detail,
+        keywords: `${page.description} ${page.folder}`,
+        desktopId: folderDesktopId(page.folder),
+        updatedAt: page.updatedAt,
+      });
+    }
+
+    for (const entry of referenceIndex.entries) {
+      if (entry.status !== "resolved" || !["document", "image", "file"].includes(entry.kind)) {
+        continue;
+      }
+      const target = canvasFileTarget(entry);
+      if (!target) continue;
+      const page = canvasPages.find((candidate) => candidate.id === target.pageId);
+      const suggestion: NewTabSuggestion = {
         kind: "file",
         id: `new-tab-file-${entry.id}`,
         label: entry.targetLabel,
         detail: `File · in ${entry.source.title}`,
-        pageId: entry.source.id,
-      }));
-    const canvasSuggestions: NewTabSuggestion[] = recentCanvasPage
-      ? [
-          {
-            kind: "canvas",
-            id: `new-tab-canvas-${recentCanvasPage.id}`,
-            label: recentCanvasPage.title,
-            detail: `Canvas · ${formatCount(recentCanvasPage.nodeCount, "object")}`,
-            pageId: recentCanvasPage.id,
-          },
-        ]
-      : [];
-    const candidates = [
-      ...appSuggestions,
-      ...tabSuggestions,
-      ...linkSuggestions,
-      ...fileSuggestions,
-      ...canvasSuggestions,
-    ];
-    const query = homeQuery.trim().toLowerCase();
-    if (!query) return candidates.slice(0, 6);
-    return candidates
-      .filter((candidate) => `${candidate.label} ${candidate.detail}`.toLowerCase().includes(query))
-      .slice(0, 6);
+        entry,
+        ...target,
+      };
+      suggestions.push(suggestion);
+      fileDocuments.push({
+        id: suggestion.id,
+        kind: "file",
+        label: suggestion.label,
+        detail: suggestion.detail,
+        keywords: `${entry.label} ${entry.source.title} ${entry.targetLabel}`,
+        desktopId: page ? folderDesktopId(page.folder) : undefined,
+        updatedAt: page?.updatedAt,
+      });
+    }
+
+    const byId = new Map(suggestions.map((suggestion) => [suggestion.id, suggestion]));
+    return { suggestions, documents, fileDocuments, byId };
   }, [
-    dailyFlowInboxCount,
-    desktopTabs,
+    browserHistory,
+    canvasPages,
     homeQuery,
     links,
-    recentCanvasPage,
     referenceIndex.entries,
+    snapshot.tabs,
+    tabContentMatchIds,
+    tabDesktops,
+    workspace.desktops,
+  ]);
+  const rankedLocalResults = useMemo(
+    () =>
+      rankLatticeDocuments(homeQuery, newTabSearchData.documents, workspace.activeDesktopId, {
+        everywhere: searchEverywhere,
+        limit: 100,
+      }),
+    [homeQuery, newTabSearchData.documents, searchEverywhere, workspace.activeDesktopId],
+  );
+  const visibleLocalResults = useMemo(
+    () =>
+      rankedLocalResults
+        .slice(0, showAllLatticeResults ? 12 : 3)
+        .map((item) => newTabSearchData.byId.get(item.id))
+        .filter((item): item is NewTabSuggestion => Boolean(item)),
+    [newTabSearchData.byId, rankedLocalResults, showAllLatticeResults],
+  );
+  const rankedFileResults = useMemo(
+    () =>
+      rankLatticeDocuments(homeQuery, newTabSearchData.fileDocuments, workspace.activeDesktopId, {
+        everywhere: searchEverywhere,
+        limit: 12,
+      })
+        .slice(0, showAllLatticeResults ? 12 : 3)
+        .map((item) => newTabSearchData.byId.get(item.id))
+        .filter(
+          (item): item is Extract<NewTabSuggestion, { kind: "file" }> => item?.kind === "file",
+        ),
+    [
+      homeQuery,
+      newTabSearchData.byId,
+      newTabSearchData.fileDocuments,
+      searchEverywhere,
+      showAllLatticeResults,
+      workspace.activeDesktopId,
+    ],
+  );
+  const newTabContinueSuggestions = useMemo(
+    () =>
+      newTabSearchData.suggestions
+        .filter((suggestion) => {
+          if (suggestion.kind === "tab") {
+            return tabDesktops[suggestion.tab.id] === workspace.activeDesktopId;
+          }
+          if (suggestion.kind === "history") {
+            return suggestion.history.desktopId === workspace.activeDesktopId;
+          }
+          if (suggestion.kind === "link") {
+            return (
+              !suggestion.link.desktopId || suggestion.link.desktopId === workspace.activeDesktopId
+            );
+          }
+          return suggestion.kind !== "file";
+        })
+        .slice(0, 3),
+    [newTabSearchData.suggestions, tabDesktops, workspace.activeDesktopId],
+  );
+  const websiteMatches = useMemo<WebsiteMatch[]>(() => {
+    const query = homeQuery.trim().toLowerCase().replace(/\s+/g, " ");
+    if (!query) return [];
+    const tokens = query.split(" ");
+    const matchesQuery = (text: string) => {
+      const searchable = text.toLowerCase();
+      return tokens.every((token) => searchable.includes(token));
+    };
+    const exactSiteId =
+      intentResolution.intent.kind === "site" ? intentResolution.intent.site.id : null;
+    const trusted = TRUSTED_SITES.filter(
+      (candidate) =>
+        candidate.id !== exactSiteId &&
+        matchesQuery(
+          `${candidate.name} ${candidate.domain} ${candidate.description} ${candidate.aliases.join(" ")}`,
+        ),
+    )
+      .slice(0, 3)
+      .map<WebsiteMatch>((candidate) => ({
+        kind: "trusted",
+        id: `trusted-site-${candidate.id}`,
+        label: candidate.name,
+        detail: `${candidate.description} · ${candidate.domain.replace(/^www\./, "")}`,
+        site: candidate,
+      }));
+    const learned = learnedSites
+      .filter((candidate) => matchesQuery(`${candidate.label} ${candidate.domain}`))
+      .slice(0, Math.max(0, 3 - trusted.length))
+      .map<WebsiteMatch>((candidate) => ({
+        kind: "learned",
+        id: `learned-site-${candidate.domain}`,
+        label: candidate.label,
+        detail: candidate.description,
+        site: candidate,
+      }));
+    return [...trusted, ...learned];
+  }, [homeQuery, intentResolution.intent, learnedSites]);
+  const quickAccessMatches = useMemo<QuickAccessMatch[]>(() => {
+    const query = homeQuery.trim().toLowerCase();
+    if (!query) return [];
+    const items: QuickAccessMatch[] = [
+      {
+        id: "daily-flow",
+        label: "Daily Flow",
+        detail: `${formatCount(dailyFlowInboxCount, "item")} in Inbox`,
+        icon: "sparkle",
+        accent: "daily-flow",
+        keywords: "notes note capture inbox tasks journal today plan",
+        target: "daily-flow",
+      },
+      {
+        id: "pomodoro",
+        label: "Pomodoro",
+        detail: runnableApps.pomodoro.activeRun ? "Timer running" : "Start a focused timer",
+        icon: "timer",
+        accent: "pomodoro",
+        keywords: "timer focus work session productivity",
+        target: "pomodoro",
+      },
+      {
+        id: "wealth-lab",
+        label: "Wealth Lab",
+        detail: "Money, earning ideas, and investments",
+        icon: "grid",
+        accent: "wealth-lab",
+        keywords: "money finance earning investment wealth budget",
+        target: "wealth-lab",
+      },
+      {
+        id: "saved-links",
+        label: "Saved links",
+        detail: `${formatCount(links.length, "saved page")}`,
+        icon: "bookmark",
+        accent: "link",
+        keywords: "saved links bookmarks favorites websites pages",
+        target: "library",
+      },
+      {
+        id: "canvas-pages",
+        label: "Canvas pages",
+        detail: `${formatCount(canvasPages.length, "canvas")}`,
+        icon: "grid",
+        accent: "canvas",
+        keywords: "canvas pages visual notes connected ideas board",
+        target: "pages",
+      },
+      {
+        id: "reading-queue",
+        label: "Reading queue",
+        detail: `${formatCount(queueCount, "page")} waiting`,
+        icon: "library",
+        accent: "queue",
+        keywords: "reading queue unread later articles",
+        target: "queue",
+      },
+    ];
+    const tokens = query.split(/\s+/).filter(Boolean);
+    return items
+      .filter((item) =>
+        tokens.every((token) =>
+          `${item.label} ${item.detail} ${item.keywords}`.toLowerCase().includes(token),
+        ),
+      )
+      .slice(0, 4);
+  }, [
+    canvasPages.length,
+    dailyFlowInboxCount,
+    homeQuery,
+    links.length,
+    queueCount,
     runnableApps.pomodoro.activeRun,
   ]);
-  const newTabContinueSuggestions = useMemo(
-    () => newTabSuggestions.filter((suggestion) => suggestion.kind !== "app").slice(0, 3),
-    [newTabSuggestions],
-  );
+
+  useEffect(() => {
+    const query = homeQuery.trim();
+    if (!showNewTabSurface || latticeNoteMode || query.length < 2) {
+      setTabContentMatchIds(new Set());
+      return;
+    }
+    const tabIds = snapshot.tabs
+      .filter(
+        (tab) =>
+          tab.url !== "about:blank" &&
+          (searchEverywhere || tabDesktops[tab.id] === workspace.activeDesktopId),
+      )
+      .map((tab) => tab.id);
+    if (tabIds.length === 0) {
+      setTabContentMatchIds(new Set());
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void window.lattice.browser
+        .searchTabContents(tabIds, query)
+        .then((ids) => {
+          if (!cancelled) setTabContentMatchIds(new Set(ids));
+        })
+        .catch(() => {
+          if (!cancelled) setTabContentMatchIds(new Set());
+        });
+    }, 180);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [
+    homeQuery,
+    latticeNoteMode,
+    searchEverywhere,
+    showNewTabSurface,
+    snapshot.tabs,
+    tabDesktops,
+    workspace.activeDesktopId,
+  ]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: result expansion and scope reset whenever the typed query changes
+  useEffect(() => {
+    setShowAllLatticeResults(false);
+    setSearchEverywhere(false);
+    setActiveLatticeResultIndex(0);
+  }, [homeQuery]);
+
+  useEffect(() => {
+    if (!latticeNoteMode) return;
+    const frame = window.requestAnimationFrame(() => latticeBarRef.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [latticeNoteMode]);
   const commandItems = useMemo(() => {
     const query = commandQuery.trim();
     const normalizedQuery = query.toLowerCase();
@@ -1135,6 +1482,14 @@ export function LatticeApp() {
   }, [profileShellHydrated, profileState, runnableApps, sessionReady]);
 
   useEffect(() => {
+    if (!profileState || !canPersistProfileShell(sessionReady, profileShellHydrated)) return;
+    localStorage.setItem(
+      profileStorageKey(BROWSER_HISTORY_STORAGE_KEY, profileState.activeProfileId),
+      serializeStoredHistory(browserHistory),
+    );
+  }, [browserHistory, profileShellHydrated, profileState, sessionReady]);
+
+  useEffect(() => {
     let cancelled = false;
     void window.lattice.vault.current().then(async (selected) => {
       if (cancelled || !selected) return;
@@ -1185,6 +1540,16 @@ export function LatticeApp() {
         setSettings(shell.settings);
         setFocusIntention(shell.focusIntention);
         setRunnableApps(shell.runnableApps);
+        setBrowserHistory(
+          parseStoredHistory(
+            readProfileStorage(
+              localStorage,
+              BROWSER_HISTORY_STORAGE_KEY,
+              profiles,
+              profiles.activeProfileId,
+            ),
+          ),
+        );
         setProfileShellHydrated(true);
       }
       const initial = await window.lattice.browser.snapshot();
@@ -1316,7 +1681,7 @@ export function LatticeApp() {
   useEffect(() => {
     if (surface !== "home") return;
     const frame = window.requestAnimationFrame(() => {
-      omniboxRef.current?.focus();
+      latticeBarRef.current?.focus();
     });
     return () => window.cancelAnimationFrame(frame);
   }, [surface]);
@@ -1357,13 +1722,27 @@ export function LatticeApp() {
   const navigate = async (event: FormEvent) => {
     event.preventDefault();
     if (!address.trim()) return;
-    await openUrl(address);
+    try {
+      const intent = resolveSearchIntent(address, settings.searchProvider);
+      if (intent.kind !== "empty") await openUrl(intent.url);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    }
   };
 
   const navigateFromFocus = async (event: FormEvent) => {
     event.preventDefault();
     if (!homeQuery.trim()) return;
-    await openUrl(homeQuery);
+    if (latticeNoteMode) {
+      saveLatticeNote();
+      return;
+    }
+    if (intentResolution.error) {
+      setStatus(intentResolution.error);
+      return;
+    }
+    if (intentResolution.intent.kind === "empty") return;
+    await openUrl(intentResolution.intent.url);
     setHomeQuery("");
   };
 
@@ -1398,7 +1777,7 @@ export function LatticeApp() {
         kind: "tab",
         tabId: tab.id,
       };
-      setSurface("browser");
+      setSurface(tab.url === "about:blank" ? "home" : "browser");
       setCaptureOpen(false);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
@@ -2036,15 +2415,17 @@ export function LatticeApp() {
 
   const showBrowser = async () => {
     if (!confirmCanvasLeave()) return;
-    const shouldFocusLocation = !contextualTab || contextualTab.url === "about:blank";
-    if (contextualTab) {
+    if (contextualTab?.url === "about:blank") {
+      setSurface("home");
+      window.requestAnimationFrame(() => latticeBarRef.current?.focus());
+    } else if (contextualTab) {
       setSurface("browser");
+      focusBrowserLocation();
     } else {
-      await createTab(workspace.activeDesktopId, "browser");
+      await createTab(workspace.activeDesktopId, "home");
     }
     setCaptureOpen(false);
     setBrowserMenuOpen(false);
-    if (shouldFocusLocation) focusBrowserLocation();
   };
 
   const showSurface = async (target: Surface) => {
@@ -2058,13 +2439,11 @@ export function LatticeApp() {
     else await showSettings();
   };
 
-  const captureQuickNote = (event: FormEvent) => {
-    event.preventDefault();
-    if (quickNoteCaptureBusyRef.current) return;
-    const note = quickNote.trim();
+  const saveLatticeNote = () => {
+    if (capturingQuickNote) return;
+    const note = homeQuery.trim();
     if (!note) return;
 
-    quickNoteCaptureBusyRef.current = true;
     setCapturingQuickNote(true);
     const previous = runnableApps;
     try {
@@ -2073,15 +2452,25 @@ export function LatticeApp() {
         bulletJournal: captureJournalInboxNote(runnableApps.bulletJournal, note),
       };
       setRunnableApps(next);
-      setQuickNote("");
+      setHomeQuery("");
+      setLatticeNoteMode(false);
       setStatus("Quick note captured to Inbox");
       offerRecovery("Quick note captured to Inbox", () => setRunnableApps(previous));
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     } finally {
-      quickNoteCaptureBusyRef.current = false;
       setCapturingQuickNote(false);
     }
+  };
+
+  const activateHomeIntent = async () => {
+    if (intentResolution.error) {
+      setStatus(intentResolution.error);
+      return;
+    }
+    if (intentResolution.intent.kind === "empty") return;
+    await openUrl(intentResolution.intent.url);
+    setHomeQuery("");
   };
 
   const activateNewTabSuggestion = async (suggestion: NewTabSuggestion) => {
@@ -2089,11 +2478,65 @@ export function LatticeApp() {
       showRunnableApp(suggestion.appId);
     } else if (suggestion.kind === "tab") {
       await switchTab(suggestion.tab);
+    } else if (suggestion.kind === "history") {
+      await openUrl(suggestion.history.url);
     } else if (suggestion.kind === "link") {
       await openUrl(suggestion.link.url);
-    } else {
+    } else if (suggestion.kind === "canvas") {
       await showCanvasPages(suggestion.pageId);
+    } else {
+      try {
+        await window.lattice.vault.revealCanvasReference({
+          pageId: suggestion.pageId,
+          nodeId: suggestion.nodeId,
+          linkId: suggestion.linkId,
+        });
+        setStatus(`Revealed ${suggestion.label} in its folder`);
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : String(error));
+      }
     }
+  };
+
+  const activateWebsiteMatch = async (match: WebsiteMatch) => {
+    await openUrl(match.site.homeUrl);
+    setHomeQuery("");
+  };
+
+  const activateQuickAccess = (match: QuickAccessMatch) => {
+    if (match.target === "daily-flow") showRunnableApp("daily-flow");
+    else if (match.target === "pomodoro") showRunnableApp("pomodoro");
+    else if (match.target === "wealth-lab") showRunnableApp("wealth-lab");
+    else if (match.target === "library") void showLibrary();
+    else if (match.target === "pages") void showCanvasPages();
+    else void showReadingQueue();
+  };
+
+  const focusFirstLatticeAction = () => {
+    window.requestAnimationFrame(() => {
+      const first = document.querySelector<HTMLElement>(
+        ".lattice-bar-results [data-lattice-action]",
+      );
+      first?.focus();
+    });
+  };
+
+  const handleLatticeResultsKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (!["ArrowDown", "ArrowUp", "Escape"].includes(event.key)) return;
+    event.preventDefault();
+    if (event.key === "Escape") {
+      latticeBarRef.current?.focus();
+      return;
+    }
+    const actions = [
+      ...document.querySelectorAll<HTMLElement>(".lattice-bar-results [data-lattice-action]"),
+    ];
+    if (actions.length === 0) return;
+    const current = actions.indexOf(document.activeElement as HTMLElement);
+    const delta = event.key === "ArrowDown" ? 1 : -1;
+    const nextIndex = current < 0 ? 0 : (current + delta + actions.length) % actions.length;
+    setActiveLatticeResultIndex(nextIndex);
+    actions[nextIndex]?.focus();
   };
 
   const setDistractionFree = (enabled: boolean) => {
@@ -2121,6 +2564,28 @@ export function LatticeApp() {
     const message = previous ? "Tab restoration disabled" : "Tab restoration enabled";
     setStatus(message);
     offerRecovery(message, () => setSettings((current) => ({ ...current, restoreTabs: previous })));
+  };
+
+  const selectSearchProvider = (searchProvider: SettingsPreferences["searchProvider"]) => {
+    if (settings.searchProvider === searchProvider) return;
+    const previous = settings.searchProvider;
+    const provider = providerById(searchProvider);
+    setSettings((current) => ({ ...current, searchProvider }));
+    setStatus(`${provider.name} is now your web search provider`);
+    offerRecovery(`Changed web search to ${provider.name}`, () =>
+      setSettings((current) => ({ ...current, searchProvider: previous })),
+    );
+  };
+
+  const clearLocalSearchHistory = () => {
+    const previous = browserHistory;
+    if (previous.length === 0) {
+      setStatus("There is no local search history to clear");
+      return;
+    }
+    setBrowserHistory([]);
+    setStatus("Local search history cleared");
+    offerRecovery("Local search history cleared", () => setBrowserHistory(previous));
   };
 
   const selectTheme = (themeId: ThemeId) => {
@@ -2225,6 +2690,10 @@ export function LatticeApp() {
       profileStorageKey(RUNNABLE_APPS_STORAGE_KEY, profileId),
       JSON.stringify(runnableApps),
     );
+    localStorage.setItem(
+      profileStorageKey(BROWSER_HISTORY_STORAGE_KEY, profileId),
+      serializeStoredHistory(browserHistory),
+    );
     const sessionKey = profileStorageKey(SESSION_STORAGE_KEY, profileId);
     if (settings.restoreTabs) {
       localStorage.setItem(
@@ -2256,6 +2725,11 @@ export function LatticeApp() {
     setSettings(shell.settings);
     setFocusIntention(shell.focusIntention);
     setRunnableApps(shell.runnableApps);
+    setBrowserHistory(
+      parseStoredHistory(
+        readProfileStorage(localStorage, BROWSER_HISTORY_STORAGE_KEY, result.state, profileId),
+      ),
+    );
     setSnapshot(restored.snapshot);
     setTabDesktops(restored.assignments);
     setSurface("home");
@@ -2587,11 +3061,11 @@ export function LatticeApp() {
       setCommandOpen(false);
       setCaptureOpen(false);
       setFocusMode(false);
-      void showBrowser().then(focusBrowserLocation);
+      void showBrowser();
       return;
     }
     if (command === "new-tab") {
-      void createTab(workspace.activeDesktopId, "browser");
+      void createTab(workspace.activeDesktopId, "home");
       return;
     }
     if (command === "toggle-focus") {
@@ -3537,8 +4011,7 @@ export function LatticeApp() {
         className={[
           "content-shell",
           surface === "dashboard" ? "dashboard-content-shell" : "",
-          showNewTabSurface ? "new-tab-content" : "",
-          surface === "home" ? "home-content" : "",
+          showNewTabSurface ? "new-tab-content home-content" : "",
           captureOpen ? "drawer-open" : "",
           focusMode ? "focus-content" : "",
         ]
@@ -3613,7 +4086,7 @@ export function LatticeApp() {
           <button
             className="new-tab-button"
             type="button"
-            onClick={() => void createTab(workspace.activeDesktopId, "browser")}
+            onClick={() => void createTab(workspace.activeDesktopId, "home")}
             aria-label="New tab"
           >
             <Icon name="plus" />
@@ -3621,7 +4094,7 @@ export function LatticeApp() {
           <div className="window-drag-space" />
         </header>
 
-        {surface === "browser" && (
+        {surface === "browser" && !showNewTabSurface && (
           <form className="browser-toolbar" onSubmit={navigate}>
             <div className="navigation-actions">
               <button
@@ -3871,28 +4344,118 @@ export function LatticeApp() {
                     <h1 id="new-tab-heading">
                       What will we <em>explore</em> today?
                     </h1>
+                    <p>
+                      One place to search this desk, open the web, find a file, or keep a thought.
+                    </p>
                   </header>
 
-                  <form className="new-tab-search" onSubmit={navigateFromFocus}>
-                    <Icon name="search" />
-                    <input
-                      ref={omniboxRef}
-                      value={homeQuery}
-                      data-action-description={actionHelpText.newTabSearch}
-                      onChange={(event) => setHomeQuery(event.target.value)}
-                      placeholder="Search the web or enter a URL"
-                      aria-label="Search the web or enter a URL"
-                      autoComplete="off"
-                    />
+                  <form
+                    className={latticeNoteMode ? "new-tab-search note-mode" : "new-tab-search"}
+                    onSubmit={navigateFromFocus}
+                  >
+                    <Icon name={latticeNoteMode ? "edit" : "search"} />
+                    {latticeNoteMode ? (
+                      <textarea
+                        ref={(element) => {
+                          latticeBarRef.current = element;
+                        }}
+                        value={homeQuery}
+                        data-action-description={actionHelpText.latticeNoteEditor}
+                        onChange={(event) => setHomeQuery(event.target.value)}
+                        onKeyDown={(event) => {
+                          if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+                            event.preventDefault();
+                            event.currentTarget.form?.requestSubmit();
+                          } else if (event.key === "Escape") {
+                            event.preventDefault();
+                            setLatticeNoteMode(false);
+                          }
+                        }}
+                        maxLength={2000}
+                        placeholder="Write the thought before it disappears…"
+                        aria-label="Note for your Daily Flow Inbox"
+                      />
+                    ) : (
+                      <input
+                        ref={(element) => {
+                          latticeBarRef.current = element;
+                        }}
+                        value={homeQuery}
+                        data-action-description={actionHelpText.newTabSearch}
+                        onChange={(event) => setHomeQuery(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "ArrowDown" && homeQuery.trim()) {
+                            event.preventDefault();
+                            focusFirstLatticeAction();
+                          } else if (event.key === "Escape" && homeQuery) {
+                            event.preventDefault();
+                            setHomeQuery("");
+                          } else if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+                            event.preventDefault();
+                            setLatticeNoteMode(true);
+                          }
+                        }}
+                        placeholder="Search this desk, the web, files, or write a note…"
+                        aria-label="Search this desk, the web, files, or write a note"
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                    )}
+                    {homeQuery && (
+                      <button
+                        type="button"
+                        className="lattice-bar-clear"
+                        aria-label="Clear Lattice Bar"
+                        onClick={() => {
+                          setHomeQuery("");
+                          setLatticeNoteMode(false);
+                          latticeBarRef.current?.focus();
+                        }}
+                      >
+                        <Icon name="close" />
+                      </button>
+                    )}
                     <button
                       type="submit"
-                      data-action-description={actionHelpText.newTabSearchButton}
+                      className="lattice-bar-submit"
+                      data-action-description={
+                        latticeNoteMode
+                          ? actionHelpText.captureQuickNote
+                          : actionHelpText.newTabSearchButton
+                      }
+                      disabled={
+                        !homeQuery.trim() || capturingQuickNote || Boolean(intentResolution.error)
+                      }
                     >
-                      Search <Icon name="arrow-right" />
+                      {capturingQuickNote
+                        ? "Saving…"
+                        : latticeNoteMode
+                          ? "Save note"
+                          : intentResolution.intent.kind === "url" ||
+                              (intentResolution.intent.kind === "site" &&
+                                !intentResolution.intent.query)
+                            ? "Open"
+                            : "Search"}
+                      <Icon name="arrow-right" />
                     </button>
                   </form>
 
-                  {!homeQuery.trim() && (
+                  {latticeNoteMode && (
+                    <div className="lattice-note-context" aria-live="polite">
+                      <span>
+                        <Icon name="library" /> Saving to Daily Flow Inbox ·{" "}
+                        {quickCaptureInboxCount} waiting
+                      </span>
+                      <span>
+                        <kbd>Ctrl Enter</kbd> to save
+                        <button type="button" onClick={() => setLatticeNoteMode(false)}>
+                          Back to search
+                        </button>
+                      </span>
+                    </div>
+                  )}
+
+                  {!homeQuery.trim() && !latticeNoteMode && (
                     <nav className="new-tab-shortcuts" aria-label="Website shortcuts">
                       {NEW_TAB_SHORTCUTS.map((shortcut) => (
                         <button
@@ -3922,124 +4485,279 @@ export function LatticeApp() {
                     </nav>
                   )}
 
-                  {homeQuery.trim() && (
-                    <div className="new-tab-suggestions" aria-live="polite">
-                      <div className="new-tab-suggestions-heading">
-                        <span>Matching your workspace</span>
-                        <small>{formatCount(newTabSuggestions.length, "result")}</small>
+                  {homeQuery.trim() && !latticeNoteMode && (
+                    <section
+                      className="lattice-bar-results"
+                      aria-live="polite"
+                      aria-label="Lattice Bar results"
+                      data-active-result={activeLatticeResultIndex}
+                      onKeyDown={handleLatticeResultsKeyDown}
+                    >
+                      <div className="lattice-result-scope">
+                        <span>Searching</span>
+                        <button
+                          type="button"
+                          className={!searchEverywhere ? "active" : ""}
+                          aria-pressed={!searchEverywhere}
+                          onClick={() => setSearchEverywhere(false)}
+                        >
+                          {activeDesktop?.name ?? "Current desk"}
+                        </button>
+                        <button
+                          type="button"
+                          className={searchEverywhere ? "active" : ""}
+                          aria-pressed={searchEverywhere}
+                          onClick={() => setSearchEverywhere(true)}
+                        >
+                          Everywhere
+                        </button>
+                        <small>Local results stay on this device</small>
                       </div>
-                      {newTabSuggestions.length > 0 ? (
-                        <div className="new-tab-suggestion-grid">
-                          {newTabSuggestions.map((suggestion) => (
-                            <button
-                              type="button"
-                              key={suggestion.id}
-                              data-new-tab-suggestion={suggestion.kind}
-                              data-action-description={actionHelpText.continueNewTabItem(
-                                suggestion.label,
-                              )}
-                              onClick={() => void activateNewTabSuggestion(suggestion)}
-                            >
-                              <span
-                                className={`new-tab-app-icon ${suggestion.kind}${
-                                  suggestion.kind === "app" ? ` ${suggestion.appId}` : ""
-                                }`}
-                              >
-                                {suggestion.kind === "app" ? (
-                                  suggestion.appId === "pomodoro" ? (
-                                    <Icon name="timer" />
-                                  ) : suggestion.appId === "daily-flow" ? (
-                                    <Icon name="sparkle" />
-                                  ) : (
-                                    <b>₱</b>
-                                  )
-                                ) : (
-                                  <Icon
-                                    name={
-                                      suggestion.kind === "tab"
-                                        ? "globe"
-                                        : suggestion.kind === "link"
-                                          ? "bookmark"
-                                          : suggestion.kind === "canvas"
-                                            ? "grid"
-                                            : "folder"
-                                    }
-                                  />
-                                )}
-                              </span>
-                              <span>
-                                <strong>
-                                  {suggestion.label.charAt(0).toUpperCase() +
-                                    suggestion.label.slice(1)}
-                                </strong>
-                                <small>{suggestion.detail}</small>
-                              </span>
-                              <Icon name="arrow-right" />
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="new-tab-no-match">
-                          <Icon name="search" />
+
+                      {intentResolution.error && (
+                        <div className="lattice-result-error" role="alert">
+                          <Icon name="lock" />
                           <span>
-                            <strong>Search the web for “{homeQuery.trim().slice(0, 70)}”</strong>
-                            <small>Press Search or Enter to continue</small>
+                            <strong>That address cannot be opened</strong>
+                            <small>{intentResolution.error}</small>
                           </span>
                         </div>
                       )}
-                    </div>
+
+                      <section className="lattice-result-section" data-lattice-section="current">
+                        <header>
+                          <span>
+                            <Icon name="desktop" />
+                            <strong>
+                              {searchEverywhere
+                                ? "Your Lattice"
+                                : (activeDesktop?.name ?? "Current desk")}
+                            </strong>
+                          </span>
+                          <small>{formatCount(rankedLocalResults.length, "match")}</small>
+                        </header>
+                        {visibleLocalResults.length > 0 ? (
+                          <div className="lattice-result-list">
+                            {visibleLocalResults.map((suggestion) => (
+                              <button
+                                type="button"
+                                key={suggestion.id}
+                                data-lattice-action
+                                data-lattice-result={suggestion.kind}
+                                data-action-description={actionHelpText.continueNewTabItem(
+                                  suggestion.label,
+                                )}
+                                onClick={() => void activateNewTabSuggestion(suggestion)}
+                              >
+                                <span
+                                  className={`lattice-result-icon ${suggestion.kind}`}
+                                  aria-hidden="true"
+                                >
+                                  <Icon
+                                    name={
+                                      suggestion.kind === "tab" || suggestion.kind === "history"
+                                        ? "globe"
+                                        : suggestion.kind === "link"
+                                          ? "bookmark"
+                                          : "grid"
+                                    }
+                                  />
+                                </span>
+                                <span>
+                                  <strong>{suggestion.label}</strong>
+                                  <small>{suggestion.detail}</small>
+                                </span>
+                                <Icon name="arrow-right" />
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="lattice-result-empty">
+                            No local matches yet. Your web action is ready below.
+                          </p>
+                        )}
+                        {rankedLocalResults.length > 3 && (
+                          <button
+                            type="button"
+                            className="lattice-show-more"
+                            data-lattice-action
+                            onClick={() => setShowAllLatticeResults((shown) => !shown)}
+                          >
+                            {showAllLatticeResults
+                              ? "Show top 3"
+                              : `Show ${Math.min(12, rankedLocalResults.length)} matches`}
+                            <Icon name={showAllLatticeResults ? "arrow-left" : "arrow-right"} />
+                          </button>
+                        )}
+                      </section>
+
+                      {!intentResolution.error && intentResolution.intent.kind !== "empty" && (
+                        <section className="lattice-result-section" data-lattice-section="web">
+                          <header>
+                            <span>
+                              <Icon name="globe" />
+                              <strong>Web &amp; websites</strong>
+                            </span>
+                            <small>
+                              {intentResolution.intent.kind === "web"
+                                ? intentResolution.intent.provider.name
+                                : "Smart destination"}
+                            </small>
+                          </header>
+                          <div className="lattice-web-primary">
+                            <button
+                              type="button"
+                              data-lattice-action
+                              data-lattice-result="web"
+                              data-action-description={actionHelpText.openWebResult(
+                                intentResolution.intent.label,
+                              )}
+                              onClick={() => void activateHomeIntent()}
+                            >
+                              <span
+                                className={`lattice-result-icon ${intentResolution.intent.kind}`}
+                                aria-hidden="true"
+                              >
+                                {intentResolution.intent.kind === "site" ? (
+                                  intentResolution.intent.site.name.charAt(0)
+                                ) : (
+                                  <Icon name="search" />
+                                )}
+                              </span>
+                              <span>
+                                <strong>{intentResolution.intent.label}</strong>
+                                <small>
+                                  {intentResolution.intent.kind === "site"
+                                    ? `${intentResolution.intent.site.description} · ${intentResolution.intent.site.domain.replace(/^www\./, "")}`
+                                    : intentResolution.intent.kind === "web"
+                                      ? `Continue securely on ${intentResolution.intent.provider.name}`
+                                      : `Open ${new URL(intentResolution.intent.url).hostname}`}
+                                </small>
+                              </span>
+                              <Icon name="arrow-right" />
+                            </button>
+                          </div>
+                          {websiteMatches.length > 0 && (
+                            <div className="lattice-website-grid">
+                              {websiteMatches.map((match) => (
+                                <button
+                                  type="button"
+                                  key={match.id}
+                                  data-lattice-action
+                                  data-action-description={actionHelpText.openWebsite(match.label)}
+                                  onClick={() => void activateWebsiteMatch(match)}
+                                >
+                                  <span aria-hidden="true">{match.label.charAt(0)}</span>
+                                  <span>
+                                    <strong>{match.label}</strong>
+                                    <small>{match.detail}</small>
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </section>
+                      )}
+
+                      {quickAccessMatches.length > 0 && (
+                        <section
+                          className="lattice-result-section"
+                          data-lattice-section="quick-access"
+                        >
+                          <header>
+                            <span>
+                              <Icon name="sparkle" />
+                              <strong>Quick access</strong>
+                            </span>
+                            <small>Relevant tools</small>
+                          </header>
+                          <div className="lattice-quick-access-grid">
+                            {quickAccessMatches.map((match) => (
+                              <button
+                                type="button"
+                                key={match.id}
+                                data-lattice-action
+                                data-action-description={actionHelpText.quickAccess(match.label)}
+                                onClick={() => activateQuickAccess(match)}
+                              >
+                                <span
+                                  className={`new-tab-app-icon ${match.accent}`}
+                                  aria-hidden="true"
+                                >
+                                  {match.target === "wealth-lab" ? (
+                                    <b>₱</b>
+                                  ) : (
+                                    <Icon name={match.icon} />
+                                  )}
+                                </span>
+                                <span>
+                                  <strong>{match.label}</strong>
+                                  <small>{match.detail}</small>
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </section>
+                      )}
+
+                      {rankedFileResults.length > 0 && (
+                        <section className="lattice-result-section" data-lattice-section="files">
+                          <header>
+                            <span>
+                              <Icon name="folder" />
+                              <strong>Files in your connected vault</strong>
+                            </span>
+                            <small>Permission-scoped</small>
+                          </header>
+                          <div className="lattice-result-list compact">
+                            {rankedFileResults.map((suggestion) => (
+                              <button
+                                type="button"
+                                key={suggestion.id}
+                                data-lattice-action
+                                data-lattice-result="file"
+                                data-action-description={actionHelpText.revealSearchFile(
+                                  suggestion.label,
+                                )}
+                                onClick={() => void activateNewTabSuggestion(suggestion)}
+                              >
+                                <span className="lattice-result-icon file" aria-hidden="true">
+                                  <Icon name="folder" />
+                                </span>
+                                <span>
+                                  <strong>{suggestion.label}</strong>
+                                  <small>{suggestion.detail}</small>
+                                </span>
+                                <Icon name="arrow-right" />
+                              </button>
+                            ))}
+                          </div>
+                        </section>
+                      )}
+
+                      <button
+                        type="button"
+                        className="lattice-save-note-action"
+                        data-lattice-action
+                        data-action-description={actionHelpText.saveSearchAsNote(homeQuery.trim())}
+                        onClick={() => setLatticeNoteMode(true)}
+                      >
+                        <span className="lattice-result-icon note" aria-hidden="true">
+                          <Icon name="edit" />
+                        </span>
+                        <span>
+                          <strong>Save “{homeQuery.trim().slice(0, 100)}” as a note</strong>
+                          <small>
+                            Keep it privately in your Daily Flow Inbox instead of searching
+                          </small>
+                        </span>
+                        <kbd>Ctrl Enter</kbd>
+                      </button>
+                    </section>
                   )}
                 </section>
 
-                <form className="quick-note" onSubmit={captureQuickNote}>
-                  <span className="quick-note-tape" aria-hidden="true" />
-                  <header>
-                    <span className="quick-note-accent" aria-hidden="true">
-                      <Icon name="edit" />
-                    </span>
-                    <span>
-                      <strong>Quick capture</strong>
-                      <p>Jot it down. We&apos;ll keep it safe.</p>
-                    </span>
-                  </header>
-                  <textarea
-                    value={quickNote}
-                    data-action-description={actionHelpText.quickCaptureNote}
-                    onChange={(event) => setQuickNote(event.target.value)}
-                    onKeyDown={(event) => {
-                      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
-                        event.preventDefault();
-                        event.currentTarget.form?.requestSubmit();
-                      }
-                    }}
-                    maxLength={2000}
-                    placeholder="Write the thought before it disappears…"
-                    aria-label="Quick capture note"
-                  />
-                  <footer>
-                    <button
-                      type="button"
-                      className="quick-note-inbox"
-                      data-action-description={actionHelpText.openQuickCaptureInbox}
-                      onClick={() => showRunnableApp("daily-flow", "inbox")}
-                    >
-                      <Icon name="library" /> Inbox
-                      <span aria-hidden="true">{quickCaptureInboxCount}</span>
-                    </button>
-                    <span className="quick-note-submit-group">
-                      <button
-                        type="submit"
-                        data-action-description={actionHelpText.captureQuickNote}
-                        disabled={!quickNote.trim() || capturingQuickNote}
-                      >
-                        {capturingQuickNote ? "Capturing…" : "Capture note"}
-                      </button>
-                      <kbd>Ctrl Enter</kbd>
-                    </span>
-                  </footer>
-                </form>
-
-                {!homeQuery.trim() && (
+                {!homeQuery.trim() && !latticeNoteMode && (
                   <section className="new-tab-overview-grid" aria-label="New tab launchpad">
                     <article className="new-tab-overview-card new-tab-continue-card">
                       <header>
@@ -4069,7 +4787,7 @@ export function LatticeApp() {
                               >
                                 <Icon
                                   name={
-                                    suggestion.kind === "tab"
+                                    suggestion.kind === "tab" || suggestion.kind === "history"
                                       ? "globe"
                                       : suggestion.kind === "link"
                                         ? "bookmark"
@@ -4201,7 +4919,7 @@ export function LatticeApp() {
                 canvasPages={canvasPages}
                 onOpenTab={(tab) => void switchTab(tab)}
                 onCloseTab={(tab) => void closeTab(tab.id)}
-                onNewTab={() => void createTab(workspace.activeDesktopId, "browser")}
+                onNewTab={() => void createTab(workspace.activeDesktopId, "home")}
                 onRestoreClosed={(item) => {
                   void restoreClosedTabs(
                     [{ tab: item.tab, desktopId: item.desktopId }],
@@ -4712,7 +5430,7 @@ export function LatticeApp() {
                       <span className="settings-kicker">Browsing continuity</span>
                       <h2>Restore tabs on launch</h2>
                       <p>
-                        Remember HTTPS URLs and desktop membership. History, forms, and page content
+                        Remember HTTPS URLs and desktop membership. Page content and form entries
                         are never serialized by Lattice.
                       </p>
                     </div>
@@ -4728,6 +5446,76 @@ export function LatticeApp() {
                     >
                       <span />
                     </button>
+                  </section>
+
+                  <section className="settings-card search-provider-settings-card">
+                    <div className="settings-card-icon violet">
+                      <Icon name="search" />
+                    </div>
+                    <div className="settings-card-copy">
+                      <span className="settings-kicker">Lattice Bar</span>
+                      <h2>Web search provider</h2>
+                      <p>
+                        Local desk results always appear first. Choose where ordinary web searches
+                        continue; trusted website commands still open their named destination.
+                      </p>
+                    </div>
+                    <span className="settings-badge">
+                      {providerById(settings.searchProvider).name}
+                    </span>
+                    <fieldset className="search-provider-grid">
+                      <legend className="sr-only">Web search provider</legend>
+                      {SEARCH_PROVIDERS.map((provider) => {
+                        const selected = provider.id === settings.searchProvider;
+                        return (
+                          <button
+                            type="button"
+                            key={provider.id}
+                            className={
+                              selected
+                                ? "search-provider-option selected"
+                                : "search-provider-option"
+                            }
+                            aria-pressed={selected}
+                            data-action-description={actionHelpText.searchProvider(provider.name)}
+                            onClick={() => selectSearchProvider(provider.id)}
+                          >
+                            <span
+                              className={`search-provider-mark ${provider.id}`}
+                              aria-hidden="true"
+                            >
+                              {provider.name.charAt(0)}
+                            </span>
+                            <span>
+                              <strong>{provider.name}</strong>
+                              <small>{provider.description}</small>
+                            </span>
+                            {selected && <Icon name="check" />}
+                          </button>
+                        );
+                      })}
+                    </fieldset>
+                    <div className="search-history-privacy">
+                      <span>
+                        <Icon name="lock" />
+                        <span>
+                          <strong>Private history learning</strong>
+                          <small>
+                            {formatCount(browserHistory.length, "recent address")} stored only in
+                            this profile to improve website suggestions.
+                          </small>
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        className="settings-cancel"
+                        data-action-description={actionHelpText.clearSearchHistory}
+                        disabled={browserHistory.length === 0}
+                        onClick={clearLocalSearchHistory}
+                      >
+                        Clear local history
+                      </button>
+                    </div>
                   </section>
 
                   <section className="settings-card theme-settings-card" data-settings-theme>
