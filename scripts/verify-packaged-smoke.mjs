@@ -265,8 +265,10 @@ if (
   failures.push("focus navigation shortcuts did not route through every stable destination");
 }
 if (
-  evidence.navigation?.newTabHeading !== "Where would you like to go?" ||
-  !evidence.navigation?.newTabSuggestionKinds?.includes("app") ||
+  evidence.navigation?.newTabHeading !== "What will we explore today?" ||
+  evidence.navigation?.newTabShortcutCount !== 5 ||
+  evidence.navigation?.newTabContinueItemCount < 1 ||
+  evidence.navigation?.newTabQuickAccessCount !== 6 ||
   !evidence.navigation?.quickCaptureVisible ||
   evidence.navigation?.capturedInboxCount < 1 ||
   !evidence.navigation?.capturedNoteVisibleInInbox ||
@@ -275,7 +277,7 @@ if (
   !evidence.navigation?.newTabReactivationPreservedLayout
 ) {
   failures.push(
-    "minimal New Tab search, tab reactivation layout, native-view isolation, or durable capture Inbox failed",
+    "New Tab launchpad, tab reactivation layout, native-view isolation, or durable capture Inbox failed",
   );
 }
 if (

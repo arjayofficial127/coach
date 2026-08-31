@@ -36,6 +36,15 @@ export const actionHelpText = {
   dashboardCustomization: (open: boolean) =>
     open ? "Close dashboard customization" : "Choose what appears on your dashboard",
   newTabSearch: "Type a website address or search term, then press Enter or choose Search",
+  newTabSearchButton: "Search the web or open this address",
+  newTabShortcut: (name: string) => `Open ${name}`,
+  manageNewTabShortcuts: "Open saved links to add or manage shortcuts",
+  continueNewTabItem: (name: string) => `Continue with ${name}`,
+  viewNewTabHistory: "Open your dashboard to see more recent work",
+  quickAccess: (name: string) => `Open ${name}`,
+  quickCaptureNote: "Type a note to save in your Daily Flow Inbox",
+  captureQuickNote: "Save this note in your Daily Flow Inbox",
+  openQuickCaptureInbox: "Open your Daily Flow Inbox",
   commandSearch: "Type to find a tab, desktop, saved link, app command, or webpage",
   dashboardSection: (name: string) => `Show ${name} on the dashboard`,
   dashboardSectionToggle: (name: string, shown: boolean) =>

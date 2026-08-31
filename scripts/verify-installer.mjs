@@ -323,8 +323,10 @@ if (
   !smoke.navigation?.nativeViewHidden ||
   !smoke.navigation?.escapeRestoredNavigation ||
   !smoke.navigation?.browserRestoredAfterShortcuts ||
-  smoke.navigation?.newTabHeading !== "Where would you like to go?" ||
-  !smoke.navigation?.newTabSuggestionKinds?.includes("app") ||
+  smoke.navigation?.newTabHeading !== "What will we explore today?" ||
+  smoke.navigation?.newTabShortcutCount !== 5 ||
+  smoke.navigation?.newTabContinueItemCount < 1 ||
+  smoke.navigation?.newTabQuickAccessCount !== 6 ||
   !smoke.navigation?.quickCaptureVisible ||
   smoke.navigation?.capturedInboxCount < 1 ||
   !smoke.navigation?.capturedNoteVisibleInInbox

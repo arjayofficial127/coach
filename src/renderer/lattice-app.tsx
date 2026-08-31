@@ -167,6 +167,13 @@ type NewTabSuggestion =
   | { kind: "canvas"; id: string; label: string; detail: string; pageId: string }
   | { kind: "file"; id: string; label: string; detail: string; pageId: string };
 
+const NEW_TAB_SHORTCUTS = [
+  { id: "google", label: "Google", mark: "G", url: "https://www.google.com/" },
+  { id: "youtube", label: "YouTube", mark: "▶", url: "https://www.youtube.com/" },
+  { id: "gmail", label: "Gmail", mark: "M", url: "https://mail.google.com/" },
+  { id: "drive", label: "Drive", mark: "▲", url: "https://drive.google.com/" },
+] as const;
+
 const railItems: Array<{
   id: Surface;
   label: string;
@@ -355,10 +362,6 @@ async function restoreProfileBrowser(
 
 function formatCount(count: number, singular: string, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
-}
-
-function formatWaitingNotes(count: number) {
-  return count === 0 ? "No notes waiting" : `${formatCount(count, "note")} waiting`;
 }
 
 function colorLuminance(hex: string): number {
@@ -896,6 +899,10 @@ export function LatticeApp() {
     referenceIndex.entries,
     runnableApps.pomodoro.activeRun,
   ]);
+  const newTabContinueSuggestions = useMemo(
+    () => newTabSuggestions.filter((suggestion) => suggestion.kind !== "app").slice(0, 3),
+    [newTabSuggestions],
+  );
   const commandItems = useMemo(() => {
     const query = commandQuery.trim();
     const normalizedQuery = query.toLowerCase();
@@ -3859,14 +3866,11 @@ export function LatticeApp() {
                 <section className="new-tab-search-zone" aria-labelledby="new-tab-heading">
                   <header className="new-tab-heading">
                     <span className="new-tab-kicker">
-                      <Icon name="sparkle" /> New tab
+                      <Icon name="sparkle" /> {greeting}
                     </span>
                     <h1 id="new-tab-heading">
-                      Where would you
-                      <br />
-                      like to go?
+                      What will we <em>explore</em> today?
                     </h1>
-                    <p>Search the web, open something nearby, or leave a thought for later.</p>
                   </header>
 
                   <form className="new-tab-search" onSubmit={navigateFromFocus}>
@@ -3880,72 +3884,111 @@ export function LatticeApp() {
                       aria-label="Search the web or enter a URL"
                       autoComplete="off"
                     />
-                    <button type="submit">
+                    <button
+                      type="submit"
+                      data-action-description={actionHelpText.newTabSearchButton}
+                    >
                       Search <Icon name="arrow-right" />
                     </button>
                   </form>
 
-                  <div className="new-tab-suggestions">
-                    <div className="new-tab-suggestions-heading">
-                      <span>{homeQuery.trim() ? "Matching your workspace" : "Quick open"}</span>
-                    </div>
-                    {newTabSuggestions.length > 0 ? (
-                      <div className="new-tab-suggestion-grid">
-                        {newTabSuggestions.map((suggestion) => (
-                          <button
-                            type="button"
-                            key={suggestion.id}
-                            data-new-tab-suggestion={suggestion.kind}
-                            onClick={() => void activateNewTabSuggestion(suggestion)}
-                          >
-                            <span
-                              className={`new-tab-app-icon ${suggestion.kind}${
-                                suggestion.kind === "app" ? ` ${suggestion.appId}` : ""
-                              }`}
-                            >
-                              {suggestion.kind === "app" ? (
-                                suggestion.appId === "pomodoro" ? (
-                                  <Icon name="timer" />
-                                ) : suggestion.appId === "daily-flow" ? (
-                                  <Icon name="sparkle" />
-                                ) : (
-                                  <b>₱</b>
-                                )
-                              ) : (
-                                <Icon
-                                  name={
-                                    suggestion.kind === "tab"
-                                      ? "globe"
-                                      : suggestion.kind === "link"
-                                        ? "bookmark"
-                                        : suggestion.kind === "canvas"
-                                          ? "grid"
-                                          : "folder"
-                                  }
-                                />
-                              )}
-                            </span>
-                            <span>
-                              <strong>
-                                {suggestion.label.charAt(0).toUpperCase() +
-                                  suggestion.label.slice(1)}
-                              </strong>
-                              <small>{suggestion.detail}</small>
-                            </span>
-                            <Icon name="arrow-right" />
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="new-tab-no-match">
-                        <Icon name="search" />
-                        <span>
-                          <strong>Search the web for “{homeQuery.trim().slice(0, 70)}”</strong>
-                          <small>Press Search or Enter to continue</small>
+                  {!homeQuery.trim() && (
+                    <nav className="new-tab-shortcuts" aria-label="Website shortcuts">
+                      {NEW_TAB_SHORTCUTS.map((shortcut) => (
+                        <button
+                          type="button"
+                          key={shortcut.id}
+                          className={`new-tab-shortcut ${shortcut.id}`}
+                          data-action-description={actionHelpText.newTabShortcut(shortcut.label)}
+                          onClick={() => void openUrl(shortcut.url)}
+                        >
+                          <span className="new-tab-shortcut-mark" aria-hidden="true">
+                            {shortcut.mark}
+                          </span>
+                          <span>{shortcut.label}</span>
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        className="new-tab-shortcut manage"
+                        data-action-description={actionHelpText.manageNewTabShortcuts}
+                        onClick={() => void showLibrary()}
+                      >
+                        <span className="new-tab-shortcut-mark" aria-hidden="true">
+                          <Icon name="plus" />
                         </span>
+                        <span>Add shortcut</span>
+                      </button>
+                    </nav>
+                  )}
+
+                  {homeQuery.trim() && (
+                    <div className="new-tab-suggestions" aria-live="polite">
+                      <div className="new-tab-suggestions-heading">
+                        <span>Matching your workspace</span>
+                        <small>{formatCount(newTabSuggestions.length, "result")}</small>
                       </div>
-                    )}
-                  </div>
+                      {newTabSuggestions.length > 0 ? (
+                        <div className="new-tab-suggestion-grid">
+                          {newTabSuggestions.map((suggestion) => (
+                            <button
+                              type="button"
+                              key={suggestion.id}
+                              data-new-tab-suggestion={suggestion.kind}
+                              data-action-description={actionHelpText.continueNewTabItem(
+                                suggestion.label,
+                              )}
+                              onClick={() => void activateNewTabSuggestion(suggestion)}
+                            >
+                              <span
+                                className={`new-tab-app-icon ${suggestion.kind}${
+                                  suggestion.kind === "app" ? ` ${suggestion.appId}` : ""
+                                }`}
+                              >
+                                {suggestion.kind === "app" ? (
+                                  suggestion.appId === "pomodoro" ? (
+                                    <Icon name="timer" />
+                                  ) : suggestion.appId === "daily-flow" ? (
+                                    <Icon name="sparkle" />
+                                  ) : (
+                                    <b>₱</b>
+                                  )
+                                ) : (
+                                  <Icon
+                                    name={
+                                      suggestion.kind === "tab"
+                                        ? "globe"
+                                        : suggestion.kind === "link"
+                                          ? "bookmark"
+                                          : suggestion.kind === "canvas"
+                                            ? "grid"
+                                            : "folder"
+                                    }
+                                  />
+                                )}
+                              </span>
+                              <span>
+                                <strong>
+                                  {suggestion.label.charAt(0).toUpperCase() +
+                                    suggestion.label.slice(1)}
+                                </strong>
+                                <small>{suggestion.detail}</small>
+                              </span>
+                              <Icon name="arrow-right" />
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="new-tab-no-match">
+                          <Icon name="search" />
+                          <span>
+                            <strong>Search the web for “{homeQuery.trim().slice(0, 70)}”</strong>
+                            <small>Press Search or Enter to continue</small>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </section>
 
                 <form className="quick-note" onSubmit={captureQuickNote}>
@@ -3954,15 +3997,14 @@ export function LatticeApp() {
                     <span className="quick-note-accent" aria-hidden="true">
                       <Icon name="edit" />
                     </span>
-                    <strong>
-                      Leave a note
-                      <br />
-                      for later you.
-                    </strong>
-                    <p>No organizing now. Every capture waits safely in your Inbox.</p>
+                    <span>
+                      <strong>Quick capture</strong>
+                      <p>Jot it down. We&apos;ll keep it safe.</p>
+                    </span>
                   </header>
                   <textarea
                     value={quickNote}
+                    data-action-description={actionHelpText.quickCaptureNote}
                     onChange={(event) => setQuickNote(event.target.value)}
                     onKeyDown={(event) => {
                       if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
@@ -3974,24 +4016,165 @@ export function LatticeApp() {
                     placeholder="Write the thought before it disappears…"
                     aria-label="Quick capture note"
                   />
-                  <div className="quick-note-actions">
-                    <small>
-                      Press Ctrl+Enter
-                      <br />
-                      to capture
-                    </small>
-                    <button type="submit" disabled={!quickNote.trim() || capturingQuickNote}>
-                      {capturingQuickNote ? "Capturing…" : "Capture note"}
-                      {!capturingQuickNote && <Icon name="arrow-right" />}
-                    </button>
-                  </div>
                   <footer>
-                    <button type="button" onClick={() => showRunnableApp("daily-flow", "inbox")}>
-                      <Icon name="library" /> Open capture Inbox
+                    <button
+                      type="button"
+                      className="quick-note-inbox"
+                      data-action-description={actionHelpText.openQuickCaptureInbox}
+                      onClick={() => showRunnableApp("daily-flow", "inbox")}
+                    >
+                      <Icon name="library" /> Inbox
+                      <span aria-hidden="true">{quickCaptureInboxCount}</span>
                     </button>
-                    <span>{formatWaitingNotes(quickCaptureInboxCount)}</span>
+                    <span className="quick-note-submit-group">
+                      <button
+                        type="submit"
+                        data-action-description={actionHelpText.captureQuickNote}
+                        disabled={!quickNote.trim() || capturingQuickNote}
+                      >
+                        {capturingQuickNote ? "Capturing…" : "Capture note"}
+                      </button>
+                      <kbd>Ctrl Enter</kbd>
+                    </span>
                   </footer>
                 </form>
+
+                {!homeQuery.trim() && (
+                  <section className="new-tab-overview-grid" aria-label="New tab launchpad">
+                    <article className="new-tab-overview-card new-tab-continue-card">
+                      <header>
+                        <h2>Continue where you left off</h2>
+                        <button
+                          type="button"
+                          data-action-description={actionHelpText.viewNewTabHistory}
+                          onClick={showDashboard}
+                        >
+                          View all
+                        </button>
+                      </header>
+                      <div className="new-tab-continue-list">
+                        {newTabContinueSuggestions.length > 0 ? (
+                          newTabContinueSuggestions.map((suggestion) => (
+                            <button
+                              type="button"
+                              key={suggestion.id}
+                              data-action-description={actionHelpText.continueNewTabItem(
+                                suggestion.label,
+                              )}
+                              onClick={() => void activateNewTabSuggestion(suggestion)}
+                            >
+                              <span
+                                className={`new-tab-continue-icon ${suggestion.kind}`}
+                                aria-hidden="true"
+                              >
+                                <Icon
+                                  name={
+                                    suggestion.kind === "tab"
+                                      ? "globe"
+                                      : suggestion.kind === "link"
+                                        ? "bookmark"
+                                        : suggestion.kind === "canvas"
+                                          ? "grid"
+                                          : "folder"
+                                  }
+                                />
+                              </span>
+                              <span>
+                                <strong>{suggestion.label}</strong>
+                                <small>{suggestion.detail}</small>
+                              </span>
+                              <Icon name="arrow-right" />
+                            </button>
+                          ))
+                        ) : (
+                          <button
+                            type="button"
+                            className="new-tab-continue-empty"
+                            data-action-description={actionHelpText.browse}
+                            onClick={() => void showBrowser()}
+                          >
+                            <span className="new-tab-continue-icon tab" aria-hidden="true">
+                              <Icon name="globe" />
+                            </span>
+                            <span>
+                              <strong>Start exploring</strong>
+                              <small>Your recent tabs and pages will appear here</small>
+                            </span>
+                            <Icon name="arrow-right" />
+                          </button>
+                        )}
+                      </div>
+                    </article>
+
+                    <article className="new-tab-overview-card new-tab-quick-access-card">
+                      <header>
+                        <h2>Quick access</h2>
+                      </header>
+                      <div className="new-tab-quick-access-grid">
+                        <button
+                          type="button"
+                          data-action-description={actionHelpText.quickAccess("Daily Flow")}
+                          onClick={() => showRunnableApp("daily-flow")}
+                        >
+                          <span className="new-tab-app-icon app daily-flow" aria-hidden="true">
+                            <Icon name="sparkle" />
+                          </span>
+                          <strong>Daily Flow</strong>
+                        </button>
+                        <button
+                          type="button"
+                          data-action-description={actionHelpText.quickAccess("Pomodoro")}
+                          onClick={() => showRunnableApp("pomodoro")}
+                        >
+                          <span className="new-tab-app-icon app pomodoro" aria-hidden="true">
+                            <Icon name="timer" />
+                          </span>
+                          <strong>Pomodoro</strong>
+                        </button>
+                        <button
+                          type="button"
+                          data-action-description={actionHelpText.quickAccess("Wealth Lab")}
+                          onClick={() => showRunnableApp("wealth-lab")}
+                        >
+                          <span className="new-tab-app-icon app wealth-lab" aria-hidden="true">
+                            <b>₱</b>
+                          </span>
+                          <strong>Wealth Lab</strong>
+                        </button>
+                        <button
+                          type="button"
+                          data-action-description={actionHelpText.quickAccess("Saved links")}
+                          onClick={() => void showLibrary()}
+                        >
+                          <span className="new-tab-app-icon link" aria-hidden="true">
+                            <Icon name="bookmark" />
+                          </span>
+                          <strong>Saved links</strong>
+                        </button>
+                        <button
+                          type="button"
+                          data-action-description={actionHelpText.quickAccess("Canvas pages")}
+                          onClick={() => void showCanvasPages()}
+                        >
+                          <span className="new-tab-app-icon canvas" aria-hidden="true">
+                            <Icon name="grid" />
+                          </span>
+                          <strong>Canvas pages</strong>
+                        </button>
+                        <button
+                          type="button"
+                          data-action-description={actionHelpText.quickAccess("Reading queue")}
+                          onClick={() => void showReadingQueue()}
+                        >
+                          <span className="new-tab-app-icon queue" aria-hidden="true">
+                            <Icon name="library" />
+                          </span>
+                          <strong>Reading queue</strong>
+                        </button>
+                      </div>
+                    </article>
+                  </section>
+                )}
               </div>
             )}
 

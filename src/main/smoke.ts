@@ -112,7 +112,9 @@ export interface PhaseNineSmokeEvidence {
     shortcutRouteSequence: string[];
     browserRestoredAfterShortcuts: boolean;
     newTabHeading: string;
-    newTabSuggestionKinds: string[];
+    newTabShortcutCount: number;
+    newTabContinueItemCount: number;
+    newTabQuickAccessCount: number;
     quickCaptureVisible: boolean;
     capturedInboxCount: number;
     capturedNoteVisibleInInbox: boolean;
@@ -395,6 +397,17 @@ export async function runNewTabReactivationSmoke(
   windowHeight: number;
   browserToolbarVisible: boolean;
   nativeViewHidden: boolean;
+  screenshotPath: string;
+  screenshotBytes: number;
+  newTabLaunchpad: {
+    heading: string;
+    shortcutCount: number;
+    continuePanel: boolean;
+    quickAccessCount: number;
+    quickCaptureHeading: string;
+    searchVisible: boolean;
+  };
+  reactivatedLaunchpadVisible: boolean;
   actionPopovers: {
     compactNavigation: string;
     searchEverything: string;
@@ -473,6 +486,15 @@ export async function runNewTabReactivationSmoke(
       );
       const initialHomeHeight = document.querySelector('.new-tab-surface')
         ?.getBoundingClientRect().height ?? 0;
+      const newTabLaunchpad = {
+        heading: document.querySelector('.new-tab-heading h1')?.textContent?.trim() ?? '',
+        shortcutCount: document.querySelectorAll('.new-tab-shortcut').length,
+        continuePanel: Boolean(document.querySelector('.new-tab-continue-card')),
+        quickAccessCount: document.querySelectorAll('.new-tab-quick-access-grid > button').length,
+        quickCaptureHeading: document.querySelector('.quick-note header strong')
+          ?.textContent?.trim() ?? '',
+        searchVisible: Boolean(document.querySelector('.new-tab-search input'))
+      };
       const popoverFor = async (selector) => {
         const element = document.querySelector(selector);
         if (!(element instanceof HTMLElement)) throw new Error('Missing popover target: ' + selector);
@@ -684,6 +706,10 @@ export async function runNewTabReactivationSmoke(
           ?.getBoundingClientRect().height ?? 0,
         windowHeight: window.innerHeight,
         browserToolbarVisible: Boolean(document.querySelector('.browser-toolbar')),
+        newTabLaunchpad,
+        reactivatedLaunchpadVisible:
+          Boolean(document.querySelector('.new-tab-continue-card')) &&
+          document.querySelectorAll('.new-tab-quick-access-grid > button').length === 6,
         actionPopovers,
       };
     })()`)) as {
@@ -691,6 +717,15 @@ export async function runNewTabReactivationSmoke(
       reactivatedSurfaceHeight: number;
       windowHeight: number;
       browserToolbarVisible: boolean;
+      newTabLaunchpad: {
+        heading: string;
+        shortcutCount: number;
+        continuePanel: boolean;
+        quickAccessCount: number;
+        quickCaptureHeading: string;
+        searchVisible: boolean;
+      };
+      reactivatedLaunchpadVisible: boolean;
       actionPopovers: {
         compactNavigation: string;
         searchEverything: string;
@@ -718,10 +753,25 @@ export async function runNewTabReactivationSmoke(
       };
     };
     await delay(100);
+    window.setContentSize(1_536, 1_024);
+    await delay(100);
+    window.setSkipTaskbar(true);
+    window.showInactive();
+    await delay(100);
+    const screenshotImage = await window.webContents.capturePage();
+    window.hide();
+    if (screenshotImage.isEmpty()) {
+      throw new Error("Electron returned an empty New Tab launchpad capture.");
+    }
+    const screenshot = screenshotImage.toPNG();
+    const screenshotPath = path.join(profileRoot, "new-tab-launchpad.png");
+    await writeFile(screenshotPath, screenshot);
     const evidence = {
       ...result,
       rendererReportedHeight: runtime.getBounds().height,
       nativeViewHidden: !runtime.isVisible(),
+      screenshotPath,
+      screenshotBytes: screenshot.byteLength,
     };
     const minimumFullHeight = Math.max(300, evidence.windowHeight * 0.5);
     const layeredActionPopovers = [
@@ -744,6 +794,14 @@ export async function runNewTabReactivationSmoke(
       evidence.rendererReportedHeight < minimumFullHeight ||
       !evidence.browserToolbarVisible ||
       !evidence.nativeViewHidden ||
+      evidence.screenshotBytes < 100 ||
+      !evidence.newTabLaunchpad.heading.includes("What will we explore today?") ||
+      evidence.newTabLaunchpad.shortcutCount !== 5 ||
+      !evidence.newTabLaunchpad.continuePanel ||
+      evidence.newTabLaunchpad.quickAccessCount !== 6 ||
+      evidence.newTabLaunchpad.quickCaptureHeading !== "Quick capture" ||
+      !evidence.newTabLaunchpad.searchVisible ||
+      !evidence.reactivatedLaunchpadVisible ||
       !evidence.actionPopovers.compactNavigation.includes("smaller icon menu") ||
       !evidence.actionPopovers.searchEverything.includes("Find a tab") ||
       !evidence.actionPopovers.desktopRow.includes("continue where you left off") ||
@@ -1254,8 +1312,8 @@ export async function runPhaseNineSmoke(
     while (Date.now() < browserRestoreDeadline && !runtime.isVisible()) await delay(25);
     const browserRestoredAfterShortcuts = runtime.isVisible();
 
-    // The New Tab is intentionally sparse: a URL/search action, contextual suggestions,
-    // and a durable quick-capture note that can be opened in Daily Flow's Inbox.
+    // The New Tab is a calm launchpad: search, web shortcuts, live continuation,
+    // six stable destinations, and durable capture into Daily Flow's Inbox.
     await window.webContents.executeJavaScript(
       `document.dispatchEvent(new KeyboardEvent("keydown", { key: "t", ctrlKey: true, bubbles: true }))`,
     );
@@ -1312,23 +1370,26 @@ export async function runPhaseNineSmoke(
       setter?.call(note, "Review the browser inbox architecture");
       note.dispatchEvent(new Event("input", { bubbles: true }));
       await new Promise((resolve) => setTimeout(resolve, 30));
-      const capture = document.querySelector('.quick-note-actions button');
+      const capture = document.querySelector('.quick-note-submit-group > button');
       if (!(capture instanceof HTMLButtonElement) || capture.disabled) {
         throw new Error("Quick capture action unavailable");
       }
       capture.click();
       await new Promise((resolve) => setTimeout(resolve, 75));
-      const waiting = document.querySelector('.quick-note footer span')?.textContent ?? "";
+      const waiting = document.querySelector('.quick-note-inbox span')?.textContent ?? "";
       return {
         newTabHeading: document.querySelector('.new-tab-heading h1')?.textContent?.trim() ?? "",
-        newTabSuggestionKinds: [...document.querySelectorAll('[data-new-tab-suggestion]')]
-          .map((item) => item.getAttribute('data-new-tab-suggestion') ?? ""),
+        newTabShortcutCount: document.querySelectorAll('.new-tab-shortcut').length,
+        newTabContinueItemCount: document.querySelectorAll('.new-tab-continue-list > button').length,
+        newTabQuickAccessCount: document.querySelectorAll('.new-tab-quick-access-grid > button').length,
         quickCaptureVisible: Boolean(document.querySelector('.quick-note')),
         capturedInboxCount: Number.parseInt(waiting, 10) || 0
       };
     })()`)) as {
       newTabHeading: string;
-      newTabSuggestionKinds: string[];
+      newTabShortcutCount: number;
+      newTabContinueItemCount: number;
+      newTabQuickAccessCount: number;
       quickCaptureVisible: boolean;
       capturedInboxCount: number;
     };
@@ -1344,9 +1405,7 @@ export async function runPhaseNineSmoke(
     window.hide();
 
     const capturedNoteVisibleInInbox = (await window.webContents.executeJavaScript(`(async () => {
-      const openInbox = [...document.querySelectorAll('.quick-note footer button')].find((button) =>
-        button.textContent?.includes('Open capture Inbox')
-      );
+      const openInbox = document.querySelector('.quick-note-inbox');
       if (!(openInbox instanceof HTMLButtonElement)) throw new Error("Capture Inbox action missing");
       openInbox.click();
       const deadline = Date.now() + 2000;

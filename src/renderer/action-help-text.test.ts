@@ -38,6 +38,15 @@ function examples(): string[] {
     actionHelpText.dashboardCustomization(false),
     actionHelpText.dashboardCustomization(true),
     actionHelpText.newTabSearch,
+    actionHelpText.newTabSearchButton,
+    actionHelpText.newTabShortcut("Google"),
+    actionHelpText.manageNewTabShortcuts,
+    actionHelpText.continueNewTabItem("Product strategy roadmap"),
+    actionHelpText.viewNewTabHistory,
+    actionHelpText.quickAccess("Daily Flow"),
+    actionHelpText.quickCaptureNote,
+    actionHelpText.captureQuickNote,
+    actionHelpText.openQuickCaptureInbox,
     actionHelpText.commandSearch,
     actionHelpText.dashboardSection("History"),
     actionHelpText.dashboardSectionToggle("History", true),
@@ -59,7 +68,7 @@ describe("curated action help text", () => {
   it("states an outcome and stays concise", () => {
     for (const text of examples()) {
       expect(text).toMatch(
-        /^(Browse|Change|Choose|Close|Connect|Create|Drag|Find|Go|Hide|Keep|Manage|Move|Open|Remove|Save|See|Show|Type)\b/,
+        /^(Browse|Change|Choose|Close|Connect|Continue|Create|Drag|Find|Go|Hide|Keep|Manage|Move|Open|Remove|Save|Search|See|Show|Type)\b/,
       );
       expect(text.length).toBeLessThanOrEqual(120);
     }
