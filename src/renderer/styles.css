@@ -3653,6 +3653,98 @@ kbd {
   gap: 7px;
 }
 
+.local-workspace-settings-card {
+  border-color: color-mix(in srgb, var(--green) 32%, var(--line));
+  background:
+    linear-gradient(110deg, color-mix(in srgb, var(--green) 8%, transparent), transparent 48%),
+    rgba(255, 255, 255, 0.022);
+}
+
+.local-workspace-active-folder {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  color: color-mix(in srgb, var(--green) 82%, var(--text));
+  font-size: 8px;
+  font-weight: 650;
+}
+
+.local-workspace-active-folder svg {
+  width: 11px;
+  height: 11px;
+}
+
+.archived-desktops-settings-card {
+  align-items: start;
+}
+
+.settings-archived-desktop-list,
+.settings-local-data-guarantee {
+  grid-column: 1 / -1;
+}
+
+.settings-archived-desktop-list {
+  display: grid;
+  gap: 7px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.settings-archived-desktop {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-2) 78%, transparent);
+  padding: 9px;
+}
+
+.settings-archived-desktop > span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.settings-archived-desktop strong {
+  color: var(--text);
+  font-size: 9px;
+}
+
+.settings-archived-desktop small {
+  overflow: hidden;
+  color: var(--subtle);
+  font-size: 7.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-archived-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.settings-archived-empty {
+  padding: 4px 2px;
+}
+
+.settings-local-data-guarantee {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--subtle);
+}
+
+.settings-local-data-guarantee svg {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  color: var(--green);
+}
+
 .settings-action,
 .settings-cancel {
   min-height: 31px;

@@ -31,6 +31,9 @@ Coach keeps its private coordination metadata in `.coach`.
 - Connecting any local folder creates `.coach/workspace.json` plus stable
   `Desktops/<Desktop name-ID>/{Inbox,Notes,Files,Planner}` folders. Renaming a desktop keeps its
   existing folder in place; archive, disconnect, and navigation actions never move or delete it.
+- Settings makes the connected root and active desktop folder obvious without exposing an absolute
+  device path. Desktop removal is archive-first; only the archived list offers permanent deletion,
+  which clears browser history and closed-tab records but never deletes local notes or files.
 - When a local folder is connected, New Tab quick notes are atomically written as inspectable
   Markdown into the active desktop's Inbox as well as entering Daily Flow.
 - New Tab and Runnable apps use dimensional, destination-specific app tiles with consistent

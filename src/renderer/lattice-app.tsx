@@ -56,6 +56,7 @@ import {
   DashboardSurface,
   setDashboardUrlFavorite,
 } from "./dashboard-surface";
+import { removeDesktopRecords } from "./desktop-lifecycle";
 import {
   FOCUS_STORAGE_KEY,
   MAX_FOCUS_INTENTION_LENGTH,
@@ -751,6 +752,11 @@ export function LatticeApp() {
   const activeDesktopFiles =
     localWorkspace.desktops.find((desktop) => desktop.desktopId === workspace.activeDesktopId) ??
     null;
+  const workspaceFolderDefinitions = useMemo(
+    () =>
+      [...workspace.desktops, ...workspace.archivedDesktops].map(({ id, name }) => ({ id, name })),
+    [workspace.archivedDesktops, workspace.desktops],
+  );
   const desktopTabs = useMemo(
     () => snapshot.tabs.filter((tab) => tabDesktops[tab.id] === workspace.activeDesktopId),
     [snapshot.tabs, tabDesktops, workspace.activeDesktopId],
@@ -1544,7 +1550,7 @@ export function LatticeApp() {
     let cancelled = false;
     setLocalWorkspaceBusy(true);
     void window.lattice.localWorkspace
-      .syncDesktops(workspace.desktops.map(({ id, name }) => ({ id, name })))
+      .syncDesktops(workspaceFolderDefinitions)
       .then((next) => {
         if (!cancelled) setLocalWorkspace(next);
       })
@@ -1557,7 +1563,7 @@ export function LatticeApp() {
     return () => {
       cancelled = true;
     };
-  }, [vault, workspace.desktops]);
+  }, [vault, workspaceFolderDefinitions]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2202,10 +2208,15 @@ export function LatticeApp() {
       return;
     }
     const desktop = workspace.archivedDesktops.find((candidate) => candidate.id === desktopId);
+    const historyRemoval = removeDesktopRecords(browserHistory, desktopId);
+    const closedTabRemoval = removeDesktopRecords(recentlyClosedTabs, desktopId);
     setWorkspace((current) => permanentlyDeleteArchivedDesktop(current, desktopId));
+    setBrowserHistory(historyRemoval.kept);
+    setRecentlyClosedTabs(closedTabRemoval.kept);
+    delete desktopLocationsRef.current[desktopId];
     setConfirmHardDeleteDesktopId(null);
     setStatus(
-      `Permanently removed ${desktop?.name ?? "archived desktop"}; vault files were untouched`,
+      `Removed ${desktop?.name ?? "archived desktop"} and ${historyRemoval.removedCount + closedTabRemoval.removedCount} browser records; local notes and files were untouched`,
     );
   };
 
@@ -2225,7 +2236,7 @@ export function LatticeApp() {
       setCanvasPages(savedCanvasPages);
       setReferenceIndex(references);
       const workspaceSnapshot = await window.lattice.localWorkspace.syncDesktops(
-        workspace.desktops.map(({ id, name }) => ({ id, name })),
+        workspaceFolderDefinitions,
       );
       setLocalWorkspace(workspaceSnapshot);
       setStatus(disposable ? "Disposable local folder connected" : "Local folder connected");
@@ -2479,9 +2490,7 @@ export function LatticeApp() {
     setLocalWorkspaceBusy(true);
     try {
       setLocalWorkspace(
-        await window.lattice.localWorkspace.syncDesktops(
-          workspace.desktops.map(({ id, name }) => ({ id, name })),
-        ),
+        await window.lattice.localWorkspace.syncDesktops(workspaceFolderDefinitions),
       );
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
@@ -3630,6 +3639,7 @@ export function LatticeApp() {
                 onClick={() => {
                   setArchivedDesktopsOpen((open) => !open);
                   setWorkspaceMenuOpen(false);
+                  void showSettings();
                 }}
               >
                 <Icon name="folder" />
@@ -3677,7 +3687,7 @@ export function LatticeApp() {
                     </span>
                     <span>
                       <strong>{desktop.name}</strong>
-                      <small>Files and saved data remain in place</small>
+                      <small>Browser activity is retained until permanent deletion</small>
                     </span>
                     <button
                       type="button"
@@ -3693,14 +3703,17 @@ export function LatticeApp() {
                       onClick={() => hardDeleteDesktopFromArchive(desktop.id)}
                     >
                       {confirmHardDeleteDesktopId === desktop.id
-                        ? "Confirm remove"
+                        ? "Confirm clear browser data"
                         : "Delete permanently"}
                     </button>
                   </div>
                 ))}
               </div>
             )}
-            <p>Permanent removal forgets the desktop record. Vault files are never erased here.</p>
+            <p>
+              Permanent removal clears this desktop's history and closed-tab records. Local notes,
+              saved Markdown, Canvas pages, and files are never erased here.
+            </p>
           </section>
         )}
 
@@ -3852,7 +3865,7 @@ export function LatticeApp() {
                       showDesktopArchiveActions(desktop.id);
                     }}
                   >
-                    <Icon name="close" />
+                    <Icon name="folder" />
                   </button>
                 </div>
                 {archiveDesktopId === desktop.id && (
@@ -3860,7 +3873,7 @@ export function LatticeApp() {
                     <header>
                       <span>
                         <strong>Archive {desktop.name}?</strong>
-                        <small>This can be restored later.</small>
+                        <small>Keep its history and restore it later.</small>
                       </span>
                       <button
                         type="button"
@@ -5597,6 +5610,154 @@ export function LatticeApp() {
                     </button>
                   </section>
 
+                  <section
+                    className="settings-card local-workspace-settings-card"
+                    data-settings-local-workspace
+                  >
+                    <div className="settings-card-icon green">
+                      <Icon name="folder" />
+                    </div>
+                    <div className="settings-card-copy">
+                      <span className="settings-kicker">Local workspace</span>
+                      <h2>
+                        {vault
+                          ? `Connected to ${localWorkspace.rootName || "local folder"}`
+                          : "No local folder connected"}
+                      </h2>
+                      <p>
+                        {vault
+                          ? "Coach keeps each desktop's Inbox, Notes, Files, and Planner here. The private device path stays hidden; disconnecting never deletes anything."
+                          : "Choose any local folder for desktop files, Inbox notes, Canvas pages, and saved links."}
+                      </p>
+                      {vault && activeDesktopFiles && (
+                        <span className="local-workspace-active-folder">
+                          <Icon name="check" />
+                          Active desktop: {activeDesktop?.name} · Desktops/
+                          {activeDesktopFiles.folderName}
+                        </span>
+                      )}
+                    </div>
+                    <div className="settings-card-actions">
+                      {vault ? (
+                        <>
+                          <button
+                            type="button"
+                            className="settings-action primary"
+                            disabled={localWorkspaceBusy}
+                            onClick={() =>
+                              void window.lattice.localWorkspace
+                                .revealDesktop(workspace.activeDesktopId)
+                                .catch((error) =>
+                                  setStatus(error instanceof Error ? error.message : String(error)),
+                                )
+                            }
+                          >
+                            Open desktop folder
+                          </button>
+                          <button
+                            type="button"
+                            className="settings-cancel"
+                            onClick={() => void disconnectVault()}
+                          >
+                            Disconnect
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="settings-action primary"
+                          onClick={() => void connectVault(false)}
+                        >
+                          Connect local folder
+                        </button>
+                      )}
+                    </div>
+                  </section>
+
+                  <section
+                    className="settings-card archived-desktops-settings-card"
+                    data-settings-archived-desktops
+                  >
+                    <div className="settings-card-icon amber">
+                      <Icon name="folder" />
+                    </div>
+                    <div className="settings-card-copy">
+                      <span className="settings-kicker">Desktop lifecycle</span>
+                      <h2>Archived desktops</h2>
+                      <p>
+                        Archiving removes a desktop from the sidebar but keeps it recoverable.
+                        Permanent deletion is available only here and clears browser-owned history,
+                        never local notes or files.
+                      </p>
+                    </div>
+                    <span className="settings-badge">
+                      {workspace.archivedDesktops.length} archived
+                    </span>
+                    <div className="settings-archived-desktop-list">
+                      {workspace.archivedDesktops.length === 0 ? (
+                        <p className="settings-archived-empty">
+                          No archived desktops. Use the archive button beside a desktop when you no
+                          longer need it in the sidebar.
+                        </p>
+                      ) : (
+                        workspace.archivedDesktops.map((desktop) => {
+                          const historyCount = browserHistory.filter(
+                            (item) => item.desktopId === desktop.id,
+                          ).length;
+                          const closedCount = recentlyClosedTabs.filter(
+                            (item) => item.desktopId === desktop.id,
+                          ).length;
+                          const localFolder = localWorkspace.desktops.find(
+                            (item) => item.desktopId === desktop.id,
+                          );
+                          return (
+                            <article className="settings-archived-desktop" key={desktop.id}>
+                              <span className={`desktop-glyph ${desktop.color}`}>
+                                <Icon name="desktop" />
+                              </span>
+                              <span>
+                                <strong>{desktop.name}</strong>
+                                <small>
+                                  {formatCount(historyCount, "history item")} · {closedCount} closed
+                                  tab{closedCount === 1 ? "" : "s"}
+                                  {localFolder ? ` · ${localFolder.folderName}` : ""}
+                                </small>
+                              </span>
+                              <div className="settings-archived-actions">
+                                <button
+                                  type="button"
+                                  className="settings-action"
+                                  data-restore-desktop={desktop.id}
+                                  onClick={() => restoreDesktopFromArchive(desktop.id)}
+                                >
+                                  Restore
+                                </button>
+                                <button
+                                  type="button"
+                                  className={
+                                    confirmHardDeleteDesktopId === desktop.id
+                                      ? "settings-action warning"
+                                      : "settings-cancel"
+                                  }
+                                  data-hard-delete-desktop={desktop.id}
+                                  onClick={() => hardDeleteDesktopFromArchive(desktop.id)}
+                                >
+                                  {confirmHardDeleteDesktopId === desktop.id
+                                    ? `Confirm: clear ${historyCount + closedCount} browser records`
+                                    : "Delete permanently"}
+                                </button>
+                              </div>
+                            </article>
+                          );
+                        })
+                      )}
+                    </div>
+                    <p className="settings-local-data-guarantee">
+                      <Icon name="lock" /> Notes and files stay in the connected folder until you
+                      delete them manually.
+                    </p>
+                  </section>
+
                   <section className="settings-card">
                     <div className="settings-card-icon violet">
                       <Icon name="reload" />
@@ -5864,38 +6025,6 @@ export function LatticeApp() {
                         </button>
                       )}
                     </div>
-                  </section>
-
-                  <section className="settings-card">
-                    <div className="settings-card-icon green">
-                      <Icon name="folder" />
-                    </div>
-                    <div className="settings-card-copy">
-                      <span className="settings-kicker">Local workspace</span>
-                      <h2>{vault ? "Local folder connected" : "No local folder connected"}</h2>
-                      <p>
-                        {vault
-                          ? `${localWorkspace.rootName || "Folder ready"}. Disconnecting forgets this location and never deletes files.`
-                          : "Choose any local folder for desktop files, Inbox notes, Canvas pages, and saved links."}
-                      </p>
-                    </div>
-                    {vault ? (
-                      <button
-                        type="button"
-                        className="settings-action"
-                        onClick={() => void disconnectVault()}
-                      >
-                        Disconnect folder
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="settings-action primary"
-                        onClick={() => void connectVault(false)}
-                      >
-                        Connect folder
-                      </button>
-                    )}
                   </section>
 
                   <section className="settings-card about-card">
