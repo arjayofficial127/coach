@@ -84,6 +84,12 @@ Coach keeps its private coordination metadata in `.coach`.
 - A desktop session can be reset with **Close all tabs**.
 - Any local folder can be selected once and restored on the next launch. Existing Obsidian folders
   remain compatible, but Obsidian is not required.
+- Files & Inbox is an in-app nested workspace rather than an Explorer shortcut. Every folder level can
+  create more folders, Markdown, text, and versioned `.coach` objects; supported files open in local
+  document tabs and save with external-change detection.
+- `.coach` files are readable JSON with a versioned `kind` envelope. Coach provides a structured
+  document editor today and keeps future valid kinds editable as raw JSON instead of locking data in
+  an application database.
 - Canvas pages are stored as open JSON Canvas `.canvas` files under `Lattice Pages/`, including
   safe nested folders that Obsidian can browse directly.
 - Saved links and canvas references form a local index across pages, objects, HTTPS URLs, documents,

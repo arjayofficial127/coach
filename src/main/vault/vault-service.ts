@@ -8,6 +8,7 @@ import type {
   CanvasPageSummary,
   CaptureDesktopInboxInput,
   CreateCanvasPageInput,
+  CreateWorkspaceEntryInput,
   DesktopFolderInput,
   LocalWorkspaceSnapshot,
   ProbeNoteInput,
@@ -15,11 +16,15 @@ import type {
   SaveCanvasPageInput,
   SavedLinkRecord,
   SaveNoteResult,
+  SaveWorkspaceFileInput,
   SetReadingStatusInput,
   UpdateSavedLinkMetadataInput,
   VaultInfo,
   VaultReferenceIndex,
   VaultTrashResult,
+  WorkspaceDirectoryListing,
+  WorkspaceFileDocument,
+  WorkspacePathInput,
 } from "../../shared/contracts";
 import { assertPathWithinRoot, saveProbeNoteAtomically } from "./atomic-note";
 import {
@@ -30,7 +35,15 @@ import {
   resolveCanvasPagePath,
   saveCanvasPageAtomically,
 } from "./canvas-page";
-import { captureLocalInboxNote, resolveDesktopFolder, syncLocalWorkspace } from "./local-workspace";
+import {
+  captureLocalInboxNote,
+  createWorkspaceEntry,
+  listWorkspaceDirectory,
+  readWorkspaceFile,
+  resolveDesktopFolder,
+  saveWorkspaceFile,
+  syncLocalWorkspace,
+} from "./local-workspace";
 import { updateReadingStatusAtomically } from "./reading-status";
 import { buildVaultReferenceIndex } from "./reference-index";
 import { resolveSavedLinkHandoff, type SavedLinkHandoff } from "./saved-link-handoff";
@@ -283,6 +296,26 @@ export class VaultService {
   async resolveDesktopFolder(desktopId: string): Promise<string> {
     const root = this.requireActiveVault("Connect a local folder before opening desktop files.");
     return resolveDesktopFolder(root, desktopId);
+  }
+
+  async listWorkspaceDirectory(input: WorkspacePathInput): Promise<WorkspaceDirectoryListing> {
+    const root = this.requireActiveVault("Connect a local folder before browsing desktop files.");
+    return listWorkspaceDirectory(root, input);
+  }
+
+  async readWorkspaceFile(input: WorkspacePathInput): Promise<WorkspaceFileDocument> {
+    const root = this.requireActiveVault("Connect a local folder before opening desktop files.");
+    return readWorkspaceFile(root, input);
+  }
+
+  async createWorkspaceEntry(input: CreateWorkspaceEntryInput): Promise<WorkspaceDirectoryListing> {
+    const root = this.requireActiveVault("Connect a local folder before creating desktop files.");
+    return createWorkspaceEntry(root, input);
+  }
+
+  async saveWorkspaceFile(input: SaveWorkspaceFileInput): Promise<WorkspaceFileDocument> {
+    const root = this.requireActiveVault("Connect a local folder before saving desktop files.");
+    return saveWorkspaceFile(root, input);
   }
 
   async disconnect(): Promise<void> {

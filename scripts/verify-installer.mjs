@@ -354,7 +354,9 @@ if (
   !smoke.note?.coachDirectoryPresent ||
   !smoke.note?.desktopFoldersPresent ||
   !smoke.note?.inboxCapturePresent ||
-  !smoke.note?.localPathsHidden
+  !smoke.note?.localPathsHidden ||
+  !smoke.note?.nestedWorkspaceRoundTrip ||
+  !smoke.note?.extensibleCoachObjectRoundTrip
 ) {
   smokeFailures.push("installed local workspace and Markdown workflow failed");
 }

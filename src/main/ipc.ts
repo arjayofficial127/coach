@@ -125,6 +125,29 @@ const desktopInboxSchema = z
     kind: z.enum(["note", "task", "event"]),
   })
   .strict();
+const workspacePathSchema = z
+  .object({
+    desktopId: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/),
+    relativePath: z.string().max(500),
+  })
+  .strict();
+const workspaceCreateEntrySchema = z
+  .object({
+    desktopId: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/),
+    parentPath: z.string().max(500),
+    name: z.string().trim().min(1).max(120),
+    kind: z.enum(["folder", "file"]),
+    fileType: z.enum(["markdown", "text", "coach"]).optional(),
+  })
+  .strict()
+  .refine((input) => input.kind === "folder" || Boolean(input.fileType), {
+    message: "Choose a Coach file type.",
+    path: ["fileType"],
+  });
+const workspaceSaveFileSchema = workspacePathSchema.extend({
+  content: z.string().max(2_000_000),
+  expectedUpdatedAt: z.string().datetime(),
+});
 
 function assertTrustedShell(event: IpcMainInvokeEvent, window: BrowserWindow): void {
   const frameUrl = event.senderFrame?.url ?? "";
@@ -330,6 +353,18 @@ export function registerIpc(
     );
     shellActions.showItemInFolder(absolutePath);
   });
+  handle(IPC.workspaceListDirectory, (_event, payload) =>
+    vault.listWorkspaceDirectory(workspacePathSchema.parse(payload)),
+  );
+  handle(IPC.workspaceReadFile, (_event, payload) =>
+    vault.readWorkspaceFile(workspacePathSchema.parse(payload)),
+  );
+  handle(IPC.workspaceCreateEntry, (_event, payload) =>
+    vault.createWorkspaceEntry(workspaceCreateEntrySchema.parse(payload)),
+  );
+  handle(IPC.workspaceSaveFile, (_event, payload) =>
+    vault.saveWorkspaceFile(workspaceSaveFileSchema.parse(payload)),
+  );
 
   return () => {
     for (const channel of Object.values(IPC)) {

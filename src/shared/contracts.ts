@@ -49,6 +49,10 @@ export const IPC = {
   workspaceSyncDesktops: "workspace:sync-desktops",
   workspaceCaptureInbox: "workspace:capture-inbox",
   workspaceRevealDesktop: "workspace:reveal-desktop",
+  workspaceListDirectory: "workspace:list-directory",
+  workspaceReadFile: "workspace:read-file",
+  workspaceCreateEntry: "workspace:create-entry",
+  workspaceSaveFile: "workspace:save-file",
 } as const;
 
 export type ShellCommand =
@@ -378,6 +382,59 @@ export interface CaptureDesktopInboxInput {
   kind: "note" | "task" | "event";
 }
 
+export type WorkspaceEditableFileType = "markdown" | "text" | "coach";
+
+export interface WorkspacePathInput {
+  desktopId: string;
+  relativePath: string;
+}
+
+export interface WorkspaceDirectoryEntry {
+  id: string;
+  name: string;
+  relativePath: string;
+  kind: "file" | "folder";
+  fileType: WorkspaceEditableFileType | "other";
+  size: number;
+  updatedAt: string;
+}
+
+export interface WorkspaceBreadcrumb {
+  name: string;
+  relativePath: string;
+}
+
+export interface WorkspaceDirectoryListing {
+  desktopId: string;
+  desktopName: string;
+  folderName: string;
+  relativePath: string;
+  breadcrumbs: WorkspaceBreadcrumb[];
+  entries: WorkspaceDirectoryEntry[];
+}
+
+export interface WorkspaceFileDocument {
+  desktopId: string;
+  name: string;
+  relativePath: string;
+  fileType: WorkspaceEditableFileType;
+  content: string;
+  updatedAt: string;
+}
+
+export interface CreateWorkspaceEntryInput {
+  desktopId: string;
+  parentPath: string;
+  name: string;
+  kind: "folder" | "file";
+  fileType?: WorkspaceEditableFileType;
+}
+
+export interface SaveWorkspaceFileInput extends WorkspacePathInput {
+  content: string;
+  expectedUpdatedAt: string;
+}
+
 export interface LatticeApi {
   shell: {
     onCommand(listener: (command: ShellCommand) => void): () => void;
@@ -438,5 +495,9 @@ export interface LatticeApi {
     syncDesktops(desktops: DesktopFolderInput[]): Promise<LocalWorkspaceSnapshot>;
     captureInbox(input: CaptureDesktopInboxInput): Promise<LocalWorkspaceSnapshot>;
     revealDesktop(desktopId: string): Promise<void>;
+    listDirectory(input: WorkspacePathInput): Promise<WorkspaceDirectoryListing>;
+    readFile(input: WorkspacePathInput): Promise<WorkspaceFileDocument>;
+    createEntry(input: CreateWorkspaceEntryInput): Promise<WorkspaceDirectoryListing>;
+    saveFile(input: SaveWorkspaceFileInput): Promise<WorkspaceFileDocument>;
   };
 }

@@ -535,6 +535,10 @@ if (!evidence.note.inboxCapturePresent)
   failures.push("packaged local Inbox capture did not round-trip");
 if (!evidence.note.localPathsHidden)
   failures.push("local workspace renderer result exposed its absolute device path");
+if (!evidence.note.nestedWorkspaceRoundTrip)
+  failures.push("nested local workspace navigation did not round-trip through the trusted broker");
+if (!evidence.note.extensibleCoachObjectRoundTrip)
+  failures.push("extensible .coach object editing did not round-trip");
 if (!evidence.note.relativePath.startsWith(`Saved Links${path.sep}`))
   failures.push("note was not published under the Saved Links folder");
 if (!evidence.note.relativePath.includes(`${path.sep}Research${path.sep}`))

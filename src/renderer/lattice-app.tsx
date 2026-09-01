@@ -5110,9 +5110,9 @@ export function LatticeApp() {
 
             {surface === "files" && (
               <LocalFilesSurface
+                desktopId={workspace.activeDesktopId}
                 desktopName={activeDesktop?.name ?? "Desktop 1"}
                 workspaceName={localWorkspace.rootName}
-                summary={activeDesktopFiles}
                 connected={Boolean(vault)}
                 busy={localWorkspaceBusy}
                 onConnect={() => void connectVault(false)}

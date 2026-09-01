@@ -302,6 +302,8 @@ export interface PhaseNineSmokeEvidence {
     desktopFoldersPresent: boolean;
     inboxCapturePresent: boolean;
     localPathsHidden: boolean;
+    nestedWorkspaceRoundTrip: boolean;
+    extensibleCoachObjectRoundTrip: boolean;
     absolutePath: string;
     relativePath: string;
     bytesWritten: number;
@@ -333,6 +335,13 @@ interface ShellProbeResult {
       fileCount: number;
       items: Array<{ name: string; area: string }>;
     }>;
+  };
+  interactiveWorkspace: {
+    listing: {
+      relativePath: string;
+      entries: Array<{ name: string; fileType: string }>;
+    };
+    saved: { relativePath: string; content: string };
   };
   links: SavedLinkRecord[];
   reading: {
@@ -1166,6 +1175,33 @@ export async function runPhaseNineSmoke(
         content: "Durable local Inbox smoke note.",
         kind: "note"
       });
+      await window.lattice.localWorkspace.createEntry({
+        desktopId: "research",
+        parentPath: "Notes",
+        name: "Projects",
+        kind: "folder"
+      });
+      await window.lattice.localWorkspace.createEntry({
+        desktopId: "research",
+        parentPath: "Notes/Projects",
+        name: "Control room",
+        kind: "file",
+        fileType: "coach"
+      });
+      const workspaceListing = await window.lattice.localWorkspace.listDirectory({
+        desktopId: "research",
+        relativePath: "Notes/Projects"
+      });
+      const workspaceDraft = await window.lattice.localWorkspace.readFile({
+        desktopId: "research",
+        relativePath: "Notes/Projects/Control room.coach"
+      });
+      const workspaceSaved = await window.lattice.localWorkspace.saveFile({
+        desktopId: "research",
+        relativePath: workspaceDraft.relativePath,
+        expectedUpdatedAt: workspaceDraft.updatedAt,
+        content: JSON.stringify({ version: 1, kind: "planner", lanes: ["Now", "Next"] }, null, 2) + "\\n"
+      });
       const note = await window.lattice.vault.saveProbeNote({
         title: "Phase 8 packaged smoke",
         url: "https://example.com/phase-eight",
@@ -1254,6 +1290,7 @@ export async function runPhaseNineSmoke(
         vaultPanelBounds: readBounds(".vault-probe"),
         vault,
         localWorkspace,
+        interactiveWorkspace: { listing: workspaceListing, saved: workspaceSaved },
         note,
         links,
         reading: { markedRead, requeued },
@@ -3288,6 +3325,28 @@ export async function runPhaseNineSmoke(
         localPathsHidden: !JSON.stringify(shellProbe.localWorkspace).includes(
           shellProbe.vault.displayPath,
         ),
+        nestedWorkspaceRoundTrip:
+          shellProbe.interactiveWorkspace.listing.relativePath === "Notes/Projects" &&
+          shellProbe.interactiveWorkspace.listing.entries.some(
+            (entry) => entry.name === "Control room.coach" && entry.fileType === "coach",
+          ) &&
+          !JSON.stringify(shellProbe.interactiveWorkspace.listing).includes(
+            shellProbe.vault.displayPath,
+          ),
+        extensibleCoachObjectRoundTrip: (() => {
+          const saved = JSON.parse(shellProbe.interactiveWorkspace.saved.content) as {
+            version?: number;
+            kind?: string;
+            lanes?: string[];
+          };
+          return (
+            shellProbe.interactiveWorkspace.saved.relativePath ===
+              "Notes/Projects/Control room.coach" &&
+            saved.version === 1 &&
+            saved.kind === "planner" &&
+            saved.lanes?.join(",") === "Now,Next"
+          );
+        })(),
         absolutePath: shellProbe.note.absolutePath,
         relativePath: shellProbe.note.relativePath,
         bytesWritten: shellProbe.note.bytesWritten,

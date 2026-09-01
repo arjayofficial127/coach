@@ -82,6 +82,10 @@ const api: LatticeApi = {
     syncDesktops: (desktops) => ipcRenderer.invoke(IPC.workspaceSyncDesktops, desktops),
     captureInbox: (input) => ipcRenderer.invoke(IPC.workspaceCaptureInbox, input),
     revealDesktop: (desktopId) => ipcRenderer.invoke(IPC.workspaceRevealDesktop, desktopId),
+    listDirectory: (input) => ipcRenderer.invoke(IPC.workspaceListDirectory, input),
+    readFile: (input) => ipcRenderer.invoke(IPC.workspaceReadFile, input),
+    createEntry: (input) => ipcRenderer.invoke(IPC.workspaceCreateEntry, input),
+    saveFile: (input) => ipcRenderer.invoke(IPC.workspaceSaveFile, input),
   },
 };
 

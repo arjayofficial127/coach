@@ -8,6 +8,8 @@ import type {
   SavedLinkRecord,
   SaveNoteResult,
   VaultInfo,
+  WorkspaceDirectoryListing,
+  WorkspaceFileDocument,
 } from "../shared/contracts";
 import { clampZoomPercent } from "../shared/zoom";
 
@@ -46,6 +48,8 @@ const previewTrash = new Map<string, PreviewTrashEntry>();
 const profileTabs = new Map<string, { activeTabId: string; tabs: BrowserState[] }>();
 let vault: VaultInfo | null = null;
 let localWorkspace: LocalWorkspaceSnapshot = { connected: false, rootName: "", desktops: [] };
+const previewWorkspaceFolders = new Set<string>();
+const previewWorkspaceFiles = new Map<string, WorkspaceFileDocument>();
 let privacySummary = { cookieCount: 3, cacheBytes: 4_820_000 };
 let canvasPages: CanvasPageRecord[] = [];
 let links: SavedLinkRecord[] = [
@@ -77,6 +81,64 @@ let links: SavedLinkRecord[] = [
   },
 ];
 const listeners = new Set<(state: BrowserState) => void>();
+
+function previewWorkspaceKey(desktopId: string, relativePath: string): string {
+  return `${desktopId}:${relativePath}`;
+}
+
+function previewWorkspaceListing(
+  desktopId: string,
+  relativePath: string,
+): WorkspaceDirectoryListing {
+  const desktop = localWorkspace.desktops.find((item) => item.desktopId === desktopId);
+  const normalized = relativePath.replace(/^\/+|\/+$/g, "");
+  const prefix = normalized ? `${normalized}/` : "";
+  const folderEntries = [...previewWorkspaceFolders]
+    .filter((key) => key.startsWith(`${desktopId}:`))
+    .map((key) => key.slice(desktopId.length + 1))
+    .filter((item) => item.startsWith(prefix) && !item.slice(prefix.length).includes("/"))
+    .map((item) => ({
+      id: previewWorkspaceKey(desktopId, item),
+      name: item.slice(prefix.length),
+      relativePath: item,
+      kind: "folder" as const,
+      fileType: "other" as const,
+      size: 0,
+      updatedAt: new Date().toISOString(),
+    }));
+  const fileEntries = [...previewWorkspaceFiles.values()]
+    .filter(
+      (item) =>
+        item.desktopId === desktopId &&
+        item.relativePath.startsWith(prefix) &&
+        !item.relativePath.slice(prefix.length).includes("/"),
+    )
+    .map((item) => ({
+      id: previewWorkspaceKey(desktopId, item.relativePath),
+      name: item.name,
+      relativePath: item.relativePath,
+      kind: "file" as const,
+      fileType: item.fileType,
+      size: item.content.length,
+      updatedAt: item.updatedAt,
+    }));
+  const segments = normalized ? normalized.split("/") : [];
+  let current = "";
+  return {
+    desktopId,
+    desktopName: desktop?.desktopName ?? "Desktop",
+    folderName: desktop?.folderName ?? "Desktop",
+    relativePath: normalized,
+    breadcrumbs: [
+      { name: desktop?.desktopName ?? "Desktop", relativePath: "" },
+      ...segments.map((segment) => {
+        current = current ? `${current}/${segment}` : segment;
+        return { name: segment, relativePath: current };
+      }),
+    ],
+    entries: [...folderEntries, ...fileEntries],
+  };
+}
 
 function snapshot(): BrowserSnapshot {
   return { activeTabId, tabs: tabs.map((tab) => ({ ...tab })) };
@@ -434,6 +496,11 @@ export function installBrowserPreviewBridge(): void {
             );
           }),
         };
+        for (const desktop of desktops) {
+          for (const area of ["Inbox", "Notes", "Files", "Planner"]) {
+            previewWorkspaceFolders.add(previewWorkspaceKey(desktop.id, area));
+          }
+        }
         return structuredClone(localWorkspace);
       },
       captureInbox: async (input) => {
@@ -464,6 +531,51 @@ export function installBrowserPreviewBridge(): void {
         return structuredClone(localWorkspace);
       },
       revealDesktop: async () => undefined,
+      listDirectory: async (input) =>
+        structuredClone(previewWorkspaceListing(input.desktopId, input.relativePath)),
+      readFile: async (input) => {
+        const file = previewWorkspaceFiles.get(
+          previewWorkspaceKey(input.desktopId, input.relativePath),
+        );
+        if (!file) throw new Error("That preview file is unavailable.");
+        return structuredClone(file);
+      },
+      createEntry: async (input) => {
+        const extension =
+          input.fileType === "markdown" ? ".md" : input.fileType === "text" ? ".text" : ".coach";
+        const name =
+          input.kind === "folder" || input.name.endsWith(extension)
+            ? input.name
+            : `${input.name}${extension}`;
+        const relativePath = input.parentPath ? `${input.parentPath}/${name}` : name;
+        if (input.kind === "folder") {
+          previewWorkspaceFolders.add(previewWorkspaceKey(input.desktopId, relativePath));
+        } else {
+          const content =
+            input.fileType === "coach"
+              ? `${JSON.stringify({ version: 1, kind: "document", title: input.name, content: "", data: {} }, null, 2)}\n`
+              : input.fileType === "markdown"
+                ? `# ${input.name}\n\n`
+                : "";
+          previewWorkspaceFiles.set(previewWorkspaceKey(input.desktopId, relativePath), {
+            desktopId: input.desktopId,
+            name,
+            relativePath,
+            fileType: input.fileType ?? "text",
+            content,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+        return structuredClone(previewWorkspaceListing(input.desktopId, input.parentPath));
+      },
+      saveFile: async (input) => {
+        const key = previewWorkspaceKey(input.desktopId, input.relativePath);
+        const file = previewWorkspaceFiles.get(key);
+        if (!file) throw new Error("That preview file is unavailable.");
+        const saved = { ...file, content: input.content, updatedAt: new Date().toISOString() };
+        previewWorkspaceFiles.set(key, saved);
+        return structuredClone(saved);
+      },
     },
   };
 
