@@ -14,6 +14,7 @@ import type {
   BrowserSnapshot,
   BrowserState,
   CanvasPageSummary,
+  LocalWorkspaceSnapshot,
   ProfileState,
   ProfileSummary,
   ProfileSwitchResult,
@@ -74,6 +75,7 @@ import {
   rankLatticeDocuments,
   serializeStoredHistory,
 } from "./lattice-search-model";
+import { LocalFilesSurface } from "./local-files-surface";
 import {
   canPersistProfileShell,
   profileStorageKey,
@@ -134,6 +136,11 @@ const emptyReferenceIndex: VaultReferenceIndex = {
   generatedAt: "",
   entries: [],
   unresolvedCount: 0,
+};
+const emptyLocalWorkspace: LocalWorkspaceSnapshot = {
+  connected: false,
+  rootName: "",
+  desktops: [],
 };
 
 type CommandItem =
@@ -247,6 +254,12 @@ const railItems: Array<{
     label: "Browse",
     icon: "globe",
     description: actionHelpText.browse,
+  },
+  {
+    id: "files",
+    label: "Files & notes",
+    icon: "folder",
+    description: actionHelpText.localFiles,
   },
   {
     id: "pages",
@@ -518,6 +531,8 @@ export function LatticeApp() {
   const [activeLatticeResultIndex, setActiveLatticeResultIndex] = useState(0);
   const [tabContentMatchIds, setTabContentMatchIds] = useState<Set<string>>(() => new Set());
   const [vault, setVault] = useState<VaultInfo | null>(null);
+  const [localWorkspace, setLocalWorkspace] = useState<LocalWorkspaceSnapshot>(emptyLocalWorkspace);
+  const [localWorkspaceBusy, setLocalWorkspaceBusy] = useState(false);
   const [links, setLinks] = useState<SavedLinkRecord[]>([]);
   const [canvasPages, setCanvasPages] = useState<CanvasPageSummary[]>([]);
   const [recentlyClosedTabs, setRecentlyClosedTabs] = useState<DashboardClosedTab[]>([]);
@@ -733,6 +748,9 @@ export function LatticeApp() {
   const activeDesktop =
     workspace.desktops.find((desktop) => desktop.id === workspace.activeDesktopId) ??
     DEFAULT_WORKSPACE.desktops[0];
+  const activeDesktopFiles =
+    localWorkspace.desktops.find((desktop) => desktop.desktopId === workspace.activeDesktopId) ??
+    null;
   const desktopTabs = useMemo(
     () => snapshot.tabs.filter((tab) => tabDesktops[tab.id] === workspace.activeDesktopId),
     [snapshot.tabs, tabDesktops, workspace.activeDesktopId],
@@ -1275,7 +1293,7 @@ export function LatticeApp() {
         kind: "action",
         id: "action-library",
         label: "Open saved links",
-        detail: "Obsidian library",
+        detail: "Local saved-link library",
         action: "library",
       },
       {
@@ -1511,12 +1529,35 @@ export function LatticeApp() {
       setLinks(savedLinks);
       setCanvasPages(savedCanvasPages);
       setReferenceIndex(references);
-      setStatus("Obsidian vault restored");
+      setStatus("Local folder restored");
     });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!vault) {
+      setLocalWorkspace(emptyLocalWorkspace);
+      return;
+    }
+    let cancelled = false;
+    setLocalWorkspaceBusy(true);
+    void window.lattice.localWorkspace
+      .syncDesktops(workspace.desktops.map(({ id, name }) => ({ id, name })))
+      .then((next) => {
+        if (!cancelled) setLocalWorkspace(next);
+      })
+      .catch((error) => {
+        if (!cancelled) setStatus(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        if (!cancelled) setLocalWorkspaceBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [vault, workspace.desktops]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1965,7 +2006,7 @@ export function LatticeApp() {
     setWorkspace(next);
     setEditingDesktopId(null);
     setEditingDesktopName("");
-    setStatus("Desktop renamed; existing Obsidian folders were left untouched");
+    setStatus("Desktop renamed; its local folder stayed in place");
     if (previousName) {
       offerRecovery("Desktop renamed", () =>
         setWorkspace((current) => renameDesktop(current, renamedDesktopId, previousName)),
@@ -1981,7 +2022,7 @@ export function LatticeApp() {
       return false;
     }
     setWorkspace(next);
-    setStatus("Desktop renamed; existing Obsidian folders were left untouched");
+    setStatus("Desktop renamed; its local folder stayed in place");
     return true;
   };
 
@@ -2183,7 +2224,11 @@ export function LatticeApp() {
       setLinks(savedLinks);
       setCanvasPages(savedCanvasPages);
       setReferenceIndex(references);
-      setStatus(disposable ? "Disposable vault connected" : "Obsidian vault connected");
+      const workspaceSnapshot = await window.lattice.localWorkspace.syncDesktops(
+        workspace.desktops.map(({ id, name }) => ({ id, name })),
+      );
+      setLocalWorkspace(workspaceSnapshot);
+      setStatus(disposable ? "Disposable local folder connected" : "Local folder connected");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     }
@@ -2213,7 +2258,7 @@ export function LatticeApp() {
       setLinks(await window.lattice.vault.listSavedLinks());
       setReferenceIndex(await window.lattice.vault.referenceIndex());
       setSaved(true);
-      setStatus(queueCapture ? "Saved to your reading queue" : "Saved to Obsidian");
+      setStatus(queueCapture ? "Saved to your reading queue" : "Saved to your local folder");
       offerRecovery(`Saved ${savedLink.title}`, async () => {
         await window.lattice.vault.trashSavedLink(savedLink.id);
         const [savedLinks, references] = await Promise.all([
@@ -2429,6 +2474,31 @@ export function LatticeApp() {
     setProfileMenuOpen(false);
   };
 
+  const refreshLocalWorkspace = async () => {
+    if (!vault || localWorkspaceBusy) return;
+    setLocalWorkspaceBusy(true);
+    try {
+      setLocalWorkspace(
+        await window.lattice.localWorkspace.syncDesktops(
+          workspace.desktops.map(({ id, name }) => ({ id, name })),
+        ),
+      );
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLocalWorkspaceBusy(false);
+    }
+  };
+
+  const showFiles = () => {
+    if (!confirmCanvasLeave()) return;
+    setSurface("files");
+    setCaptureOpen(false);
+    setBrowserMenuOpen(false);
+    setCommandOpen(false);
+    void refreshLocalWorkspace();
+  };
+
   const focusBrowserLocation = () => {
     window.requestAnimationFrame(() => {
       omniboxRef.current?.focus();
@@ -2455,6 +2525,7 @@ export function LatticeApp() {
     if (target === "home") await createTab();
     else if (target === "dashboard") showDashboard();
     else if (target === "browser") await showBrowser();
+    else if (target === "files") showFiles();
     else if (target === "library") await showLibrary();
     else if (target === "queue") await showReadingQueue();
     else if (target === "pages") await showCanvasPages();
@@ -2462,7 +2533,7 @@ export function LatticeApp() {
     else await showSettings();
   };
 
-  const saveLatticeNote = () => {
+  const saveLatticeNote = async () => {
     if (capturingQuickNote) return;
     const note = homeQuery.trim();
     if (!note) return;
@@ -2470,6 +2541,15 @@ export function LatticeApp() {
     setCapturingQuickNote(true);
     const previous = runnableApps;
     try {
+      if (vault) {
+        const nextWorkspace = await window.lattice.localWorkspace.captureInbox({
+          desktopId: workspace.activeDesktopId,
+          title: note.slice(0, 80),
+          content: note,
+          kind: "note",
+        });
+        setLocalWorkspace(nextWorkspace);
+      }
       const next = {
         ...runnableApps,
         bulletJournal: captureJournalInboxNote(runnableApps.bulletJournal, note),
@@ -2477,8 +2557,10 @@ export function LatticeApp() {
       setRunnableApps(next);
       setHomeQuery("");
       setLatticeNoteMode(false);
-      setStatus("Quick note captured to Inbox");
-      offerRecovery("Quick note captured to Inbox", () => setRunnableApps(previous));
+      setStatus(
+        vault ? "Quick note captured to this desktop's Inbox" : "Quick note captured to Inbox",
+      );
+      if (!vault) offerRecovery("Quick note captured to Inbox", () => setRunnableApps(previous));
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     } finally {
@@ -2876,10 +2958,11 @@ export function LatticeApp() {
     try {
       await window.lattice.vault.disconnect();
       setVault(null);
+      setLocalWorkspace(emptyLocalWorkspace);
       setLinks([]);
       setCanvasPages([]);
-      setStatus("Vault disconnected; no Markdown files were deleted");
-      offerRecovery("Vault disconnected", () => connectVault(false), "Reconnect");
+      setStatus("Local folder disconnected; no files were deleted");
+      offerRecovery("Local folder disconnected", () => connectVault(false), "Reconnect");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     }
@@ -3098,6 +3181,7 @@ export function LatticeApp() {
     const destination: Partial<Record<ShellCommand, Surface>> = {
       "show-focus": "dashboard",
       "show-browser": "browser",
+      "show-files": "files",
       "show-pages": "pages",
       "show-library": "library",
       "show-queue": "queue",
@@ -3688,12 +3772,14 @@ export function LatticeApp() {
                 <div
                   className={active ? "desktop-item active" : "desktop-item"}
                   data-desktop-id={desktop.id}
+                  data-active-desktop={active ? "true" : undefined}
                   data-action-description={actionHelpText.desktop(desktop.name)}
                 >
                   <button
                     type="button"
                     className="desktop-open-surface"
                     aria-label={`Switch to ${desktop.name}`}
+                    aria-current={active ? "page" : undefined}
                     data-action-description={actionHelpText.desktop(desktop.name)}
                     onClick={() => void selectDesktop(desktop.id)}
                   />
@@ -3897,6 +3983,26 @@ export function LatticeApp() {
           </button>
           <button
             type="button"
+            className={surface === "files" ? "navigation-row active" : "navigation-row"}
+            aria-current={surface === "files" ? "page" : undefined}
+            data-action-description={actionHelpText.localFiles}
+            onClick={showFiles}
+          >
+            <span className="navigation-row-icon violet">
+              <Icon name="folder" />
+            </span>
+            <span>
+              <strong>Files &amp; Inbox</strong>
+              <small>
+                {vault
+                  ? `${activeDesktopFiles?.inboxCount ?? 0} in Inbox`
+                  : "Connect a local folder"}
+              </small>
+            </span>
+            <b aria-hidden="true">{activeDesktopFiles?.fileCount ?? 0}</b>
+          </button>
+          <button
+            type="button"
             className={
               surface === "pages"
                 ? "library-row navigation-row active"
@@ -4012,9 +4118,11 @@ export function LatticeApp() {
             <Icon name={vault ? "check" : "sparkle"} />
           </div>
           <div className="vault-card-copy">
-            <strong>{vault ? "Vault connected" : "Connect Obsidian"}</strong>
+            <strong>{vault ? "Local folder connected" : "Connect local folder"}</strong>
             <span>
-              {vault ? vault.displayPath.split(/[\\/]/).pop() : "Save pages as local Markdown"}
+              {vault
+                ? localWorkspace.rootName || "Workspace ready"
+                : "Files, notes, Canvas, and links"}
             </span>
           </div>
           {!vault && (
@@ -4060,6 +4168,26 @@ export function LatticeApp() {
               {desktopTabs.length}
             </span>
           </button>
+          <button
+            className={
+              surface === "files"
+                ? "desktop-context files-context active"
+                : "desktop-context files-context"
+            }
+            type="button"
+            aria-current={surface === "files" ? "page" : undefined}
+            aria-label={`Open ${activeDesktop?.name ?? "Desk 1"} files and Inbox`}
+            data-action-description={actionHelpText.localFiles}
+            onClick={showFiles}
+          >
+            <span className="favicon desktop-tab-icon violet">
+              <Icon name="folder" />
+            </span>
+            <span className="desktop-context-name">Files</span>
+            <span className="desktop-context-count" aria-hidden="true">
+              {activeDesktopFiles?.inboxCount ?? 0}
+            </span>
+          </button>
           <div className="tabs-viewport">
             {desktopTabs.map((tab) => (
               <div
@@ -4068,6 +4196,7 @@ export function LatticeApp() {
                   tab.id === snapshot.activeTabId &&
                   surface !== "dashboard" &&
                   surface !== "library" &&
+                  surface !== "files" &&
                   surface !== "queue" &&
                   surface !== "pages" &&
                   surface !== "apps" &&
@@ -4233,15 +4362,17 @@ export function LatticeApp() {
                   name={
                     surface === "dashboard"
                       ? "home"
-                      : surface === "pages"
-                        ? "grid"
-                        : surface === "apps"
-                          ? "timer"
-                          : surface === "settings"
-                            ? "settings"
-                            : surface === "queue"
-                              ? "folder"
-                              : "bookmark"
+                      : surface === "files"
+                        ? "folder"
+                        : surface === "pages"
+                          ? "grid"
+                          : surface === "apps"
+                            ? "timer"
+                            : surface === "settings"
+                              ? "settings"
+                              : surface === "queue"
+                                ? "folder"
+                                : "bookmark"
                   }
                 />
                 <span>
@@ -4940,6 +5071,7 @@ export function LatticeApp() {
                 )}
                 savedLinks={visibleLinks}
                 canvasPages={canvasPages}
+                desktopFiles={activeDesktopFiles}
                 onOpenTab={(tab) => void switchTab(tab)}
                 onCloseTab={(tab) => void closeTab(tab.id)}
                 onNewTab={() => void createTab(workspace.activeDesktopId, "home")}
@@ -4956,9 +5088,29 @@ export function LatticeApp() {
                 onOpenUrl={(url) => void openUrl(url, true)}
                 onOpenApp={(id) => showRunnableApp(id)}
                 onOpenCanvas={(id) => void showCanvasPages(id)}
+                onOpenFiles={showFiles}
                 onSearchTabContents={(tabIds, query) =>
                   window.lattice.browser.searchTabContents(tabIds, query)
                 }
+              />
+            )}
+
+            {surface === "files" && (
+              <LocalFilesSurface
+                desktopName={activeDesktop?.name ?? "Desktop 1"}
+                workspaceName={localWorkspace.rootName}
+                summary={activeDesktopFiles}
+                connected={Boolean(vault)}
+                busy={localWorkspaceBusy}
+                onConnect={() => void connectVault(false)}
+                onRefresh={() => void refreshLocalWorkspace()}
+                onReveal={() => {
+                  void window.lattice.localWorkspace
+                    .revealDesktop(workspace.activeDesktopId)
+                    .catch((error) =>
+                      setStatus(error instanceof Error ? error.message : String(error)),
+                    );
+                }}
               />
             )}
 
@@ -5167,7 +5319,7 @@ export function LatticeApp() {
                 <header className="library-header">
                   <div>
                     <span className="eyebrow">
-                      {surface === "queue" ? "Read with intention" : "Obsidian library"}
+                      {surface === "queue" ? "Read with intention" : "Local library"}
                     </span>
                     <h1>{surface === "queue" ? "Reading queue" : "Saved links"}</h1>
                     <p>
@@ -5193,7 +5345,7 @@ export function LatticeApp() {
                         className="primary-action"
                         onClick={() => void connectVault(false)}
                       >
-                        Connect vault
+                        Connect local folder
                       </button>
                     )}
                   </div>
@@ -5204,17 +5356,17 @@ export function LatticeApp() {
                       <Icon name="library" />
                     </span>
                     <h2>Your local library begins here</h2>
-                    <p>Connect an Obsidian folder, then save any page with your own description.</p>
+                    <p>Connect a local folder, then save any page with your own description.</p>
                     <div>
                       <button
                         type="button"
                         className="primary-action"
                         onClick={() => void connectVault(false)}
                       >
-                        Choose Obsidian vault
+                        Choose local folder
                       </button>
                       <button type="button" onClick={() => void connectVault(true)}>
-                        Try disposable vault
+                        Try disposable folder
                       </button>
                     </div>
                   </div>
@@ -5686,7 +5838,7 @@ export function LatticeApp() {
                       <p>
                         {privacy.cookieCount} cookies · {formatBytes(privacy.cacheBytes)} cached for
                         {` ${activeProfile?.name ?? "this profile"}`}. Clearing signs this profile
-                        out of websites but does not touch other profiles or Obsidian notes.
+                        out of websites but does not touch other profiles or local files.
                       </p>
                     </div>
                     <div className="settings-card-actions">
@@ -5719,12 +5871,12 @@ export function LatticeApp() {
                       <Icon name="folder" />
                     </div>
                     <div className="settings-card-copy">
-                      <span className="settings-kicker">Obsidian</span>
-                      <h2>{vault ? "Vault connected" : "No vault connected"}</h2>
+                      <span className="settings-kicker">Local workspace</span>
+                      <h2>{vault ? "Local folder connected" : "No local folder connected"}</h2>
                       <p>
                         {vault
-                          ? `${vault.displayPath}. Disconnecting forgets this location and never deletes Markdown.`
-                          : "Choose a local Obsidian vault to capture pages and manage your reading queue."}
+                          ? `${localWorkspace.rootName || "Folder ready"}. Disconnecting forgets this location and never deletes files.`
+                          : "Choose any local folder for desktop files, Inbox notes, Canvas pages, and saved links."}
                       </p>
                     </div>
                     {vault ? (
@@ -5733,7 +5885,7 @@ export function LatticeApp() {
                         className="settings-action"
                         onClick={() => void disconnectVault()}
                       >
-                        Disconnect vault
+                        Disconnect folder
                       </button>
                     ) : (
                       <button
@@ -5741,7 +5893,7 @@ export function LatticeApp() {
                         className="settings-action primary"
                         onClick={() => void connectVault(false)}
                       >
-                        Connect vault
+                        Connect folder
                       </button>
                     )}
                   </section>
@@ -5769,7 +5921,7 @@ export function LatticeApp() {
             <aside className="capture-panel">
               <header>
                 <div>
-                  <span className="eyebrow">Save to Obsidian</span>
+                  <span className="eyebrow">Save to local folder</span>
                   <h2>Capture this page</h2>
                 </div>
                 <button
@@ -5797,17 +5949,17 @@ export function LatticeApp() {
                   <span>
                     <Icon name="sparkle" />
                   </span>
-                  <h3>Connect your vault first</h3>
+                  <h3>Connect a local folder first</h3>
                   <p>Coach Browser writes plain Markdown. Nothing is locked inside the app.</p>
                   <button
                     type="button"
                     className="primary-action"
                     onClick={() => void connectVault(false)}
                   >
-                    Choose Obsidian vault
+                    Choose local folder
                   </button>
                   <button type="button" onClick={() => void connectVault(true)}>
-                    Use a disposable vault
+                    Use a disposable folder
                   </button>
                 </div>
               ) : (
@@ -5861,7 +6013,7 @@ export function LatticeApp() {
                     {saved ? (
                       <>
                         <Icon name="check" />
-                        {queueCapture ? "Saved to reading queue" : "Saved to Obsidian"}
+                        {queueCapture ? "Saved to reading queue" : "Saved to local folder"}
                       </>
                     ) : saving ? (
                       "Saving…"

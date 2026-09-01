@@ -2,7 +2,7 @@
   "name": "lattice",
   "productName": "Coach Browser",
   "version": "0.16.0",
-  "description": "Coach Browser is a secure research browser with desktops and Obsidian-compatible Markdown capture.",
+  "description": "Coach is a secure research browser with desktop-scoped local files, notes, apps, and Obsidian-compatible Markdown.",
   "author": "Coach Browser Project",
   "type": "module",
   "main": "dist/main/index.cjs",

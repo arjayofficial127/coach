@@ -107,6 +107,24 @@ const createProfileSchema = z.object({
   name: z.string().trim().min(1).max(40),
 });
 const updateProfileSchema = createProfileSchema.extend({ id: profileIdSchema });
+const desktopFoldersSchema = z
+  .array(
+    z
+      .object({
+        id: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/),
+        name: z.string().trim().min(1).max(40),
+      })
+      .strict(),
+  )
+  .max(12);
+const desktopInboxSchema = z
+  .object({
+    desktopId: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/),
+    title: z.string().trim().min(1).max(120),
+    content: z.string().trim().min(1).max(20_000),
+    kind: z.enum(["note", "task", "event"]),
+  })
+  .strict();
 
 function assertTrustedShell(event: IpcMainInvokeEvent, window: BrowserWindow): void {
   const frameUrl = event.senderFrame?.url ?? "";
@@ -297,6 +315,21 @@ export function registerIpc(
   });
   handle(IPC.vaultReferenceIndex, () => vault.referenceIndex());
   handle(IPC.vaultDisconnect, () => vault.disconnect());
+  handle(IPC.workspaceSyncDesktops, (_event, payload) =>
+    vault.syncDesktopFolders(desktopFoldersSchema.parse(payload)),
+  );
+  handle(IPC.workspaceCaptureInbox, (_event, payload) =>
+    vault.captureDesktopInbox(desktopInboxSchema.parse(payload)),
+  );
+  handle(IPC.workspaceRevealDesktop, async (_event, payload) => {
+    const absolutePath = await vault.resolveDesktopFolder(
+      z
+        .string()
+        .regex(/^[a-zA-Z0-9_-]{1,80}$/)
+        .parse(payload),
+    );
+    shellActions.showItemInFolder(absolutePath);
+  });
 
   return () => {
     for (const channel of Object.values(IPC)) {

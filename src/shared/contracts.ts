@@ -46,6 +46,9 @@ export const IPC = {
   vaultRevealCanvasReference: "vault:reveal-canvas-reference",
   vaultReferenceIndex: "vault:reference-index",
   vaultDisconnect: "vault:disconnect",
+  workspaceSyncDesktops: "workspace:sync-desktops",
+  workspaceCaptureInbox: "workspace:capture-inbox",
+  workspaceRevealDesktop: "workspace:reveal-desktop",
 } as const;
 
 export type ShellCommand =
@@ -56,6 +59,7 @@ export type ShellCommand =
   | "toggle-focus"
   | "show-focus"
   | "show-browser"
+  | "show-files"
   | "show-pages"
   | "show-library"
   | "show-queue"
@@ -336,6 +340,44 @@ export interface VaultReferenceIndex {
   unresolvedCount: number;
 }
 
+export interface DesktopFolderInput {
+  id: string;
+  name: string;
+}
+
+export type DesktopFolderArea = "Inbox" | "Notes" | "Files" | "Planner";
+
+export interface DesktopFileItem {
+  id: string;
+  name: string;
+  kind: "file" | "folder";
+  area: DesktopFolderArea;
+  size: number;
+  updatedAt: string;
+}
+
+export interface DesktopFolderSummary {
+  desktopId: string;
+  desktopName: string;
+  folderName: string;
+  inboxCount: number;
+  fileCount: number;
+  items: DesktopFileItem[];
+}
+
+export interface LocalWorkspaceSnapshot {
+  connected: boolean;
+  rootName: string;
+  desktops: DesktopFolderSummary[];
+}
+
+export interface CaptureDesktopInboxInput {
+  desktopId: string;
+  title: string;
+  content: string;
+  kind: "note" | "task" | "event";
+}
+
 export interface LatticeApi {
   shell: {
     onCommand(listener: (command: ShellCommand) => void): () => void;
@@ -391,5 +433,10 @@ export interface LatticeApi {
     revealCanvasReference(input: RevealCanvasReferenceInput): Promise<void>;
     referenceIndex(): Promise<VaultReferenceIndex>;
     disconnect(): Promise<void>;
+  };
+  localWorkspace: {
+    syncDesktops(desktops: DesktopFolderInput[]): Promise<LocalWorkspaceSnapshot>;
+    captureInbox(input: CaptureDesktopInboxInput): Promise<LocalWorkspaceSnapshot>;
+    revealDesktop(desktopId: string): Promise<void>;
   };
 }

@@ -2,6 +2,7 @@ export type Surface =
   | "home"
   | "dashboard"
   | "browser"
+  | "files"
   | "library"
   | "queue"
   | "pages"
@@ -34,6 +35,7 @@ const surfaceShortcutMap: Record<string, Surface> = {
   "5": "queue",
   "6": "settings",
   "7": "apps",
+  "8": "files",
 };
 
 export const surfaceDetails: Record<
@@ -54,6 +56,11 @@ export const surfaceDetails: Record<
     label: "Browse",
     description: "Continue the active website",
     shortcut: "Alt 2",
+  },
+  files: {
+    label: "Files & notes",
+    description: "Work with this desktop's Inbox, notes, files, and plans",
+    shortcut: "Alt 8",
   },
   pages: {
     label: "Canvas pages",

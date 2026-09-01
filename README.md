@@ -10,6 +10,8 @@ Flow combines bullet-journal capture with a bounded GTD funnel, and Wealth Lab t
 decisions and earning experiments without gaining financial-account authority. New tabs now stay
 quiet: one URL/search action, useful local suggestions, and a paper-note capture whose original
 waits in a deliberate Inbox. The former home overview is now an explicit Dashboard.
+Each desktop can now also own a visible local folder with Inbox, Notes, Files, and Planner, while
+Coach keeps its private coordination metadata in `.coach`.
 
 ![Phase 16 minimal New Tab](artifacts/phase-16/new-tab.png)
 
@@ -23,6 +25,14 @@ waits in a deliberate Inbox. The former home overview is now an explicit Dashboa
 - **Dashboard** is now a stable `Alt+1` destination in the left navigation. It owns the richer
   review view—intention, recent thread, current canvas, Today, and reading queue—without duplicating
   the left navigation's saved-links, apps, and settings routes.
+- **Files & Inbox** is a first-class dashboard section, left-navigation destination, and context tab
+  beside the active desktop. The selected desktop is visibly highlighted, so local material always
+  has an unambiguous owner.
+- Connecting any local folder creates `.coach/workspace.json` plus stable
+  `Desktops/<Desktop name-ID>/{Inbox,Notes,Files,Planner}` folders. Renaming a desktop keeps its
+  existing folder in place; archive, disconnect, and navigation actions never move or delete it.
+- When a local folder is connected, New Tab quick notes are atomically written as inspectable
+  Markdown into the active desktop's Inbox as well as entering Daily Flow.
 - New Tab and Runnable apps use dimensional, destination-specific app tiles with consistent
   silhouettes, color families, gloss, and depth instead of generic boxes.
 - The supplied cap artwork is now Lattice's shared in-app logo, SVG/PNG favicon set, portable-app
@@ -57,8 +67,8 @@ waits in a deliberate Inbox. The former home overview is now an explicit Dashboa
   rewriting what was first recorded.
 - Dashboard is a calm return point with one optional local intention and one-action resume choices for
   the active website, next reading item, and latest canvas page.
-- Seven labeled destinations remain stable across the rail, workspace panel, internal toolbars, and
-  `Alt+1` through `Alt+7` shortcuts—even when a native website has keyboard focus.
+- Eight labeled destinations remain stable across the rail, workspace panel, internal toolbars, and
+  `Alt+1` through `Alt+8` shortcuts—even when a native website has keyboard focus.
 - Focus view hides navigation and tab chrome without trapping the user: Save remains available over
   websites, while **Show navigation**, `Escape`, and `Ctrl/Cmd+Shift+F` restore the full shell.
 - Internal pages use their own orientation toolbar instead of irrelevant browser controls.
@@ -69,7 +79,8 @@ waits in a deliberate Inbox. The former home overview is now an explicit Dashboa
   links. Those actions never rename, move, or delete Obsidian folders.
 - A live native tab can move to another desktop without reloading or losing its active state.
 - A desktop session can be reset with **Close all tabs**.
-- An Obsidian vault can be selected once and restored on the next launch.
+- Any local folder can be selected once and restored on the next launch. Existing Obsidian folders
+  remain compatible, but Obsidian is not required.
 - Canvas pages are stored as open JSON Canvas `.canvas` files under `Lattice Pages/`, including
   safe nested folders that Obsidian can browse directly.
 - Saved links and canvas references form a local index across pages, objects, HTTPS URLs, documents,

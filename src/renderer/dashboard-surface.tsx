@@ -1,6 +1,11 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { BrowserState, CanvasPageSummary, SavedLinkRecord } from "../shared/contracts";
+import type {
+  BrowserState,
+  CanvasPageSummary,
+  DesktopFolderSummary,
+  SavedLinkRecord,
+} from "../shared/contracts";
 import { actionHelpText } from "./action-help-text";
 import { Icon, type IconName } from "./icon";
 import { RUNNABLE_APP_CATALOG, type RunnableAppId } from "./runnable-apps-model";
@@ -32,6 +37,7 @@ type DashboardWidgetId =
   | "history"
   | "highlights"
   | "favorites"
+  | "files"
   | "saved-links"
   | "runnable-apps"
   | "canvas-pages";
@@ -46,6 +52,7 @@ const DEFAULT_ORDER: DashboardWidgetId[] = [
   "history",
   "highlights",
   "favorites",
+  "files",
   "saved-links",
   "runnable-apps",
   "canvas-pages",
@@ -54,6 +61,7 @@ const DEFAULT_ORDER: DashboardWidgetId[] = [
 const DEFAULT_SECTION_ORDER: DashboardTabId[] = [
   "open-tabs",
   "history",
+  "files",
   "saved-links",
   "message",
   "recently-closed",
@@ -208,6 +216,7 @@ const WIDGET_LABELS: Record<DashboardWidgetId, string> = {
   history: "History",
   highlights: "Highlights",
   favorites: "Favorites",
+  files: "Files & Inbox",
   "saved-links": "Saved links",
   "runnable-apps": "Runnable apps",
   "canvas-pages": "Canvas pages",
@@ -227,6 +236,7 @@ const SECTION_ICONS: Record<DashboardSectionId, IconName> = {
   history: "timer",
   highlights: "sparkle",
   favorites: "bookmark",
+  files: "folder",
   "saved-links": "library",
   "runnable-apps": "grid",
   "canvas-pages": "folder",
@@ -247,6 +257,7 @@ interface DashboardSurfaceProps {
   history: DashboardHistoryItem[];
   savedLinks: SavedLinkRecord[];
   canvasPages: CanvasPageSummary[];
+  desktopFiles: DesktopFolderSummary | null;
   onOpenTab: (tab: BrowserState) => void;
   onCloseTab: (tab: BrowserState) => void;
   onNewTab: () => void;
@@ -254,6 +265,7 @@ interface DashboardSurfaceProps {
   onOpenUrl: (url: string) => void;
   onOpenApp: (id: RunnableAppId) => void;
   onOpenCanvas: (id: string) => void;
+  onOpenFiles: () => void;
   onSearchTabContents: (tabIds: string[], query: string) => Promise<string[]>;
   onRenameDesktop: (name: string) => boolean;
   customizing: boolean;
@@ -315,6 +327,7 @@ export function DashboardSurface({
   history,
   savedLinks,
   canvasPages,
+  desktopFiles,
   onOpenTab,
   onCloseTab,
   onNewTab,
@@ -322,6 +335,7 @@ export function DashboardSurface({
   onOpenUrl,
   onOpenApp,
   onOpenCanvas,
+  onOpenFiles,
   onSearchTabContents,
   onRenameDesktop,
   customizing,
@@ -557,6 +571,9 @@ export function DashboardSurface({
       includeAllMetadata ? page.nodeCount : null,
     ]),
   );
+  const filteredDesktopFiles = (desktopFiles?.items ?? []).filter((item) =>
+    matchesSearch(normalizedQuery, [item.name, includeAllMetadata ? item.area : null, item.kind]),
+  );
 
   const savedGroups = useMemo(() => {
     const groups = new Map<string, SavedLinkRecord[]>();
@@ -574,6 +591,7 @@ export function DashboardSurface({
     history: filteredHistory.length,
     highlights: filteredHighlights.length,
     favorites: filteredHighlights.length,
+    files: filteredDesktopFiles.length,
     "saved-links": filteredSavedLinks.length,
     "runnable-apps": filteredRunnableApps.length,
     "canvas-pages": filteredCanvasPages.length,
@@ -757,6 +775,46 @@ export function DashboardSurface({
           ))}
           {filteredHighlights.length === 0 && (
             <p className="dashboard-empty">Favorites are your starred highlights.</p>
+          )}
+        </div>
+      </article>
+    ),
+    files: (
+      <article className="dashboard-widget dashboard-files-widget">
+        {sectionHeader("files", "Files & Inbox", sectionCounts.files)}
+        <button type="button" className="dashboard-files-summary" onClick={onOpenFiles}>
+          <span>
+            <Icon name="folder" />
+          </span>
+          <span>
+            <strong>{desktopName}</strong>
+            <small>
+              {desktopFiles
+                ? `${desktopFiles.inboxCount} in Inbox · ${desktopFiles.fileCount} total items`
+                : "Connect a local folder to give this desktop a home"}
+            </small>
+          </span>
+          <Icon name="arrow-right" />
+        </button>
+        <div className="dashboard-list">
+          {filteredDesktopFiles.slice(0, expanded ? undefined : 5).map((item) => (
+            <button key={item.id} type="button" onClick={onOpenFiles}>
+              <Icon name={item.kind === "folder" ? "folder" : "edit"} />
+              <span>
+                <strong>{item.name}</strong>
+                <small>
+                  {item.area} · {item.kind}
+                </small>
+              </span>
+              <time>{shortTime(item.updatedAt)}</time>
+            </button>
+          ))}
+          {filteredDesktopFiles.length === 0 && (
+            <p className="dashboard-empty">
+              {desktopFiles
+                ? "Inbox, notes, files, and plans will appear here."
+                : "No local folder connected."}
+            </p>
           )}
         </div>
       </article>

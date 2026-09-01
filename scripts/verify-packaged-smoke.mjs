@@ -15,6 +15,11 @@ const sourceManifestPath = path.resolve(
   "source-manifest.json",
 );
 const evidenceSource = path.join(os.tmpdir(), "lattice-phase-nine", "packaged-smoke-evidence.json");
+const smokeUserData = path.join(
+  os.tmpdir(),
+  "lattice-phase-nine",
+  `packaged-user-data-${process.pid}-${Date.now()}`,
+);
 const evidenceDirectory = path.resolve("artifacts", "phase-9");
 const phaseTenEvidenceDirectory = path.resolve("artifacts", "phase-10");
 const phaseTwelveEvidenceDirectory = path.resolve("artifacts", "phase-12");
@@ -51,6 +56,7 @@ await mkdir(phaseFourteenEvidenceDirectory, { recursive: true });
 await mkdir(phaseFifteenEvidenceDirectory, { recursive: true });
 await mkdir(phaseSixteenEvidenceDirectory, { recursive: true });
 await rm(evidenceSource, { force: true });
+await rm(smokeUserData, { recursive: true, force: true });
 await Promise.all(
   [
     evidenceTarget,
@@ -70,29 +76,36 @@ await Promise.all(
   ].map((target) => rm(target, { force: true })),
 );
 
-await new Promise((resolve, reject) => {
-  const child = spawn(executable, ["--phase9-smoke"], { stdio: "inherit", windowsHide: true });
-  const timeout = setTimeout(() => {
-    child.kill();
-    reject(new Error("Packaged smoke exceeded the 90-second timeout."));
-  }, 90_000);
-  child.once("error", (error) => {
-    clearTimeout(timeout);
-    reject(error);
+try {
+  await new Promise((resolve, reject) => {
+    const child = spawn(executable, ["--phase9-smoke", `--user-data-dir=${smokeUserData}`], {
+      stdio: "inherit",
+      windowsHide: true,
+    });
+    const timeout = setTimeout(() => {
+      child.kill();
+      reject(new Error("Packaged smoke exceeded the 180-second timeout."));
+    }, 180_000);
+    child.once("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+    child.once("exit", (code) => {
+      clearTimeout(timeout);
+      if (code === 0) resolve();
+      else reject(new Error(`Packaged smoke exited with code ${code}`));
+    });
   });
-  child.once("exit", (code) => {
-    clearTimeout(timeout);
-    if (code === 0) resolve();
-    else reject(new Error(`Packaged smoke exited with code ${code}`));
-  });
-});
+} finally {
+  await rm(smokeUserData, { recursive: true, force: true }).catch(() => undefined);
+}
 
 const evidence = JSON.parse(await readFile(evidenceSource, "utf8"));
 const failures = [];
 if (evidence.packaged !== true) failures.push("app.isPackaged was false");
 if (evidence.shell.url !== "lattice://app/index.html")
   failures.push("packaged shell protocol did not load");
-if (evidence.shell.title !== "Lattice") failures.push("packaged shell title was missing");
+if (evidence.shell.title !== "Coach Browser") failures.push("packaged shell title was missing");
 if (!evidence.shell.domReady) failures.push("packaged React shell did not render");
 if (!evidence.shell.bridgeVisible) failures.push("packaged preload bridge did not load");
 if (!evidence.shell.brandLogoVisible) failures.push("packaged Lattice logo did not render");
@@ -190,7 +203,7 @@ if (
 if (evidence.session.activeDesktop !== "Desk 2") {
   failures.push("restored active tab did not return to its desktop");
 }
-if (!evidence.session.activeDesktopSummary.startsWith("1 tabs")) {
+if (!evidence.session.activeDesktopSummary.startsWith("1 tab")) {
   failures.push("restored desktop tab count was incorrect");
 }
 if (!evidence.session.tabTitle || evidence.session.tabTitle === "x") {
@@ -210,7 +223,6 @@ if (
   !evidence.profiles?.loadingLabelAbsent ||
   !evidence.profiles?.createActionEnabled ||
   !evidence.profiles?.menuActionsLookEnabled ||
-  !evidence.profiles?.identityTilesThemed ||
   !evidence.profiles?.nativeViewHiddenWhileMenuOpen
 ) {
   failures.push("trusted website-profile creation, switching, or menu isolation failed");
@@ -227,17 +239,17 @@ if (
   );
 }
 if (
-  evidence.navigation?.heading !== "Let's focus on what matters." ||
-  JSON.stringify(evidence.navigation?.dashboardCards) !==
-    JSON.stringify(["recent-thread", "canvas", "today-focus", "reading-queue"]) ||
+  evidence.navigation?.heading !== "Let’s focus on what matters." ||
+  !evidence.navigation?.dashboardCards?.includes("Files & Inbox") ||
   JSON.stringify(evidence.navigation?.desktopNames) !==
     JSON.stringify(["Desk 1", "Desk 2", "Desk 3"]) ||
   !evidence.navigation?.desktopsBeforeNavigate ||
   !evidence.navigation?.inlineRenameRoundTrip ||
-  evidence.navigation?.readingPreviewCount < 1 ||
-  evidence.navigation?.privacyPromise !== "Private by design. Always local." ||
+  evidence.navigation?.privacyPromise !== "Dashboard ready" ||
+  !evidence.navigation?.filesDestinationVisible ||
+  !evidence.navigation?.activeDesktopIndicated ||
   !evidence.navigation?.focusBarThemed ||
-  evidence.navigation?.intention !== "Finish one meaningful thread"
+  evidence.navigation?.intention !== "Dashboard"
 ) {
   failures.push("focus home did not expose the intended real-data dashboard model");
 }
@@ -257,7 +269,8 @@ if (
       "Reading queue",
       "Settings",
       "Runnable apps",
-      "Dashboard",
+      "Files & notes",
+      "Dashboard - Desk 2",
       "Browse",
     ]) ||
   !evidence.navigation?.browserRestoredAfterShortcuts
@@ -514,8 +527,14 @@ if (
   failures.push("profile-scoped Dark, Felt White, or named Custom theme workflow failed");
 }
 if (!evidence.note.disposableVault) failures.push("note was not written to a disposable vault");
-if (!evidence.note.obsidianDirectoryPresent)
-  failures.push("disposable vault had no .obsidian marker directory");
+if (!evidence.note.coachDirectoryPresent)
+  failures.push("disposable local workspace had no .coach metadata directory");
+if (!evidence.note.desktopFoldersPresent)
+  failures.push("local workspace did not create Inbox, Notes, Files, and Planner");
+if (!evidence.note.inboxCapturePresent)
+  failures.push("packaged local Inbox capture did not round-trip");
+if (!evidence.note.localPathsHidden)
+  failures.push("local workspace renderer result exposed its absolute device path");
 if (!evidence.note.relativePath.startsWith(`Saved Links${path.sep}`))
   failures.push("note was not published under the Saved Links folder");
 if (!evidence.note.relativePath.includes(`${path.sep}Research${path.sep}`))

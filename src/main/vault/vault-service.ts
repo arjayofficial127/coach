@@ -6,7 +6,10 @@ import { dialog } from "electron";
 import type {
   CanvasPageRecord,
   CanvasPageSummary,
+  CaptureDesktopInboxInput,
   CreateCanvasPageInput,
+  DesktopFolderInput,
+  LocalWorkspaceSnapshot,
   ProbeNoteInput,
   RevealCanvasReferenceInput,
   SaveCanvasPageInput,
@@ -27,6 +30,7 @@ import {
   resolveCanvasPagePath,
   saveCanvasPageAtomically,
 } from "./canvas-page";
+import { captureLocalInboxNote, resolveDesktopFolder, syncLocalWorkspace } from "./local-workspace";
 import { updateReadingStatusAtomically } from "./reading-status";
 import { buildVaultReferenceIndex } from "./reference-index";
 import { resolveSavedLinkHandoff, type SavedLinkHandoff } from "./saved-link-handoff";
@@ -50,14 +54,18 @@ export class VaultService {
   constructor(private readonly statePath?: string) {}
 
   async createDisposable(): Promise<VaultInfo> {
-    const directory = path.join(os.tmpdir(), "lattice-disposable-vaults", `vault-${randomUUID()}`);
-    await mkdir(path.join(directory, ".obsidian"), { recursive: true });
+    const directory = path.join(
+      os.tmpdir(),
+      "coach-disposable-workspaces",
+      `workspace-${randomUUID()}`,
+    );
+    await mkdir(directory, { recursive: true });
     return this.setActiveVault(directory, true, false);
   }
 
   async choose(): Promise<VaultInfo | null> {
     const result = await dialog.showOpenDialog({
-      title: "Choose an Obsidian vault",
+      title: "Choose a local Coach workspace folder",
       properties: ["openDirectory", "createDirectory"],
     });
     const selected = result.filePaths[0];
@@ -260,6 +268,23 @@ export class VaultService {
     return buildVaultReferenceIndex(root, savedLinks, pages);
   }
 
+  async syncDesktopFolders(desktops: DesktopFolderInput[]): Promise<LocalWorkspaceSnapshot> {
+    if (!this.activeVault) return { connected: false, rootName: "", desktops: [] };
+    return syncLocalWorkspace(this.activeVault.canonicalPath, desktops);
+  }
+
+  async captureDesktopInbox(input: CaptureDesktopInboxInput): Promise<LocalWorkspaceSnapshot> {
+    const root = this.requireActiveVault("Connect a local folder before capturing to Inbox.");
+    await captureLocalInboxNote(root, input);
+    const manifest = await this.currentDesktopInputs(root);
+    return syncLocalWorkspace(root, manifest);
+  }
+
+  async resolveDesktopFolder(desktopId: string): Promise<string> {
+    const root = this.requireActiveVault("Connect a local folder before opening desktop files.");
+    return resolveDesktopFolder(root, desktopId);
+  }
+
   async disconnect(): Promise<void> {
     this.activeVault = null;
     if (this.statePath) await rm(this.statePath, { force: true });
@@ -268,6 +293,19 @@ export class VaultService {
   private requireActiveVault(message: string): string {
     if (!this.activeVault) throw new Error(message);
     return this.activeVault.canonicalPath;
+  }
+
+  private async currentDesktopInputs(root: string): Promise<DesktopFolderInput[]> {
+    const manifestPath = path.join(root, ".coach", "workspace.json");
+    const parsed = JSON.parse(await readFile(manifestPath, "utf8")) as {
+      desktops?: Array<{ id?: unknown; name?: unknown }>;
+    };
+    return (parsed.desktops ?? [])
+      .filter(
+        (desktop): desktop is { id: string; name: string } =>
+          typeof desktop.id === "string" && typeof desktop.name === "string",
+      )
+      .map(({ id, name }) => ({ id, name }));
   }
 
   private async moveToTrash(root: string, source: string): Promise<string> {

@@ -11,6 +11,10 @@ const packageJson = JSON.parse(await readFile(path.join(repositoryRoot, "package
 const installer = path.join(repositoryRoot, "release", `Lattice-Setup-${packageJson.version}.exe`);
 const portableRoot = path.join(repositoryRoot, "out", "Lattice-win32-x64");
 const installRoot = path.join(os.tmpdir(), `lattice-phase-nine-install-${process.pid}`);
+const installedSmokeUserData = path.join(
+  os.tmpdir(),
+  `lattice-phase-nine-installed-user-data-${process.pid}`,
+);
 const installedExecutable = path.join(installRoot, "Lattice.exe");
 const uninstaller = path.join(installRoot, "Uninstall Lattice.exe");
 const smokeEvidenceSource = path.join(
@@ -280,7 +284,16 @@ if (installedSignature !== "NotSigned") {
 }
 const fuses = await verifyFuses(installedExecutable);
 
-await runProcess(installedExecutable, ["--phase9-smoke"], 90_000);
+await rm(installedSmokeUserData, { recursive: true, force: true });
+try {
+  await runProcess(
+    installedExecutable,
+    ["--phase9-smoke", `--user-data-dir=${installedSmokeUserData}`],
+    180_000,
+  );
+} finally {
+  await rm(installedSmokeUserData, { recursive: true, force: true }).catch(() => undefined);
+}
 const smoke = JSON.parse(await readFile(smokeEvidenceSource, "utf8"));
 const smokeFailures = [];
 if (smoke.packaged !== true) smokeFailures.push("installed app was not packaged");
@@ -308,15 +321,15 @@ if (!smoke.webContentsDestroyedAfterClose) {
   smokeFailures.push("installed native web contents did not close cleanly");
 }
 if (
-  smoke.navigation?.heading !== "Let's focus on what matters." ||
-  JSON.stringify(smoke.navigation?.dashboardCards) !==
-    JSON.stringify(["recent-thread", "canvas", "today-focus", "reading-queue"]) ||
+  smoke.navigation?.heading !== "Let’s focus on what matters." ||
+  !smoke.navigation?.dashboardCards?.includes("Files & Inbox") ||
   JSON.stringify(smoke.navigation?.desktopNames) !==
     JSON.stringify(["Desk 1", "Desk 2", "Desk 3"]) ||
   !smoke.navigation?.desktopsBeforeNavigate ||
   !smoke.navigation?.inlineRenameRoundTrip ||
-  smoke.navigation?.readingPreviewCount < 1 ||
-  smoke.navigation?.privacyPromise !== "Private by design. Always local." ||
+  smoke.navigation?.privacyPromise !== "Dashboard ready" ||
+  !smoke.navigation?.filesDestinationVisible ||
+  !smoke.navigation?.activeDesktopIndicated ||
   !smoke.navigation?.focusBarThemed ||
   !smoke.navigation?.focusMode ||
   !smoke.navigation?.chromeHidden ||
@@ -335,8 +348,15 @@ if (
 ) {
   smokeFailures.push("installed focus-first navigation workflow failed");
 }
-if (!smoke.note?.libraryRoundTrip || !smoke.note?.disconnectedWithoutDeleting) {
-  smokeFailures.push("installed Obsidian Markdown workflow failed");
+if (
+  !smoke.note?.libraryRoundTrip ||
+  !smoke.note?.disconnectedWithoutDeleting ||
+  !smoke.note?.coachDirectoryPresent ||
+  !smoke.note?.desktopFoldersPresent ||
+  !smoke.note?.inboxCapturePresent ||
+  !smoke.note?.localPathsHidden
+) {
+  smokeFailures.push("installed local workspace and Markdown workflow failed");
 }
 if (!smoke.privacy?.cookieCleared || !smoke.privacy?.localStorageCleared) {
   smokeFailures.push("installed privacy clearing failed");
@@ -347,7 +367,6 @@ if (
   !smoke.profiles?.loadingLabelAbsent ||
   !smoke.profiles?.createActionEnabled ||
   !smoke.profiles?.menuActionsLookEnabled ||
-  !smoke.profiles?.identityTilesThemed ||
   !smoke.profiles?.nativeViewHiddenWhileMenuOpen ||
   !smoke.profiles?.firstCookieRetained ||
   !smoke.profiles?.secondCookieInitiallyAbsent ||

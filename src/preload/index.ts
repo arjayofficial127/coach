@@ -78,6 +78,11 @@ const api: LatticeApi = {
     referenceIndex: () => ipcRenderer.invoke(IPC.vaultReferenceIndex),
     disconnect: () => ipcRenderer.invoke(IPC.vaultDisconnect),
   },
+  localWorkspace: {
+    syncDesktops: (desktops) => ipcRenderer.invoke(IPC.workspaceSyncDesktops, desktops),
+    captureInbox: (input) => ipcRenderer.invoke(IPC.workspaceCaptureInbox, input),
+    revealDesktop: (desktopId) => ipcRenderer.invoke(IPC.workspaceRevealDesktop, desktopId),
+  },
 };
 
 contextBridge.exposeInMainWorld("lattice", api);

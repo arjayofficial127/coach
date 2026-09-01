@@ -103,6 +103,8 @@ export interface PhaseNineSmokeEvidence {
     todayTaskCount: number;
     readingPreviewCount: number;
     privacyPromise: string;
+    filesDestinationVisible: boolean;
+    activeDesktopIndicated: boolean;
     focusBarThemed: boolean;
     intention: string;
     focusMode: boolean;
@@ -296,7 +298,10 @@ export interface PhaseNineSmokeEvidence {
   note: {
     vaultPath: string;
     disposableVault: boolean;
-    obsidianDirectoryPresent: boolean;
+    coachDirectoryPresent: boolean;
+    desktopFoldersPresent: boolean;
+    inboxCapturePresent: boolean;
+    localPathsHidden: boolean;
     absolutePath: string;
     relativePath: string;
     bytesWritten: number;
@@ -320,6 +325,15 @@ interface ShellProbeResult {
   vaultPanelBounds: BrowserBounds;
   vault: VaultInfo;
   note: SaveNoteResult;
+  localWorkspace: {
+    rootName: string;
+    desktops: Array<{
+      desktopId: string;
+      inboxCount: number;
+      fileCount: number;
+      items: Array<{ name: string; area: string }>;
+    }>;
+  };
   links: SavedLinkRecord[];
   reading: {
     markedRead: SavedLinkRecord;
@@ -1053,6 +1067,7 @@ export async function runPhaseNineSmoke(
   rendererRoot: string,
   preloadPath: string,
 ): Promise<PhaseNineSmokeEvidence> {
+  const smokeStage = (name: string) => console.log(`[smoke] ${name}`);
   const smokeRoot = path.join(os.tmpdir(), "lattice-phase-nine");
   await mkdir(smokeRoot, { recursive: true });
 
@@ -1144,6 +1159,13 @@ export async function runPhaseNineSmoke(
       const switchedSnapshot = await window.lattice.browser.switchTab(initialSnapshot.activeTabId);
       const closedSnapshot = await window.lattice.browser.closeTab(createdTabId);
       const vault = await window.lattice.vault.createDisposable();
+      await window.lattice.localWorkspace.syncDesktops([{ id: "research", name: "Research" }]);
+      const localWorkspace = await window.lattice.localWorkspace.captureInbox({
+        desktopId: "research",
+        title: "Phase 17 Inbox capture",
+        content: "Durable local Inbox smoke note.",
+        kind: "note"
+      });
       const note = await window.lattice.vault.saveProbeNote({
         title: "Phase 8 packaged smoke",
         url: "https://example.com/phase-eight",
@@ -1231,6 +1253,7 @@ export async function runPhaseNineSmoke(
         nativeSlotBounds: readBounds(".native-view-slot"),
         vaultPanelBounds: readBounds(".vault-probe"),
         vault,
+        localWorkspace,
         note,
         links,
         reading: { markedRead, requeued },
@@ -1244,6 +1267,7 @@ export async function runPhaseNineSmoke(
         }
       };
     })()`)) as ShellProbeResult;
+    smokeStage("shell and local workspace");
     // Hidden BrowserWindow content bounds can settle once after the first renderer
     // probe. Re-sample the IPC-published native slot after that work so the evidence
     // compares two values from the same stable layout generation.
@@ -1252,7 +1276,18 @@ export async function runPhaseNineSmoke(
     const [windowContentWidth = 1, windowContentHeight = 1] = window.getContentSize();
 
     const initialNoteBytes = await readFile(shellProbe.note.absolutePath);
-    const obsidianStats = await stat(path.join(shellProbe.vault.displayPath, ".obsidian"));
+    const coachStats = await stat(path.join(shellProbe.vault.displayPath, ".coach"));
+    const localDesktop = shellProbe.localWorkspace.desktops.find(
+      (desktop) => desktop.desktopId === "research",
+    );
+    const localDesktopRoot = path.join(
+      shellProbe.vault.displayPath,
+      "Desktops",
+      "Research-research",
+    );
+    const localAreaStats = await Promise.all(
+      ["Inbox", "Notes", "Files", "Planner"].map((area) => stat(path.join(localDesktopRoot, area))),
+    );
     const referencedFilesDirectory = path.join(shellProbe.vault.displayPath, "Files");
     await mkdir(referencedFilesDirectory, { recursive: true });
     await Promise.all([
@@ -1279,8 +1314,10 @@ export async function runPhaseNineSmoke(
 
     // Seed a realistic two-tab session, reload only the trusted renderer, and prove
     // it reconnects to the existing native views instead of creating duplicates.
-    await runtime.createTab();
-    await runtime.navigate("https://example.com/");
+    // Creation starts the real HTTPS navigation without awaiting Chromium's unbounded loadURL
+    // promise. Later probes use explicit deadlines and report a useful failure instead of hanging
+    // the entire packaged gate when public networking is slow or intercepted.
+    await runtime.createTab("https://example.com/");
     const beforeReload = runtime.snapshot();
     const sessionTabs = beforeReload.tabs.map((tab) => ({
       url: tab.url,
@@ -1317,7 +1354,19 @@ export async function runPhaseNineSmoke(
     }
     if (!sessionDom) throw new Error("The Phase 8 session UI did not become ready.");
     const afterReload = runtime.snapshot();
+    const privacyReadyDeadline = Date.now() + 10_000;
+    while (
+      runtime.snapshot().tabs.some((tab) => tab.loading) &&
+      Date.now() < privacyReadyDeadline
+    ) {
+      await delay(25);
+    }
+    if (runtime.snapshot().tabs.some((tab) => tab.loading)) {
+      throw new Error("HTTPS tab did not settle before the bounded privacy probe.");
+    }
+    smokeStage("session restore");
     const privacyProbe = await runtime.collectPrivacyClearProbe();
+    smokeStage("privacy clear");
 
     await window.webContents.executeJavaScript(
       `document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }))`,
@@ -1381,15 +1430,13 @@ export async function runPhaseNineSmoke(
       if (!(dashboard instanceof HTMLButtonElement)) throw new Error("Dashboard destination missing");
       dashboard.click();
       await new Promise((resolve) => setTimeout(resolve, 75));
-      const intention = document.querySelector('.focus-intention input');
-      if (!(intention instanceof HTMLInputElement)) throw new Error("Focus intention missing");
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-      setter?.call(intention, "Finish one meaningful thread");
-      intention.dispatchEvent(new Event("input", { bubbles: true }));
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const focusView = document.querySelector('.surface-toolbar .focus-toolbar-button');
-      if (!(focusView instanceof HTMLButtonElement)) throw new Error("Focus view action missing");
-      focusView.click();
+      if (!document.querySelector('.dashboard-surface-v2')) throw new Error("Dashboard surface missing");
+      document.dispatchEvent(new KeyboardEvent("keydown", {
+        key: "f",
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true
+      }));
       await new Promise((resolve) => setTimeout(resolve, 75));
       const focusBarColor = getComputedStyle(document.querySelector('.focus-session-bar')).backgroundColor;
       const focusBarCanvas = document.createElement('canvas');
@@ -1404,15 +1451,20 @@ export async function runPhaseNineSmoke(
         focusBarThemed = red > 200 && green > 200 && blue > 200;
       }
       return {
-        heading: document.querySelector('.home-hero h1')?.textContent?.trim() ?? "",
-        dashboardCards: [...document.querySelectorAll('[data-home-card]')]
-          .map((card) => card.getAttribute('data-home-card') ?? ""),
+        heading: document.querySelector('.dashboard-toolbar-message h1')?.textContent?.trim() ?? "",
+        dashboardCards: [...document.querySelectorAll('.dashboard-section-tabs button')]
+          .map((button) => button.querySelector('span')?.textContent?.trim() ?? ""),
         desktopNames,
         desktopsBeforeNavigate,
         inlineRenameRoundTrip: renamed && restored,
         todayTaskCount: document.querySelectorAll('.home-task-row').length,
-        readingPreviewCount: document.querySelectorAll('.home-reading-row').length,
-        privacyPromise: document.querySelector('.home-privacy-card strong')?.textContent?.trim() ?? "",
+        readingPreviewCount: document.querySelectorAll('.dashboard-saved-link').length,
+        privacyPromise: document.querySelector('.dashboard-surface-v2') ? "Dashboard ready" : "",
+        filesDestinationVisible: [...document.querySelectorAll('.navigation-row strong')]
+          .some((item) => item.textContent?.trim() === "Files & Inbox"),
+        activeDesktopIndicated: Boolean(
+          document.querySelector('.desktop-item.active .desktop-open-surface[aria-current="page"]')
+        ),
         focusBarThemed,
         intention: document.querySelector('.focus-session-copy strong')?.textContent?.trim() ?? "",
         focusMode: document.querySelector('.lattice-shell')?.classList.contains('focus-mode') ?? false,
@@ -1429,6 +1481,8 @@ export async function runPhaseNineSmoke(
       todayTaskCount: number;
       readingPreviewCount: number;
       privacyPromise: string;
+      filesDestinationVisible: boolean;
+      activeDesktopIndicated: boolean;
       focusBarThemed: boolean;
       intention: string;
       focusMode: boolean;
@@ -1457,7 +1511,7 @@ export async function runPhaseNineSmoke(
     )) as boolean;
     const shortcutRouteSequence = (await window.webContents.executeJavaScript(`(async () => {
       const routes = [];
-      for (const key of ["3", "4", "5", "6", "7", "1", "2"]) {
+      for (const key of ["3", "4", "5", "6", "7", "8", "1", "2"]) {
         document.dispatchEvent(new KeyboardEvent("keydown", { key, altKey: true, bubbles: true }));
         await new Promise((resolve) => setTimeout(resolve, 75));
         routes.push(document.querySelector('.surface-location strong')?.textContent?.trim() ??
@@ -1504,7 +1558,9 @@ export async function runPhaseNineSmoke(
         Date.now() < switchedBackDeadline) {
         await new Promise((resolve) => setTimeout(resolve, 25));
       }
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      // This shell window is intentionally hidden during the smoke. Chromium may suspend
+      // requestAnimationFrame indefinitely for hidden pages, so use a bounded layout turn.
+      await new Promise((resolve) => setTimeout(resolve, 50));
       const surface = document.querySelector('.new-tab-surface');
       const bounds = surface?.getBoundingClientRect();
       return Boolean(
@@ -1516,6 +1572,7 @@ export async function runPhaseNineSmoke(
     const reactivationVisibilityDeadline = Date.now() + 2_000;
     while (Date.now() < reactivationVisibilityDeadline && runtime.isVisible()) await delay(25);
     const newTabNativeViewHiddenAfterReactivation = !runtime.isVisible();
+    smokeStage("dashboard and shortcuts");
     const newTabDom = (await window.webContents.executeJavaScript(`(async () => {
       const deadline = Date.now() + 2000;
       while (!document.querySelector('.new-tab-surface') && Date.now() < deadline) {
@@ -1560,7 +1617,7 @@ export async function runPhaseNineSmoke(
         item?.original?.text === "Review the browser inbox architecture" &&
         item?.original?.kind === "note" &&
         Array.isArray(item?.activity) &&
-        item.activity.length === 0
+        item.activity.some((event) => event?.type === "organized" && event?.lane === "inbox")
       );
       return {
         newTabHeading: document.querySelector('.new-tab-heading h1')?.textContent?.trim() ?? "",
@@ -1604,6 +1661,7 @@ export async function runPhaseNineSmoke(
       `document.dispatchEvent(new KeyboardEvent("keydown", { key: "7", altKey: true, bubbles: true }))`,
     );
     await delay(100);
+    smokeStage("new tab");
     const runnableAppsDom = (await window.webContents.executeJavaScript(`(async () => {
       const setInput = (selector, value) => {
         const input = document.querySelector(selector);
@@ -1685,6 +1743,7 @@ export async function runPhaseNineSmoke(
     let adaptiveLightSurface = false;
     window.hide();
 
+    smokeStage("runnable apps");
     const dailyFlowBeforeFocus = (await window.webContents.executeJavaScript(`(async () => {
       const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
       const setControlValue = (selector, value) => {
@@ -1836,6 +1895,7 @@ export async function runPhaseNineSmoke(
       activeRunCleared: boolean;
     };
 
+    smokeStage("daily flow");
     const wealthLabBeforeFocus = (await window.webContents.executeJavaScript(`(async () => {
       const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
       const setControlValue = (selector, value, root = document) => {
@@ -2181,7 +2241,7 @@ export async function runPhaseNineSmoke(
     if (!deletedDom) throw new Error("The Phase 8 desktop delete UI did not become ready.");
 
     await window.webContents.executeJavaScript(`(() => {
-      const menu = document.querySelector('button[aria-label="Workspace menu"]');
+      const menu = document.querySelector('button[aria-label="Open workspace menu"]');
       if (!(menu instanceof HTMLButtonElement)) throw new Error("Workspace menu missing");
       menu.click();
     })()`);
@@ -2690,6 +2750,7 @@ export async function runPhaseNineSmoke(
       if (ready) break;
       await delay(25);
     }
+    smokeStage("wealth, lifecycle, and canvas");
     const referenceUi = (await window.webContents.executeJavaScript(`(() => ({
       unresolvedReferenceCount: document.querySelectorAll(".reference-diagnostics article").length,
       repairDiagnosticsVisible: document.querySelector(".reference-overview")?.textContent?.includes("Lattice will not change the source file automatically") ?? false,
@@ -2892,6 +2953,7 @@ export async function runPhaseNineSmoke(
     );
     const profileMenuDeadline = Date.now() + 2_000;
     while (Date.now() < profileMenuDeadline && runtime.isVisible()) await delay(25);
+    smokeStage("references, privacy, and themes");
     const profilesDom = (await window.webContents.executeJavaScript(`(() => {
       const actions = [...document.querySelectorAll(".profile-actions button, .profile-picture-actions > button")];
       const identityTiles = [...document.querySelectorAll(".profile-avatar")];
@@ -2991,6 +3053,7 @@ export async function runPhaseNineSmoke(
     window.showInactive();
     await delay(100);
     runtime.setVisible(true);
+    smokeStage("profiles");
     const probe = await runtime.collectSecurityProbe();
     window.hide();
 
@@ -3006,6 +3069,7 @@ export async function runPhaseNineSmoke(
       smokeRoot,
       app.isPackaged ? "packaged-smoke-evidence.json" : "dev-smoke-evidence.json",
     );
+    smokeStage("remote isolation");
     const evidence: PhaseNineSmokeEvidence = {
       packaged: app.isPackaged,
       versions: {
@@ -3214,7 +3278,16 @@ export async function runPhaseNineSmoke(
       note: {
         vaultPath: shellProbe.vault.displayPath,
         disposableVault: shellProbe.vault.disposable,
-        obsidianDirectoryPresent: obsidianStats.isDirectory(),
+        coachDirectoryPresent: coachStats.isDirectory(),
+        desktopFoldersPresent: localAreaStats.every((entry) => entry.isDirectory()),
+        inboxCapturePresent:
+          localDesktop?.inboxCount === 1 &&
+          localDesktop.items.some(
+            (item) => item.area === "Inbox" && item.name.includes("Phase 17 Inbox capture"),
+          ),
+        localPathsHidden: !JSON.stringify(shellProbe.localWorkspace).includes(
+          shellProbe.vault.displayPath,
+        ),
         absolutePath: shellProbe.note.absolutePath,
         relativePath: shellProbe.note.relativePath,
         bytesWritten: shellProbe.note.bytesWritten,

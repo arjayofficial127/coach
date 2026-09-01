@@ -3,6 +3,7 @@ import type {
   BrowserState,
   CanvasPageRecord,
   LatticeApi,
+  LocalWorkspaceSnapshot,
   ProfileState,
   SavedLinkRecord,
   SaveNoteResult,
@@ -44,6 +45,7 @@ let profileState: ProfileState = {
 const previewTrash = new Map<string, PreviewTrashEntry>();
 const profileTabs = new Map<string, { activeTabId: string; tabs: BrowserState[] }>();
 let vault: VaultInfo | null = null;
+let localWorkspace: LocalWorkspaceSnapshot = { connected: false, rootName: "", desktops: [] };
 let privacySummary = { cookieCount: 3, cacheBytes: 4_820_000 };
 let canvasPages: CanvasPageRecord[] = [];
 let links: SavedLinkRecord[] = [
@@ -408,7 +410,60 @@ export function installBrowserPreviewBridge(): void {
       disconnect: async () => {
         vault = null;
         canvasPages = [];
+        localWorkspace = { connected: false, rootName: "", desktops: [] };
       },
+    },
+    localWorkspace: {
+      syncDesktops: async (desktops) => {
+        localWorkspace = {
+          connected: Boolean(vault),
+          rootName: vault ? "Coach Workspace" : "",
+          desktops: desktops.map((desktop) => {
+            const existing = localWorkspace.desktops.find(
+              (candidate) => candidate.desktopId === desktop.id,
+            );
+            return (
+              existing ?? {
+                desktopId: desktop.id,
+                desktopName: desktop.name,
+                folderName: `${desktop.name}-${desktop.id.slice(0, 8)}`,
+                inboxCount: 0,
+                fileCount: 0,
+                items: [],
+              }
+            );
+          }),
+        };
+        return structuredClone(localWorkspace);
+      },
+      captureInbox: async (input) => {
+        const updatedAt = new Date().toISOString();
+        localWorkspace = {
+          ...localWorkspace,
+          desktops: localWorkspace.desktops.map((desktop) =>
+            desktop.desktopId === input.desktopId
+              ? {
+                  ...desktop,
+                  inboxCount: desktop.inboxCount + 1,
+                  fileCount: desktop.fileCount + 1,
+                  items: [
+                    {
+                      id: crypto.randomUUID(),
+                      name: `${input.title}.md`,
+                      kind: "file",
+                      area: "Inbox",
+                      size: input.content.length,
+                      updatedAt,
+                    },
+                    ...desktop.items,
+                  ],
+                }
+              : desktop,
+          ),
+        };
+        return structuredClone(localWorkspace);
+      },
+      revealDesktop: async () => undefined,
     },
   };
 
