@@ -6,10 +6,13 @@ import {
   acceptSavedDocument,
   loadWorkspaceIndex,
   noteReferences,
+  renamedWorkspacePath,
+  renameWorkspaceTabs,
   resolveNoteReference,
   type WorkspaceIndex,
   type WorkspaceTab,
   workspaceErrorMessage,
+  workspaceTitle,
 } from "./local-workspace-model";
 import { WorkspaceDocument } from "./workspace-document";
 import { WorkspaceFileRows, WorkspaceHome } from "./workspace-home";
@@ -21,6 +24,7 @@ type View = "home" | "files" | "recent";
 const sessions = new Map<string, WorkspaceTab[]>();
 const sessionListeners = new Set<() => void>();
 const pendingSaves = new Map<string, Set<string>>();
+const pendingRenames = new Set<string>();
 const protectSessionDrafts = (event: BeforeUnloadEvent) => {
   if (
     [...sessions.values()].some((tabs) => tabs.some((tab) => tab.draft !== tab.document.content))
@@ -92,6 +96,18 @@ function WorkspaceSession({
   const [capture, setCapture] = useState("");
   const [captureBusy, setCaptureBusy] = useState(false);
   const [reloadPath, setReloadPath] = useState<string | null>(null);
+  const [renameTarget, setRenameTarget] = useState<WorkspaceDirectoryEntry | null>(null);
+  const [renameTitle, setRenameTitle] = useState("");
+  const [renameError, setRenameError] = useState("");
+  const [renaming, setRenaming] = useState(pendingRenames.has(cacheKey));
+  const renameInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (renameTarget) {
+      renameInput.current?.focus();
+      renameInput.current?.select();
+      renameInput.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [renameTarget]);
 
   const updateTabs = useCallback(
     (update: (current: WorkspaceTab[]) => WorkspaceTab[]) => {
@@ -137,6 +153,7 @@ function WorkspaceSession({
         setTabs(current);
       }
       setSavingPaths(new Set(savingRef.current));
+      setRenaming(pendingRenames.has(cacheKey));
     };
     sessionListeners.add(synchronize);
     void refresh();
@@ -154,8 +171,12 @@ function WorkspaceSession({
       window.removeEventListener("beforeunload", protectDrafts);
     };
   }, [refresh, cacheKey]);
+  useEffect(() => {
+    if (!renaming) void refresh();
+  }, [renaming, refresh]);
 
   const entries = index?.entries ?? [];
+  const inboxFolder = index?.directories[""]?.areaFolders?.Inbox ?? "Inbox";
   const files = entries
     .filter((entry) => entry.kind === "file")
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -278,7 +299,13 @@ function WorkspaceSession({
   const save = useCallback(
     async (relativePath: string) => {
       const tab = tabsRef.current.find((item) => item.document.relativePath === relativePath);
-      if (!tab || tab.draft === tab.document.content || savingRef.current.has(relativePath)) return;
+      if (
+        !tab ||
+        tab.draft === tab.document.content ||
+        savingRef.current.has(relativePath) ||
+        pendingRenames.has(cacheKey)
+      )
+        return;
       savingRef.current.add(relativePath);
       for (const listener of sessionListeners) listener();
       setSavingPaths(new Set(savingRef.current));
@@ -316,7 +343,7 @@ function WorkspaceSession({
         if (mounted.current) setSavingPaths(new Set(savingRef.current));
       }
     },
-    [desktopId, onRefresh, refresh, updateTabs],
+    [desktopId, onRefresh, refresh, updateTabs, cacheKey],
   );
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
@@ -333,7 +360,7 @@ function WorkspaceSession({
     return () => window.removeEventListener("keydown", shortcut);
   }, [activePath, save]);
   const createEntry = async () => {
-    if (!newKind || !newName.trim() || creating) return;
+    if (!newKind || !newName.trim() || creating || pendingRenames.has(cacheKey)) return;
     setCreating(true);
     const name = newName.trim();
     const kind = newKind;
@@ -372,7 +399,7 @@ function WorkspaceSession({
     }
   };
   const captureNote = async (fromBrowser = false) => {
-    if (captureBusy) return;
+    if (captureBusy || pendingRenames.has(cacheKey)) return;
     setCaptureBusy(true);
     try {
       let title = capture.trim().slice(0, 120);
@@ -415,6 +442,79 @@ function WorkspaceSession({
     if (activePath === relativePath)
       setActivePath(tabsRef.current[0]?.document.relativePath ?? null);
     if (besidePath === relativePath) setBesidePath(null);
+  };
+  const startRename = (entry: WorkspaceDirectoryEntry) => {
+    setRenameTarget(entry);
+    setRenameTitle(workspaceTitle(entry.name, entry.kind));
+    setRenameError("");
+    setNewMenu(false);
+  };
+  const renameEntry = async () => {
+    if (!renameTarget || !renameTitle.trim() || pendingRenames.has(cacheKey)) return;
+    const sessionSuffix = cacheKey.slice(cacheKey.indexOf(":"));
+    const related = [...new Set([cacheKey, ...sessions.keys()])].filter((key) =>
+      key.endsWith(sessionSuffix),
+    );
+    if (
+      creating ||
+      captureBusy ||
+      openingRef.current.size ||
+      related.some((key) => pendingSaves.get(key)?.size)
+    ) {
+      setRenameError("Wait for the current file operation to finish, then rename.");
+      return;
+    }
+    const source = renameTarget;
+    const suffix =
+      source.kind === "file" ? source.name.slice(workspaceTitle(source.name).length) : "";
+    for (const key of related) pendingRenames.add(key);
+    setRenaming(true);
+    setRenameError("");
+    try {
+      const result = await window.lattice.localWorkspace.renameEntry({
+        desktopId,
+        relativePath: source.relativePath,
+        kind: source.kind,
+        newName: renameTitle.trim() + suffix,
+        expectedUpdatedAt:
+          source.kind === "file"
+            ? (tabsRef.current.find((tab) => tab.document.relativePath === source.relativePath)
+                ?.document.updatedAt ?? source.updatedAt)
+            : source.updatedAt,
+      });
+      for (const key of related)
+        sessions.set(
+          key,
+          renameWorkspaceTabs(sessions.get(key) ?? [], result.fromPath, result.toPath),
+        );
+      updateTabs((current) => renameWorkspaceTabs(current, result.fromPath, result.toPath));
+      if (mounted.current) {
+        const remap = (value: string) =>
+          renamedWorkspacePath(value, result.fromPath, result.toPath);
+        setActivePath((value) => (value ? remap(value) : value));
+        setBesidePath((value) => (value ? remap(value) : value));
+        setFolder(remap);
+        setExpanded((current) => new Set([...current].map(remap)));
+        setRenameTarget(null);
+        setReloadPath(null);
+        setMessage(
+          `Renamed to ${result.name}. Contents and drafts are unchanged. Links were not rewritten; review Connections if needed.`,
+        );
+        onRefresh();
+      }
+    } catch (error) {
+      if (mounted.current)
+        setRenameError(
+          workspaceErrorMessage(
+            error,
+            "Could not rename this item. Refresh and check the folder connection. Your draft is still retained.",
+          ),
+        );
+    } finally {
+      for (const key of related) pendingRenames.delete(key);
+      for (const listener of sessionListeners) listener();
+      if (mounted.current) setRenaming(false);
+    }
   };
   const reload = async () => {
     if (!reloadPath) return;
@@ -483,6 +583,14 @@ function WorkspaceSession({
                 />
                 <span>{entry.name}</span>
               </button>
+              <button
+                type="button"
+                className="ws-rename-entry"
+                aria-label={`Rename ${entry.kind} ${entry.name}`}
+                onClick={() => startRename(entry)}
+              >
+                <Icon name="edit" />
+              </button>
             </div>
             {entry.kind === "folder" &&
               expanded.has(entry.relativePath) &&
@@ -532,6 +640,14 @@ function WorkspaceSession({
       onLink={(target) => handleLink(target, tab.document.relativePath)}
       onSplit={() => setChooseBeside(true)}
       onReload={() => setReloadPath(tab.document.relativePath)}
+      onRename={() =>
+        startRename({
+          ...tab.document,
+          id: tab.document.relativePath,
+          kind: "file",
+          size: tab.draft.length,
+        })
+      }
     />
   );
 
@@ -564,7 +680,7 @@ function WorkspaceSession({
               onRefresh();
               void refresh();
             }}
-            disabled={loading || busy}
+            disabled={loading || busy || renaming}
           >
             <Icon name="reload" />
             {loading ? "Refreshing…" : "Refresh"}
@@ -577,6 +693,7 @@ function WorkspaceSession({
             type="button"
             className="primary-action"
             aria-expanded={newMenu}
+            disabled={renaming}
             onClick={() => setNewMenu(!newMenu)}
           >
             <Icon name="plus" />
@@ -673,7 +790,55 @@ function WorkspaceSession({
           </button>
         </form>
       )}
-      {reloadPath && (
+      {renameTarget && (
+        <form
+          className="ws-rename-form"
+          aria-label={`Rename ${renameTarget.kind}`}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void renameEntry();
+          }}
+        >
+          <strong>Rename {renameTarget.kind}</strong>
+          <label>
+            New name
+            <span className="ws-rename-input">
+              <input
+                aria-label="New title"
+                ref={renameInput}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape" && !renaming) setRenameTarget(null);
+                }}
+                value={renameTitle}
+                maxLength={120}
+                disabled={renaming}
+                onChange={(event) => setRenameTitle(event.target.value)}
+              />
+              {renameTarget.kind === "file" && (
+                <span>{renameTarget.name.slice(workspaceTitle(renameTarget.name).length)}</span>
+              )}
+            </span>
+          </label>
+          <p>
+            Renames this item in the local folder. Contents, internal note/object titles, and links
+            are not rewritten. Existing links may need a manual update.
+          </p>
+          {renameError && <p role="alert">{renameError}</p>}
+          <div>
+            <button
+              type="submit"
+              className="primary-action"
+              disabled={renaming || !renameTitle.trim()}
+            >
+              {renaming ? "Renaming…" : "Rename"}
+            </button>
+            <button type="button" disabled={renaming} onClick={() => setRenameTarget(null)}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+      {reloadPath && !renaming && (
         <div className="ws-notice" role="alert">
           <span>Reloading discards this open draft. The saved file is not changed.</span>
           <button type="button" onClick={() => void reload()}>
@@ -684,7 +849,7 @@ function WorkspaceSession({
           </button>
         </div>
       )}
-      <div className="ws-body">
+      <fieldset className="ws-body" disabled={renaming}>
         <aside className="ws-tree" aria-label="Files and folders">
           <header>
             <button type="button" onClick={() => void openFolder("")}>
@@ -717,13 +882,14 @@ function WorkspaceSession({
           {view === "home" && (
             <WorkspaceHome
               files={files}
+              inboxFolder={inboxFolder}
               documents={documents}
               capture={capture}
               captureBusy={captureBusy}
               onCaptureChange={setCapture}
               onCapture={(browser) => void captureNote(browser)}
               onOpen={(entry) => void openEntry(entry)}
-              onInbox={() => void openFolder("Inbox")}
+              onInbox={() => void openFolder(inboxFolder)}
               onNew={(kind) => {
                 setFolder("");
                 setNewKind(kind);
@@ -912,7 +1078,23 @@ function WorkspaceSession({
                 </>
               ) : (
                 <div className="ws-folder-home">
-                  <h2>{folder.split("/").pop() || desktopName}</h2>
+                  <h2>
+                    {folder ? (
+                      <button
+                        type="button"
+                        className="ws-title-button"
+                        aria-label="Rename current folder"
+                        onClick={() => {
+                          const entry = entries.find((item) => item.relativePath === folder);
+                          if (entry) startRename(entry);
+                        }}
+                      >
+                        {folder.split("/").pop()} <Icon name="edit" />
+                      </button>
+                    ) : (
+                      desktopName
+                    )}
+                  </h2>
                   <p>Open a note, create a board, or add folders right here.</p>
                   <div className="ws-folder-grid">
                     {index?.directories[folder]?.entries.map((entry) => (
@@ -953,7 +1135,7 @@ function WorkspaceSession({
             </span>
           </footer>
         </main>
-      </div>
+      </fieldset>
     </div>
   );
 }

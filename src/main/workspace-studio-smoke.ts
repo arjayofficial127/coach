@@ -12,6 +12,11 @@ export interface WorkspaceStudioEvidence {
   draftRetained: boolean;
   table: boolean;
   calendar: boolean;
+  fileRename: boolean;
+  folderRename: boolean;
+  renameDraftRetained: boolean;
+  renamedInboxCapture: boolean;
+  renameScreenshotPath: string;
   homeScreenshotPath: string;
   editorScreenshotPath: string;
 }
@@ -137,6 +142,58 @@ export async function verifyWorkspaceStudio(
     "Inbox capture visible",
   );
   const homeScreenshotPath = await capture("workspace-studio-home.png");
+  await click(".ws-navigation", "Files");
+  await click(".ws-panes > .ws-document .ws-document-tools", "Write");
+  const renamedDraft = `${content}\nDraft retained across an explicit rename.\n`;
+  await fill(".ws-panes > .ws-document .ws-source", renamedDraft);
+  await click(".ws-panes > .ws-document .ws-document-header", "Workspace smoke note");
+  await wait("Boolean(document.querySelector('.ws-rename-form'))", "file rename form");
+  await fill('[aria-label="New title"]', "Workspace renamed note");
+  await click(".ws-rename-form", "Rename");
+  await wait(
+    "Boolean(document.querySelector('[data-workspace-file=\"Workspace renamed note.md\"]')) && !document.querySelector('.ws-rename-form')",
+    "file renamed",
+  );
+  await click(".ws-panes > .ws-document .ws-document-tools", "Write");
+  const renameDraftRetained = await evaluate<boolean>(
+    `document.querySelector('.ws-panes > .ws-document .ws-source')?.value === ${JSON.stringify(renamedDraft)}`,
+  );
+  const fileRename = await evaluate<boolean>(`(async () => {
+    const desktopId = document.querySelector('.ws-studio').dataset.desktopId;
+    const note = await window.lattice.localWorkspace.readFile({ desktopId, relativePath: 'Workspace renamed note.md' });
+    const listing = await window.lattice.localWorkspace.listDirectory({ desktopId, relativePath: '' });
+    return note.content === ${JSON.stringify(content)} && !listing.entries.some(item => item.name === 'Workspace smoke note.md');
+  })()`);
+  if (!fileRename || !renameDraftRetained)
+    throw new Error("File rename changed the saved bytes or lost its open draft");
+  await click(".ws-panes > .ws-document .ws-document-header", "Save");
+  await wait(
+    "document.querySelector('.ws-panes > .ws-document .ws-document-status')?.textContent.includes('Saved locally')",
+    "renamed draft saved",
+  );
+  const renameScreenshotPath = await capture("workspace-title-editing.png");
+  await evaluate("document.querySelector('.ws-tree [aria-label=\"Rename folder Inbox\"]').click()");
+  await wait("Boolean(document.querySelector('.ws-rename-form'))", "folder rename form");
+  await fill('[aria-label="New title"]', "Incoming");
+  await click(".ws-rename-form", "Rename");
+  await wait(
+    "Boolean(document.querySelector('.ws-tree [aria-label=\"Rename folder Incoming\"]')) && !document.querySelector('.ws-rename-form')",
+    "Inbox folder renamed",
+  );
+  await click(".ws-navigation", "Home");
+  await fill('[aria-label="Quick capture"]', "Captured after renaming Inbox");
+  await click(".ws-capture", "Capture");
+  await wait(
+    "document.querySelector('[data-workspace-home]')?.textContent.includes('Captured after renaming Inbox')",
+    "renamed Inbox still captures",
+  );
+  const renamedInboxCapture = await evaluate<boolean>(`(async () => {
+    const desktopId = document.querySelector('.ws-studio').dataset.desktopId;
+    const listing = await window.lattice.localWorkspace.listDirectory({ desktopId, relativePath: '' });
+    const incoming = await window.lattice.localWorkspace.listDirectory({ desktopId, relativePath: 'Incoming' });
+    return listing.areaFolders.Inbox === 'Incoming' && !listing.entries.some(item => item.name === 'Inbox') && incoming.entries.some(item => item.name.includes('Captured after renaming Inbox'));
+  })()`);
+  if (!renamedInboxCapture) throw new Error("Renamed Inbox lost its capture role");
   return {
     home: true,
     markdown: roundTrip.markdown,
@@ -146,6 +203,11 @@ export async function verifyWorkspaceStudio(
     draftRetained,
     table: true,
     calendar: true,
+    fileRename,
+    folderRename: true,
+    renameDraftRetained,
+    renamedInboxCapture,
+    renameScreenshotPath,
     homeScreenshotPath,
     editorScreenshotPath,
   };

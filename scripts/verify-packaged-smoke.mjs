@@ -536,6 +536,10 @@ for (const key of [
   "draftRetained",
   "table",
   "calendar",
+  "fileRename",
+  "folderRename",
+  "renameDraftRetained",
+  "renamedInboxCapture",
 ]) {
   if (!evidence.workspaceStudio?.[key]) failures.push(`workspace studio ${key} gate failed`);
 }
@@ -904,6 +908,11 @@ evidence.package = {
 
 await copyFile(evidence.remote.screenshotPath, screenshotTarget);
 await mkdir(path.resolve("artifacts", "workspace-studio"), { recursive: true });
+await mkdir(path.resolve("artifacts", "workspace-titles"), { recursive: true });
+await copyFile(
+  evidence.workspaceStudio.renameScreenshotPath,
+  path.resolve("artifacts", "workspace-titles", "editor.png"),
+);
 await copyFile(
   evidence.workspaceStudio.homeScreenshotPath,
   path.resolve("artifacts", "workspace-studio", "home.png"),

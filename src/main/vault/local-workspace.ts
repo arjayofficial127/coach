@@ -1,6 +1,18 @@
 import { createHash, randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
-import { lstat, mkdir, open, readdir, readFile, realpath, rm, stat } from "node:fs/promises";
+import {
+  link,
+  lstat,
+  mkdir,
+  open,
+  readdir,
+  readFile,
+  realpath,
+  rename,
+  rm,
+  stat,
+  unlink,
+} from "node:fs/promises";
 import path from "node:path";
 import { isCoachBoard, newCoachBoard } from "../../shared/coach-board";
 import type {
@@ -11,6 +23,8 @@ import type {
   DesktopFolderInput,
   DesktopFolderSummary,
   LocalWorkspaceSnapshot,
+  RenameWorkspaceEntryInput,
+  RenameWorkspaceEntryResult,
   SaveWorkspaceFileInput,
   WorkspaceDirectoryEntry,
   WorkspaceDirectoryListing,
@@ -45,6 +59,32 @@ interface WorkspaceManifestDesktop {
   id: string;
   name: string;
   folderName: string;
+  areaFolders?: Record<DesktopFolderArea, string>;
+}
+
+function areaFolders(desktop: WorkspaceManifestDesktop): Record<DesktopFolderArea, string> {
+  return Object.fromEntries(
+    AREAS.map((area) => {
+      const candidate = desktop.areaFolders?.[area] ?? area;
+      return [area, validateEntryName(candidate)];
+    }),
+  ) as Record<DesktopFolderArea, string>;
+}
+
+// Serialize writes in each connected workspace, including renames and capture/refresh metadata.
+// Readers remain read-only and may ask the user to refresh during an external filesystem change.
+const mutations = new Map<string, Promise<unknown>>();
+async function mutateWorkspace<T>(workspaceRoot: string, action: () => Promise<T>): Promise<T> {
+  const canonical = await realpath(workspaceRoot);
+  const key = process.platform === "win32" ? canonical.toLowerCase() : canonical;
+  const previous = mutations.get(key) ?? Promise.resolve();
+  const current = previous.catch(() => undefined).then(action);
+  mutations.set(key, current);
+  try {
+    return await current;
+  } finally {
+    if (mutations.get(key) === current) mutations.delete(key);
+  }
 }
 
 interface WorkspaceManifest {
@@ -331,7 +371,14 @@ async function desktopSummary(
   const desktopRoot = path.join(root, DESKTOPS_DIRECTORY, desktop.folderName);
   const items = (
     await Promise.all(
-      AREAS.map((area) => collectAreaItems(root, desktop.id, area, path.join(desktopRoot, area))),
+      AREAS.map((area) =>
+        collectAreaItems(
+          root,
+          desktop.id,
+          area,
+          path.join(desktopRoot, areaFolders(desktop)[area]),
+        ),
+      ),
     )
   ).flat();
   items.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
@@ -346,6 +393,15 @@ async function desktopSummary(
 }
 
 export async function syncLocalWorkspace(
+  workspaceRoot: string,
+  rawDesktops: DesktopFolderInput[],
+): Promise<LocalWorkspaceSnapshot> {
+  return mutateWorkspace(workspaceRoot, () =>
+    syncLocalWorkspaceUnlocked(workspaceRoot, rawDesktops),
+  );
+}
+
+async function syncLocalWorkspaceUnlocked(
   workspaceRoot: string,
   rawDesktops: DesktopFolderInput[],
 ): Promise<LocalWorkspaceSnapshot> {
@@ -369,13 +425,18 @@ export async function syncLocalWorkspace(
       id: desktop.id,
       name: desktop.name.trim().slice(0, 40),
       folderName: existingById.get(desktop.id)?.folderName ?? desktopFolderName(desktop),
+      ...(existingById.get(desktop.id)?.areaFolders
+        ? { areaFolders: areaFolders(existingById.get(desktop.id)!) }
+        : {}),
     })),
   };
   for (const desktop of manifest.desktops) {
     const desktopRoot = path.join(desktopsRoot, desktop.folderName);
     assertPathWithinRoot(root, desktopRoot);
     await Promise.all(
-      AREAS.map((area) => mkdir(path.join(desktopRoot, area), { recursive: true })),
+      AREAS.map((area) =>
+        mkdir(path.join(desktopRoot, areaFolders(desktop)[area]), { recursive: true }),
+      ),
     );
   }
   await writeJsonAtomically(root, path.join(coachRoot, "workspace.json"), manifest);
@@ -390,11 +451,26 @@ export async function captureLocalInboxNote(
   workspaceRoot: string,
   input: CaptureDesktopInboxInput,
 ): Promise<void> {
+  return mutateWorkspace(workspaceRoot, () => captureLocalInboxNoteUnlocked(workspaceRoot, input));
+}
+
+async function captureLocalInboxNoteUnlocked(
+  workspaceRoot: string,
+  input: CaptureDesktopInboxInput,
+): Promise<void> {
   const root = await realpath(workspaceRoot);
   const manifest = await readManifest(root);
   const desktop = manifest.desktops.find((candidate) => candidate.id === input.desktopId);
   if (!desktop) throw new Error("The desktop folder has not been initialized.");
-  const inbox = path.join(root, DESKTOPS_DIRECTORY, desktop.folderName, "Inbox");
+  const inboxContext = await resolveExistingWorkspacePath(
+    root,
+    {
+      desktopId: input.desktopId,
+      relativePath: areaFolders(desktop).Inbox,
+    },
+    "folder",
+  );
+  const inbox = inboxContext.target;
   assertPathWithinRoot(root, inbox);
   const id = randomUUID();
   const createdAt = new Date().toISOString();
@@ -474,6 +550,7 @@ export async function listWorkspaceDirectory(
       relativePath: context.relativePath,
       breadcrumbs: breadcrumbs(context.desktop.name, context.relativePath),
       entries,
+      areaFolders: areaFolders(context.desktop),
     };
   } catch (error) {
     if (error instanceof Error && !error.message.includes(workspaceRoot)) throw error;
@@ -510,6 +587,13 @@ export async function readWorkspaceFile(
 }
 
 export async function createWorkspaceEntry(
+  workspaceRoot: string,
+  input: CreateWorkspaceEntryInput,
+): Promise<WorkspaceDirectoryListing> {
+  return mutateWorkspace(workspaceRoot, () => createWorkspaceEntryUnlocked(workspaceRoot, input));
+}
+
+async function createWorkspaceEntryUnlocked(
   workspaceRoot: string,
   input: CreateWorkspaceEntryInput,
 ): Promise<WorkspaceDirectoryListing> {
@@ -560,6 +644,13 @@ export async function saveWorkspaceFile(
   workspaceRoot: string,
   input: SaveWorkspaceFileInput,
 ): Promise<WorkspaceFileDocument> {
+  return mutateWorkspace(workspaceRoot, () => saveWorkspaceFileUnlocked(workspaceRoot, input));
+}
+
+async function saveWorkspaceFileUnlocked(
+  workspaceRoot: string,
+  input: SaveWorkspaceFileInput,
+): Promise<WorkspaceFileDocument> {
   const bytes = Buffer.byteLength(input.content, "utf8");
   if (bytes > MAX_EDITABLE_BYTES) throw new Error("This file is too large for the Coach editor.");
   const context = await resolveExistingWorkspacePath(workspaceRoot, input, "file");
@@ -607,4 +698,133 @@ export async function resolveDesktopFolder(
   assertPathWithinRoot(root, target);
   if (!(await lstat(target)).isDirectory()) throw new Error("The desktop folder is unavailable.");
   return target;
+}
+
+async function removeRenameLink(target: string): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await unlink(target);
+      return;
+    } catch (error) {
+      if (
+        attempt >= 40 ||
+        !["EPERM", "EBUSY", "EACCES"].includes((error as NodeJS.ErrnoException).code ?? "")
+      )
+        throw error;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+}
+
+export async function renameWorkspaceEntry(
+  workspaceRoot: string,
+  input: RenameWorkspaceEntryInput,
+): Promise<RenameWorkspaceEntryResult> {
+  try {
+    return await mutateWorkspace(workspaceRoot, async () => {
+      if (!normalizeWorkspacePath(input.relativePath))
+        throw new Error("Rename the desktop from the sidebar.");
+      const context = await resolveExistingWorkspacePath(workspaceRoot, input, input.kind);
+      const name = validateEntryName(input.newName);
+      const oldName = path.basename(context.target);
+      if (
+        input.kind === "file" &&
+        path.extname(name).toLowerCase() !== path.extname(oldName).toLowerCase()
+      )
+        throw new Error("Keep the existing file extension when renaming.");
+      if (context.targetStats.mtime.toISOString() !== input.expectedUpdatedAt)
+        throw new Error("This item changed outside Coach. Refresh before renaming it.");
+      const parentPath = context.relativePath.split("/").slice(0, -1).join("/");
+      const toPath = normalizeWorkspacePath(parentPath ? `${parentPath}/${name}` : name);
+      const result = { fromPath: context.relativePath, toPath, name, kind: input.kind };
+      if (oldName === name) return result;
+      const parent = path.dirname(context.target);
+      const target = path.join(parent, name);
+      assertPathWithinRoot(context.desktopRoot, target);
+      // Case-insensitive collision rules match the Windows application, even on other hosts.
+      if (
+        (await readdir(parent)).some(
+          (sibling) => sibling !== oldName && sibling.toLowerCase() === name.toLowerCase(),
+        )
+      )
+        throw new Error("A file or folder with that name already exists here.");
+      // Validate and prepare role metadata before changing anything on disk.
+      const mapping = areaFolders(context.desktop);
+      const role =
+        input.kind === "folder" && !parentPath
+          ? AREAS.find((area) => mapping[area].toLowerCase() === oldName.toLowerCase())
+          : undefined;
+      const manifest = role ? await readManifest(context.root) : undefined;
+      if (manifest && !manifest.desktops.some((desktop) => desktop.id === input.desktopId))
+        throw new Error("Workspace metadata changed during rename.");
+      const updated =
+        manifest && role
+          ? {
+              ...manifest,
+              desktops: manifest.desktops.map((desktop) =>
+                desktop.id === input.desktopId
+                  ? { ...desktop, areaFolders: { ...mapping, [role]: name } }
+                  : desktop,
+              ),
+            }
+          : undefined;
+      const sameCaseInsensitiveName = oldName.toLowerCase() === name.toLowerCase();
+      if (input.kind === "file" && !sameCaseInsensitiveName) {
+        // A hard-link destination is exclusive: unlike fs.rename, it cannot overwrite a racing file.
+        await link(context.target, target);
+        try {
+          await removeRenameLink(context.target);
+        } catch {
+          const targetStats = await lstat(target);
+          if (
+            targetStats.ino === context.targetStats.ino &&
+            targetStats.dev === context.targetStats.dev
+          )
+            await removeRenameLink(target);
+          throw new Error(
+            "Rename did not finish. Refresh to inspect the current names before retrying.",
+          );
+        }
+      } else {
+        // Windows refuses to replace an existing directory. Case-only changes retain the same item.
+        if (input.kind === "folder" && process.platform !== "win32")
+          throw new Error("Folder renaming is currently supported in the Windows app.");
+        await rename(context.target, target);
+      }
+      if (updated) {
+        try {
+          await writeJsonAtomically(
+            context.root,
+            path.join(context.root, COACH_DIRECTORY, "workspace.json"),
+            updated,
+          );
+        } catch {
+          // Restore the folder name if metadata cannot be committed; never replace a new occupant.
+          if (!(await readdir(parent)).includes(oldName)) {
+            const targetStats = await lstat(target);
+            if (
+              targetStats.ino === context.targetStats.ino &&
+              targetStats.dev === context.targetStats.dev
+            ) {
+              await rename(target, context.target);
+              throw new Error("Could not save the folder role. Its original name was restored.");
+            }
+          }
+          throw new Error(
+            "Folder role could not be saved. Check the folder names in Explorer before continuing.",
+          );
+        }
+      }
+      return result;
+    });
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "EEXIST" || code === "ENOTEMPTY")
+      throw new Error("A file or folder with that name already exists here.");
+    // Never return filesystem error details or absolute device paths over IPC.
+    if (error instanceof Error && !code && !error.message.includes(workspaceRoot)) throw error;
+    throw new Error(
+      "Could not rename this item. Check the folder connection and permissions, then refresh.",
+    );
+  }
 }

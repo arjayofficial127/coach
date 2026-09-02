@@ -10,8 +10,11 @@ import {
   loadWorkspaceIndex,
   noteBody,
   noteReferences,
+  renamedWorkspacePath,
+  renameWorkspaceTabs,
   resolveNoteReference,
   workspaceErrorMessage,
+  workspaceTitle,
 } from "./local-workspace-model";
 
 const file = (relativePath: string): WorkspaceDirectoryEntry => ({
@@ -32,6 +35,23 @@ const document: WorkspaceFileDocument = {
   updatedAt: "2026-09-03T00:00:00.000Z",
 };
 describe("workspace view model", () => {
+  it("remaps renamed folders without touching drafts, history, or similarly prefixed siblings", () => {
+    const tab = {
+      document: { ...document, relativePath: "Notes/Project/Brief.md" },
+      draft: "unsaved [[Notes/Project/Link]]",
+      history: [{ content: "previous", savedAt: document.updatedAt }],
+    };
+    const next = renameWorkspaceTabs([tab], "Notes/Project", "Notes/Research")[0]!;
+    expect(next.document.relativePath).toBe("Notes/Research/Brief.md");
+    expect(next.draft).toBe(tab.draft);
+    expect(next.history).toBe(tab.history);
+    expect(next.document.updatedAt).toBe(tab.document.updatedAt);
+    expect(renamedWorkspacePath("Notes/Projects/Other.md", "Notes/Project", "Notes/Research")).toBe(
+      "Notes/Projects/Other.md",
+    );
+    expect(workspaceTitle("Brief.text")).toBe("Brief");
+    expect(workspaceTitle("v1.2", "folder")).toBe("v1.2");
+  });
   it("keeps private filesystem paths out of diagnostics while retaining known repair messages", () => {
     const fallback = "Could not save. Your draft is still open.";
     for (const message of [

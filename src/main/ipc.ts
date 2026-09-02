@@ -149,6 +149,11 @@ const workspaceSaveFileSchema = workspacePathSchema.extend({
   content: z.string().max(2_000_000),
   expectedUpdatedAt: z.string().datetime(),
 });
+const workspaceRenameEntrySchema = workspacePathSchema.extend({
+  newName: z.string().trim().min(1).max(120),
+  kind: z.enum(["file", "folder"]),
+  expectedUpdatedAt: z.string().datetime(),
+});
 
 function assertTrustedShell(event: IpcMainInvokeEvent, window: BrowserWindow): void {
   const frameUrl = event.senderFrame?.url ?? "";
@@ -365,6 +370,9 @@ export function registerIpc(
   );
   handle(IPC.workspaceSaveFile, (_event, payload) =>
     vault.saveWorkspaceFile(workspaceSaveFileSchema.parse(payload)),
+  );
+  handle(IPC.workspaceRenameEntry, (_event, payload) =>
+    vault.renameWorkspaceEntry(workspaceRenameEntrySchema.parse(payload)),
   );
 
   return () => {

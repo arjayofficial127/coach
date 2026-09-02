@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { isCoachBoard, parseCoachObject, writeCoachObject } from "../shared/coach-board";
 import { Icon } from "./icon";
-import { insertMarkdown, type WorkspaceTab } from "./local-workspace-model";
+import { insertMarkdown, type WorkspaceTab, workspaceTitle } from "./local-workspace-model";
 import { WorkspaceBoard } from "./workspace-board";
 import { WorkspaceMarkdown } from "./workspace-markdown";
 
@@ -22,6 +22,7 @@ export function WorkspaceDocument({
   onLink,
   onSplit,
   onReload,
+  onRename,
 }: {
   tab: WorkspaceTab;
   saving: boolean;
@@ -30,6 +31,7 @@ export function WorkspaceDocument({
   onLink: (target: string) => void;
   onSplit: () => void;
   onReload: () => void;
+  onRename: () => void;
 }) {
   const [mode, setMode] = useState<"write" | "preview">("preview");
   const [raw, setRaw] = useState(false);
@@ -82,8 +84,19 @@ export function WorkspaceDocument({
               ? `Coach · ${coach?.kind ?? "JSON needs repair"}`
               : tab.document.fileType}
           </span>
-          <h2>{tab.document.name}</h2>
-          <small>{tab.document.relativePath}</small>
+          <h2>
+            <button
+              type="button"
+              className="ws-title-button"
+              aria-label={`Rename file ${tab.document.name}`}
+              onClick={onRename}
+            >
+              {workspaceTitle(tab.document.name)} <Icon name="edit" />
+            </button>
+          </h2>
+          {tab.document.relativePath.includes("/") && (
+            <small>{tab.document.relativePath.split("/").slice(0, -1).join(" / ")}</small>
+          )}
         </div>
         <button
           type="button"

@@ -34,6 +34,14 @@ const publicWorkspaceErrors = new Set([
   "A file or folder with that name already exists here.",
   "This file changed outside Coach. Reopen it before saving your edits.",
   "Open an HTTPS website first, then capture its source here.",
+  "Keep the existing file extension when renaming.",
+  "This item changed outside Coach. Refresh before renaming it.",
+  "Rename the desktop from the sidebar.",
+  "Could not save the folder role. Its original name was restored.",
+  "Folder role could not be saved. Check the folder names in Explorer before continuing.",
+  "Rename did not finish. Refresh to inspect the current names before retrying.",
+  "Could not rename this item. Check the folder connection and permissions, then refresh.",
+  "Folder renaming is currently supported in the Windows app.",
 ]);
 
 export function workspaceErrorMessage(error: unknown, fallback: string): string {
@@ -206,6 +214,39 @@ export interface WorkspaceTab {
   document: WorkspaceFileDocument;
   draft: string;
   history: { content: string; savedAt: string }[];
+}
+
+export function workspaceTitle(name: string, kind: "file" | "folder" = "file"): string {
+  const dot = name.lastIndexOf(".");
+  return kind === "file" && dot > 0 ? name.slice(0, dot) : name;
+}
+
+export function renamedWorkspacePath(value: string, fromPath: string, toPath: string): string {
+  return value === fromPath
+    ? toPath
+    : value.startsWith(`${fromPath}/`)
+      ? toPath + value.slice(fromPath.length)
+      : value;
+}
+
+export function renameWorkspaceTabs(
+  tabs: WorkspaceTab[],
+  fromPath: string,
+  toPath: string,
+): WorkspaceTab[] {
+  return tabs.map((tab) => {
+    const relativePath = renamedWorkspacePath(tab.document.relativePath, fromPath, toPath);
+    return relativePath === tab.document.relativePath
+      ? tab
+      : {
+          ...tab,
+          document: {
+            ...tab.document,
+            relativePath,
+            name: relativePath.split("/").pop() ?? tab.document.name,
+          },
+        };
+  });
 }
 export function acceptSavedDocument(
   tab: WorkspaceTab,

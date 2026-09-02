@@ -15,6 +15,22 @@ create a folder, Markdown note, text file, Coach document, or Coach board there.
 the desktop root or inside nested folders. The creation menu states the destination explicitly.
 **Recent** and **Find a file** search the indexed filenames and relative paths.
 
+## Edit file and folder titles
+
+Click the pencil beside a file or folder in the tree, or click an open file's heading. Enter its
+new name and choose **Rename**; **Cancel** leaves it unchanged. File extensions stay fixed.
+Renaming preserves file contents, open drafts, and the files inside renamed folders. The editor
+shows a readable title without repeating the filename as a subtitle; tabs retain the full filename.
+
+Inbox, Notes, Files, and Planner folders can be renamed too. Their roles are stored in `.coach`
+metadata, so quick captures continue into the renamed Inbox. The desktop's display name still uses
+the sidebar pencil.
+
+File names and titles inside a note or Coach object are independent. Edit Markdown headings in
+**Write**, or use the document/board title fields, and **Save** those content changes separately.
+Renames do not rewrite links: review **Connections** and update affected source links manually.
+Occupied names and stale file revisions are rejected instead of replacing existing work.
+
 ## Notes and split view
 
 Markdown opens in **Preview** with headings, checklists, tables, callouts, and links. Checkboxes
@@ -48,5 +64,7 @@ or crash recovery. Back up the connected folder independently.
 
 Refresh after editing files outside Coach. Large workspaces show a partial-index notice when the
 preview/index budget is exceeded; direct folder navigation remains available. The current editor
-supports `.md`, `.text`, and `.coach`; use Explorer for other file formats. Notes are not deleted,
-renamed, or moved from this UI. Archiving a desktop never deletes its notes.
+supports `.md`, `.text`, and `.coach`; use Explorer for other file formats. Notes are never deleted
+here, and moving files between folders is not yet supported. Archiving a desktop never deletes its
+notes. Folder renaming currently targets the Windows app; file renaming requires a filesystem that
+supports hard links (such as NTFS). Unsupported operations fail without a copy/delete fallback.

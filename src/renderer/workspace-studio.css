@@ -139,6 +139,10 @@
   width: 185px;
 }
 .ws-body {
+  border: 0;
+  margin: 0;
+  padding: 20px 0 0;
+  min-width: 0;
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
   min-height: calc(100vh - 230px);
@@ -194,14 +198,14 @@
 .ws-tree-row.is-folder:not(.is-active) {
   background: var(--surface-2);
 }
-.ws-tree-row > button:last-child {
+.ws-tree-row > button[data-workspace-entry] {
   min-width: 0;
   flex: 1;
   text-align: left;
   padding-left: 2px;
   font-size: 12px;
 }
-.ws-tree-row > button:last-child span {
+.ws-tree-row > button[data-workspace-entry] span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -677,6 +681,72 @@
 }
 .ws-document-header button {
   font-size: 11px;
+}
+.ws-studio .ws-title-button {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  padding: 2px 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ws-title-button svg {
+  flex-shrink: 0;
+  width: 14px;
+  color: var(--accent);
+}
+.ws-tree-row .ws-rename-entry {
+  flex: 0 0 26px;
+  padding: 5px;
+  color: var(--muted);
+}
+.ws-tree-row .ws-rename-entry:hover,
+.ws-tree-row .ws-rename-entry:focus-visible {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.ws-rename-form {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  margin: 12px 0;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.ws-rename-form label {
+  display: grid;
+  gap: 7px;
+}
+.ws-rename-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 560px;
+}
+.ws-rename-input input {
+  min-width: 0;
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--background);
+  color: var(--text);
+}
+.ws-rename-form p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.ws-rename-form > div {
+  display: flex;
+  gap: 10px;
+}
+.ws-rename-form [role="alert"] {
+  color: var(--text);
+  padding: 10px;
+  background: var(--accent-soft);
+  border-radius: 6px;
 }
 .ws-document-tools {
   display: flex;

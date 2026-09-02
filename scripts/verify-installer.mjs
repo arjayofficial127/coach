@@ -305,6 +305,10 @@ for (const key of [
   "draftRetained",
   "table",
   "calendar",
+  "fileRename",
+  "folderRename",
+  "renameDraftRetained",
+  "renamedInboxCapture",
 ]) {
   if (!smoke.workspaceStudio?.[key]) smokeFailures.push(`workspace studio ${key} gate failed`);
 }

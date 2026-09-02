@@ -12,6 +12,8 @@ import type {
   DesktopFolderInput,
   LocalWorkspaceSnapshot,
   ProbeNoteInput,
+  RenameWorkspaceEntryInput,
+  RenameWorkspaceEntryResult,
   RevealCanvasReferenceInput,
   SaveCanvasPageInput,
   SavedLinkRecord,
@@ -40,6 +42,7 @@ import {
   createWorkspaceEntry,
   listWorkspaceDirectory,
   readWorkspaceFile,
+  renameWorkspaceEntry,
   resolveDesktopFolder,
   saveWorkspaceFile,
   syncLocalWorkspace,
@@ -316,6 +319,13 @@ export class VaultService {
   async saveWorkspaceFile(input: SaveWorkspaceFileInput): Promise<WorkspaceFileDocument> {
     const root = this.requireActiveVault("Connect a local folder before saving desktop files.");
     return saveWorkspaceFile(root, input);
+  }
+
+  async renameWorkspaceEntry(
+    input: RenameWorkspaceEntryInput,
+  ): Promise<RenameWorkspaceEntryResult> {
+    const root = this.requireActiveVault("Connect a local folder before renaming desktop files.");
+    return renameWorkspaceEntry(root, input);
   }
 
   async disconnect(): Promise<void> {

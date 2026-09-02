@@ -53,6 +53,7 @@ export const IPC = {
   workspaceReadFile: "workspace:read-file",
   workspaceCreateEntry: "workspace:create-entry",
   workspaceSaveFile: "workspace:save-file",
+  workspaceRenameEntry: "workspace:rename-entry",
 } as const;
 
 export type ShellCommand =
@@ -411,6 +412,7 @@ export interface WorkspaceDirectoryListing {
   relativePath: string;
   breadcrumbs: WorkspaceBreadcrumb[];
   entries: WorkspaceDirectoryEntry[];
+  areaFolders?: Record<DesktopFolderArea, string>;
 }
 
 export interface WorkspaceFileDocument {
@@ -434,6 +436,19 @@ export interface CreateWorkspaceEntryInput {
 export interface SaveWorkspaceFileInput extends WorkspacePathInput {
   content: string;
   expectedUpdatedAt: string;
+}
+
+export interface RenameWorkspaceEntryInput extends WorkspacePathInput {
+  newName: string;
+  kind: "file" | "folder";
+  expectedUpdatedAt: string;
+}
+
+export interface RenameWorkspaceEntryResult {
+  fromPath: string;
+  toPath: string;
+  name: string;
+  kind: "file" | "folder";
 }
 
 export interface LatticeApi {
@@ -500,5 +515,6 @@ export interface LatticeApi {
     readFile(input: WorkspacePathInput): Promise<WorkspaceFileDocument>;
     createEntry(input: CreateWorkspaceEntryInput): Promise<WorkspaceDirectoryListing>;
     saveFile(input: SaveWorkspaceFileInput): Promise<WorkspaceFileDocument>;
+    renameEntry(input: RenameWorkspaceEntryInput): Promise<RenameWorkspaceEntryResult>;
   };
 }

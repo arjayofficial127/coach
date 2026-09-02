@@ -31,6 +31,7 @@ export function WorkspaceFileRows({
 
 export function WorkspaceHome({
   files,
+  inboxFolder = "Inbox",
   documents,
   capture,
   captureBusy,
@@ -42,6 +43,7 @@ export function WorkspaceHome({
   onRecent,
 }: {
   files: WorkspaceDirectoryEntry[];
+  inboxFolder?: string;
   documents: Record<string, WorkspaceFileDocument>;
   capture: string;
   captureBusy: boolean;
@@ -52,7 +54,7 @@ export function WorkspaceHome({
   onNew: (kind: "markdown" | "board") => void;
   onRecent: () => void;
 }) {
-  const inbox = files.filter((entry) => entry.relativePath.startsWith("Inbox/"));
+  const inbox = files.filter((entry) => entry.relativePath.startsWith(`${inboxFolder}/`));
   const previews = files.filter((entry) => entry.fileType !== "other").slice(0, 3);
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;

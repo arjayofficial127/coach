@@ -3,6 +3,7 @@ import type {
   BrowserSnapshot,
   BrowserState,
   CanvasPageRecord,
+  DesktopFolderArea,
   LatticeApi,
   LocalWorkspaceSnapshot,
   ProfileState,
@@ -51,6 +52,17 @@ let vault: VaultInfo | null = null;
 let localWorkspace: LocalWorkspaceSnapshot = { connected: false, rootName: "", desktops: [] };
 const previewWorkspaceFolders = new Set<string>();
 const previewWorkspaceFiles = new Map<string, WorkspaceFileDocument>();
+const previewWorkspaceAreas = new Map<string, Record<DesktopFolderArea, string>>();
+function previewAreaFolders(desktopId: string): Record<DesktopFolderArea, string> {
+  return (
+    previewWorkspaceAreas.get(desktopId) ?? {
+      Inbox: "Inbox",
+      Notes: "Notes",
+      Files: "Files",
+      Planner: "Planner",
+    }
+  );
+}
 let privacySummary = { cookieCount: 3, cacheBytes: 4_820_000 };
 let canvasPages: CanvasPageRecord[] = [];
 let links: SavedLinkRecord[] = [
@@ -138,6 +150,7 @@ function previewWorkspaceListing(
       }),
     ],
     entries: [...folderEntries, ...fileEntries],
+    areaFolders: previewAreaFolders(desktopId),
   };
 }
 
@@ -498,7 +511,7 @@ export function installBrowserPreviewBridge(): void {
           }),
         };
         for (const desktop of desktops) {
-          for (const area of ["Inbox", "Notes", "Files", "Planner"]) {
+          for (const area of Object.values(previewAreaFolders(desktop.id))) {
             previewWorkspaceFolders.add(previewWorkspaceKey(desktop.id, area));
           }
         }
@@ -507,7 +520,7 @@ export function installBrowserPreviewBridge(): void {
       captureInbox: async (input) => {
         const updatedAt = new Date().toISOString();
         const name = `${input.title}-${crypto.randomUUID().slice(0, 8)}.md`;
-        const relativePath = `Inbox/${name}`;
+        const relativePath = `${previewAreaFolders(input.desktopId).Inbox}/${name}`;
         previewWorkspaceFiles.set(previewWorkspaceKey(input.desktopId, relativePath), {
           desktopId: input.desktopId,
           name,
@@ -583,6 +596,55 @@ export function installBrowserPreviewBridge(): void {
           });
         }
         return structuredClone(previewWorkspaceListing(input.desktopId, input.parentPath));
+      },
+      renameEntry: async (input) => {
+        const parent = input.relativePath.split("/").slice(0, -1).join("/");
+        const name = input.newName.trim();
+        if (!name || name.startsWith(".") || /[\\/:*?"<>|]/.test(name))
+          throw new Error("Use a simple file or folder name without reserved characters.");
+        const listing = previewWorkspaceListing(input.desktopId, parent);
+        const original = listing.entries.find((entry) => entry.relativePath === input.relativePath);
+        if (!original) throw new Error("Item unavailable");
+        if (
+          listing.entries.some(
+            (entry) =>
+              entry.relativePath !== input.relativePath &&
+              entry.name.toLowerCase() === name.toLowerCase(),
+          )
+        )
+          throw new Error("A file or folder with that name already exists here.");
+        const toPath = parent ? `${parent}/${name}` : name;
+        const remap = (value: string) =>
+          value === input.relativePath
+            ? toPath
+            : value.startsWith(`${input.relativePath}/`)
+              ? toPath + value.slice(input.relativePath.length)
+              : value;
+        for (const [key, file] of [...previewWorkspaceFiles]) {
+          if (file.desktopId !== input.desktopId) continue;
+          const relativePath = remap(file.relativePath);
+          if (relativePath === file.relativePath) continue;
+          previewWorkspaceFiles.delete(key);
+          previewWorkspaceFiles.set(previewWorkspaceKey(input.desktopId, relativePath), {
+            ...file,
+            relativePath,
+            name: relativePath.split("/").pop() ?? file.name,
+          });
+        }
+        for (const key of [...previewWorkspaceFolders]) {
+          if (!key.startsWith(`${input.desktopId}:`)) continue;
+          const relativePath = key.slice(input.desktopId.length + 1);
+          previewWorkspaceFolders.delete(key);
+          previewWorkspaceFolders.add(previewWorkspaceKey(input.desktopId, remap(relativePath)));
+        }
+        const areas = previewAreaFolders(input.desktopId);
+        previewWorkspaceAreas.set(
+          input.desktopId,
+          Object.fromEntries(
+            Object.entries(areas).map(([area, value]) => [area, remap(value)]),
+          ) as Record<DesktopFolderArea, string>,
+        );
+        return { fromPath: input.relativePath, toPath, name, kind: input.kind };
       },
       saveFile: async (input) => {
         const key = previewWorkspaceKey(input.desktopId, input.relativePath);
