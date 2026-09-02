@@ -1,17 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
-import {
-  lstat,
-  mkdir,
-  open,
-  readdir,
-  readFile,
-  realpath,
-  rename,
-  rm,
-  stat,
-} from "node:fs/promises";
+import { lstat, mkdir, open, readdir, readFile, realpath, rm, stat } from "node:fs/promises";
 import path from "node:path";
+import { isCoachBoard, newCoachBoard } from "../../shared/coach-board";
 import type {
   CaptureDesktopInboxInput,
   CreateWorkspaceEntryInput,
@@ -30,6 +21,7 @@ import type {
 import {
   assertPathWithinRoot,
   publishNewFileAtomically,
+  replaceFileAtomically,
   sanitizeFileComponent,
 } from "./atomic-note";
 
@@ -160,6 +152,11 @@ function validateCoachContent(content: string): void {
     throw new Error("A .coach file must contain a document object.");
   }
   const candidate = parsed as Record<string, unknown>;
+  if (candidate.kind === "board" && !isCoachBoard(candidate)) {
+    throw new Error(
+      "This .coach board has invalid columns, cards, or dates. Review its JSON before saving.",
+    );
+  }
   if (
     candidate.version !== 1 ||
     typeof candidate.kind !== "string" ||
@@ -234,10 +231,15 @@ function breadcrumbs(desktopName: string, relativePath: string) {
   return result;
 }
 
-function initialFileContent(name: string, fileType: WorkspaceEditableFileType): string {
+function initialFileContent(
+  name: string,
+  fileType: WorkspaceEditableFileType,
+  coachKind?: "document" | "board",
+): string {
   const title = name.slice(0, -EDITABLE_EXTENSIONS[fileType].length);
   if (fileType === "markdown") return `# ${title}\n\n`;
   if (fileType === "text") return "";
+  if (coachKind === "board") return `${JSON.stringify(newCoachBoard(title), null, 2)}\n`;
   return `${JSON.stringify(
     {
       version: 1,
@@ -265,7 +267,7 @@ async function writeJsonAtomically(root: string, target: string, value: unknown)
     await handle.sync();
     await handle.close();
     handle = undefined;
-    await rename(temporary, target);
+    await replaceFileAtomically(temporary, target);
   } catch (error) {
     await handle?.close().catch(() => undefined);
     await rm(temporary, { force: true }).catch(() => undefined);
@@ -535,7 +537,7 @@ export async function createWorkspaceEntry(
         0o600,
       );
       try {
-        await handle.writeFile(initialFileContent(name, fileType), "utf8");
+        await handle.writeFile(initialFileContent(name, fileType, input.coachKind), "utf8");
         await handle.sync();
       } finally {
         await handle.close();
@@ -583,7 +585,7 @@ export async function saveWorkspaceFile(
     await handle.sync();
     await handle.close();
     handle = undefined;
-    await rename(temporary, context.target);
+    await replaceFileAtomically(temporary, context.target);
   } catch (error) {
     await handle?.close().catch(() => undefined);
     await rm(temporary, { force: true }).catch(() => undefined);

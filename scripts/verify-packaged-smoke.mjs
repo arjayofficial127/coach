@@ -527,6 +527,18 @@ if (
   failures.push("profile-scoped Dark, Felt White, or named Custom theme workflow failed");
 }
 if (!evidence.note.disposableVault) failures.push("note was not written to a disposable vault");
+for (const key of [
+  "home",
+  "markdown",
+  "board",
+  "split",
+  "inbox",
+  "draftRetained",
+  "table",
+  "calendar",
+]) {
+  if (!evidence.workspaceStudio?.[key]) failures.push(`workspace studio ${key} gate failed`);
+}
 if (!evidence.note.coachDirectoryPresent)
   failures.push("disposable local workspace had no .coach metadata directory");
 if (!evidence.note.desktopFoldersPresent)
@@ -891,6 +903,15 @@ evidence.package = {
 };
 
 await copyFile(evidence.remote.screenshotPath, screenshotTarget);
+await mkdir(path.resolve("artifacts", "workspace-studio"), { recursive: true });
+await copyFile(
+  evidence.workspaceStudio.homeScreenshotPath,
+  path.resolve("artifacts", "workspace-studio", "home.png"),
+);
+await copyFile(
+  evidence.workspaceStudio.editorScreenshotPath,
+  path.resolve("artifacts", "workspace-studio", "editor.png"),
+);
 await copyFile(evidence.shell.screenshotPath, shellScreenshotTarget);
 await copyFile(evidence.metadataEditing.screenshotPath, metadataScreenshotTarget);
 await copyFile(evidence.obsidianHandoff.screenshotPath, handoffScreenshotTarget);

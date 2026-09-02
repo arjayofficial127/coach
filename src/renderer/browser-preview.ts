@@ -1,3 +1,4 @@
+import { isCoachBoard, newCoachBoard } from "../shared/coach-board";
 import type {
   BrowserSnapshot,
   BrowserState,
@@ -505,6 +506,16 @@ export function installBrowserPreviewBridge(): void {
       },
       captureInbox: async (input) => {
         const updatedAt = new Date().toISOString();
+        const name = `${input.title}-${crypto.randomUUID().slice(0, 8)}.md`;
+        const relativePath = `Inbox/${name}`;
+        previewWorkspaceFiles.set(previewWorkspaceKey(input.desktopId, relativePath), {
+          desktopId: input.desktopId,
+          name,
+          relativePath,
+          fileType: "markdown",
+          content: `# ${input.title}\n\n${input.content}\n`,
+          updatedAt,
+        });
         localWorkspace = {
           ...localWorkspace,
           desktops: localWorkspace.desktops.map((desktop) =>
@@ -548,12 +559,17 @@ export function installBrowserPreviewBridge(): void {
             ? input.name
             : `${input.name}${extension}`;
         const relativePath = input.parentPath ? `${input.parentPath}/${name}` : name;
+        if (
+          previewWorkspaceFolders.has(previewWorkspaceKey(input.desktopId, relativePath)) ||
+          previewWorkspaceFiles.has(previewWorkspaceKey(input.desktopId, relativePath))
+        )
+          throw new Error("A file or folder with that name already exists here.");
         if (input.kind === "folder") {
           previewWorkspaceFolders.add(previewWorkspaceKey(input.desktopId, relativePath));
         } else {
           const content =
             input.fileType === "coach"
-              ? `${JSON.stringify({ version: 1, kind: "document", title: input.name, content: "", data: {} }, null, 2)}\n`
+              ? `${JSON.stringify(input.coachKind === "board" ? newCoachBoard(input.name) : { version: 1, kind: "document", title: input.name, content: "", data: {} }, null, 2)}\n`
               : input.fileType === "markdown"
                 ? `# ${input.name}\n\n`
                 : "";
@@ -572,6 +588,13 @@ export function installBrowserPreviewBridge(): void {
         const key = previewWorkspaceKey(input.desktopId, input.relativePath);
         const file = previewWorkspaceFiles.get(key);
         if (!file) throw new Error("That preview file is unavailable.");
+        if (input.expectedUpdatedAt !== file.updatedAt)
+          throw new Error("This file changed outside Coach. Reload before saving.");
+        if (file.fileType === "coach") {
+          const object = JSON.parse(input.content);
+          if (object.kind === "board" && !isCoachBoard(object))
+            throw new Error("Invalid board format.");
+        }
         const saved = { ...file, content: input.content, updatedAt: new Date().toISOString() };
         previewWorkspaceFiles.set(key, saved);
         return structuredClone(saved);

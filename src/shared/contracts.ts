@@ -428,6 +428,7 @@ export interface CreateWorkspaceEntryInput {
   name: string;
   kind: "folder" | "file";
   fileType?: WorkspaceEditableFileType;
+  coachKind?: "document" | "board";
 }
 
 export interface SaveWorkspaceFileInput extends WorkspacePathInput {

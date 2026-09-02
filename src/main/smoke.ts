@@ -16,8 +16,10 @@ import { ProfileRuntime } from "./profiles/profile-runtime";
 import { ProfileStore } from "./profiles/profile-store";
 import { installLatticeProtocol } from "./protocol";
 import { VaultService } from "./vault/vault-service";
+import { verifyWorkspaceStudio, type WorkspaceStudioEvidence } from "./workspace-studio-smoke";
 
 export interface PhaseNineSmokeEvidence {
+  workspaceStudio: WorkspaceStudioEvidence;
   packaged: boolean;
   versions: { electron: string; chromium: string; node: string };
   shell: {
@@ -3050,6 +3052,9 @@ export async function runPhaseNineSmoke(
         profileRegistry,
       );
 
+    const workspaceStudio = await verifyWorkspaceStudio(window, smokeRoot);
+    smokeStage("workspace studio");
+
     await window.webContents.executeJavaScript(`(async () => {
       await window.lattice.vault.disconnect();
     })()`);
@@ -3108,6 +3113,7 @@ export async function runPhaseNineSmoke(
     );
     smokeStage("remote isolation");
     const evidence: PhaseNineSmokeEvidence = {
+      workspaceStudio,
       packaged: app.isPackaged,
       versions: {
         electron: process.versions.electron ?? "unknown",

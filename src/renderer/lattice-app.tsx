@@ -76,7 +76,6 @@ import {
   rankLatticeDocuments,
   serializeStoredHistory,
 } from "./lattice-search-model";
-import { LocalFilesSurface } from "./local-files-surface";
 import {
   canPersistProfileShell,
   profileStorageKey,
@@ -124,6 +123,7 @@ import {
   restoreArchivedDesktop,
   type WorkspacePreferences,
 } from "./workspace-model";
+import { WorkspaceStudio as LocalFilesSurface } from "./workspace-studio";
 
 const WORKSPACE_STORAGE_KEY = "lattice.workspace.v1";
 const SESSION_STORAGE_KEY = "lattice.session.v1";
@@ -5110,6 +5110,9 @@ export function LatticeApp() {
 
             {surface === "files" && (
               <LocalFilesSurface
+                sessionKey={`${profileState?.activeProfileId ?? "pending"}:${vault?.id ?? "disconnected"}`}
+                onSettings={() => setSurface("settings")}
+                onOpenUrl={(url) => void openUrl(url, true)}
                 desktopId={workspace.activeDesktopId}
                 desktopName={activeDesktop?.name ?? "Desktop 1"}
                 workspaceName={localWorkspace.rootName}

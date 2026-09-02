@@ -1,7 +1,9 @@
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { newCoachBoard } from "../../shared/coach-board";
+import * as atomicNote from "./atomic-note";
 import {
   captureLocalInboxNote,
   createWorkspaceEntry,
@@ -17,6 +19,119 @@ afterEach(async () =>
 );
 
 describe("Coach local workspace", () => {
+  it("uses the shared Windows lock-retry replacement for metadata and editor saves", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "coach-replacement-gate-"));
+    roots.push(root);
+    const replace = vi.spyOn(atomicNote, "replaceFileAtomically");
+    try {
+      await syncLocalWorkspace(root, [{ id: "research", name: "Research" }]);
+      await createWorkspaceEntry(root, {
+        desktopId: "research",
+        parentPath: "",
+        name: "Brief",
+        kind: "file",
+        fileType: "markdown",
+      });
+      const document = await readWorkspaceFile(root, {
+        desktopId: "research",
+        relativePath: "Brief.md",
+      });
+      await saveWorkspaceFile(root, {
+        desktopId: "research",
+        relativePath: "Brief.md",
+        content: "# Saved",
+        expectedUpdatedAt: document.updatedAt,
+      });
+      expect(replace).toHaveBeenCalledTimes(2);
+      expect(replace.mock.calls[0]?.[1]).toBe(path.join(root, ".coach", "workspace.json"));
+      expect(replace.mock.calls[1]?.[1]).toBe(
+        path.join(root, "Desktops", "Research-research", "Brief.md"),
+      );
+    } finally {
+      replace.mockRestore();
+    }
+  });
+  it("creates visual boards, validates saves, detects external edits and refuses folder junctions", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "coach-board-gate-"));
+    const outside = await mkdtemp(path.join(os.tmpdir(), "coach-board-outside-"));
+    roots.push(root, outside);
+    await syncLocalWorkspace(root, [{ id: "research", name: "Research" }]);
+    await createWorkspaceEntry(root, {
+      desktopId: "research",
+      parentPath: "",
+      name: "Launch",
+      kind: "file",
+      fileType: "coach",
+      coachKind: "board",
+    });
+    const board = await readWorkspaceFile(root, {
+      desktopId: "research",
+      relativePath: "Launch.coach",
+    });
+    expect(JSON.parse(board.content)).toEqual(newCoachBoard("Launch"));
+    const content = {
+      ...newCoachBoard("Launch"),
+      custom: "kept",
+      cards: [
+        {
+          id: "task",
+          title: "Review",
+          columnId: "doing",
+          note: "Notes/Brief.md",
+          dueDate: "2026-09-03",
+        },
+      ],
+    };
+    const saved = await saveWorkspaceFile(root, {
+      desktopId: "research",
+      relativePath: board.relativePath,
+      expectedUpdatedAt: board.updatedAt,
+      content: JSON.stringify(content),
+    });
+    expect(JSON.parse(saved.content)).toEqual(content);
+    await expect(
+      saveWorkspaceFile(root, {
+        desktopId: "research",
+        relativePath: board.relativePath,
+        expectedUpdatedAt: saved.updatedAt,
+        content: JSON.stringify({
+          ...content,
+          cards: [{ ...content.cards[0], columnId: "unknown" }],
+        }),
+      }),
+    ).rejects.toThrow("invalid columns");
+    const diskFile = path.join(root, "Desktops", "Research-research", "Launch.coach");
+    await writeFile(diskFile, JSON.stringify({ ...content, title: "External edit" }));
+    await utimes(diskFile, new Date(), new Date(Date.now() + 2000));
+    await expect(
+      saveWorkspaceFile(root, {
+        desktopId: "research",
+        relativePath: board.relativePath,
+        expectedUpdatedAt: saved.updatedAt,
+        content: saved.content,
+      }),
+    ).rejects.toThrow("changed outside");
+    expect(await readFile(diskFile, "utf8")).toContain("External edit");
+    const link = path.join(root, "Desktops", "Research-research", "Escape");
+    await symlink(outside, link, "junction");
+    await expect(
+      createWorkspaceEntry(root, {
+        desktopId: "research",
+        parentPath: "Escape",
+        name: "Unsafe",
+        kind: "file",
+        fileType: "markdown",
+      }),
+    ).rejects.toThrow("Linked workspace items");
+    expect(await readdir(outside)).toEqual([]);
+    expect(
+      JSON.stringify(
+        await listWorkspaceDirectory(root, { desktopId: "research", relativePath: "" }),
+      ),
+    ).not.toContain(root);
+    // Remove only this test-created junction before recursive fixture cleanup.
+    await rm(link);
+  });
   it("creates stable desktop folders, .coach metadata, and a Markdown Inbox", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "coach-local-workspace-"));
     roots.push(root);

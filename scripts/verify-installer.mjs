@@ -296,6 +296,18 @@ try {
 }
 const smoke = JSON.parse(await readFile(smokeEvidenceSource, "utf8"));
 const smokeFailures = [];
+for (const key of [
+  "home",
+  "markdown",
+  "board",
+  "split",
+  "inbox",
+  "draftRetained",
+  "table",
+  "calendar",
+]) {
+  if (!smoke.workspaceStudio?.[key]) smokeFailures.push(`workspace studio ${key} gate failed`);
+}
 if (smoke.packaged !== true) smokeFailures.push("installed app was not packaged");
 if (!smoke.shell?.domReady || !smoke.shell?.bridgeVisible) {
   smokeFailures.push("trusted shell did not render through preload");
