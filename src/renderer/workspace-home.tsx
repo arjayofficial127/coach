@@ -120,17 +120,26 @@ export function WorkspaceHome({
               {previews.map((entry) => {
                 const document = documents[entry.relativePath];
                 const object = parseCoachObject(document?.content ?? "");
+                const title = workspaceDisplayTitle(entry.name);
+                const preview = document
+                  ? notePreview(
+                      entry.fileType === "coach"
+                        ? String(object?.content ?? object?.title ?? "JSON object")
+                        : document.content,
+                      title,
+                    )
+                  : "Open to read this file.";
                 return (
                   <button
                     type="button"
                     className="ws-preview-card"
                     key={entry.id}
-                    aria-label={`Open ${workspaceDisplayTitle(entry.name)}`}
+                    aria-label={`Open ${title}`}
                     onClick={() => onOpen(entry)}
                   >
                     <header>
                       <Icon name={entry.fileType === "coach" ? "grid" : "edit"} />
-                      <strong>{workspaceDisplayTitle(entry.name)}</strong>
+                      <strong>{title}</strong>
                     </header>
                     {isCoachBoard(object) ? (
                       <div className="ws-mini-board">
@@ -150,17 +159,9 @@ export function WorkspaceHome({
                           </div>
                         ))}
                       </div>
-                    ) : (
-                      <p>
-                        {document
-                          ? notePreview(
-                              entry.fileType === "coach"
-                                ? String(object?.content ?? object?.title ?? "JSON object")
-                                : document.content,
-                            ) || "A fresh page, ready for your next thought."
-                          : "Open to read this file."}
-                      </p>
-                    )}
+                    ) : preview ? (
+                      <p>{preview}</p>
+                    ) : null}
                     <footer>
                       <span className="ws-tag">{entry.fileType}</span>
                       <small>{new Date(entry.updatedAt).toLocaleDateString()}</small>

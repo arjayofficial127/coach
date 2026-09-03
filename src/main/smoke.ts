@@ -43,6 +43,8 @@ export interface PhaseNineSmokeEvidence {
     url: string;
     title: string;
     viewBounds: BrowserBounds;
+    windowContentSize: { width: number; height: number };
+    vaultPanelBounds: BrowserBounds;
     configuredPreferences: Record<string, boolean>;
     webContentsType: string;
     nativeViewConstructor: string;
@@ -3104,11 +3106,21 @@ export async function runPhaseNineSmoke(
     runtime.setVisible(true);
     smokeStage("profiles");
     const probe = await runtime.collectSecurityProbe();
+    // Workspace smoke resizes and restores this window. On fractional Windows scaling,
+    // its restored DIP width can differ from the startup measurement by one pixel.
+    // Record native bounds and their containing shell in the same final layout state.
+    const remoteVaultPanelBounds = (await window.webContents.executeJavaScript(`(() => {
+      const panel = document.querySelector('.vault-probe');
+      if (!panel) throw new Error('Final trusted vault boundary is missing');
+      const rect = panel.getBoundingClientRect();
+      return {x: rect.x, y: rect.y, width: rect.width, height: rect.height};
+    })()`)) as BrowserBounds;
+    const [remoteContentWidth = 0, remoteContentHeight = 0] = window.getContentSize();
+    const remoteBounds = runtime.getBounds();
     window.hide();
 
     const screenshotPath = path.join(smokeRoot, "remote-example-com.png");
     await writeFile(screenshotPath, probe.screenshot);
-    const remoteBounds = runtime.getBounds();
 
     runtime.close();
     await delay(50);
@@ -3147,6 +3159,8 @@ export async function runPhaseNineSmoke(
         url: probe.url,
         title: probe.title,
         viewBounds: remoteBounds,
+        windowContentSize: { width: remoteContentWidth, height: remoteContentHeight },
+        vaultPanelBounds: remoteVaultPanelBounds,
         configuredPreferences: probe.configuredPreferences,
         webContentsType: probe.webContentsType,
         nativeViewConstructor: probe.nativeViewConstructor,

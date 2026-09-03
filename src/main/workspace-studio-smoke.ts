@@ -152,6 +152,10 @@ export async function verifyWorkspaceStudio(
     "document.querySelector('.ws-preview-card strong')?.textContent === 'Workspace studio Inbox smoke'",
     "capture card has a human title",
   );
+  await wait(
+    "(() => { const card = document.querySelector('.ws-preview-card'); return card?.textContent.split('Workspace studio Inbox smoke').length === 2 && !card.querySelector('p'); })()",
+    "capture text appears exactly once on the card, without a filler preview",
+  );
   const capturedNote = await evaluate<{
     name: string;
     relativePath: string;

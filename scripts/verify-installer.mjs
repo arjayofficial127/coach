@@ -296,6 +296,23 @@ try {
 }
 const smoke = JSON.parse(await readFile(smokeEvidenceSource, "utf8"));
 const smokeFailures = [];
+const finalRemotePanel = smoke.remote?.vaultPanelBounds;
+const finalRemoteSize = smoke.remote?.windowContentSize;
+const finalRemoteBounds = smoke.remote?.viewBounds;
+if (
+  !finalRemotePanel ||
+  !finalRemoteSize ||
+  !finalRemoteBounds ||
+  finalRemoteBounds.x < 0 ||
+  finalRemoteBounds.y < 0 ||
+  finalRemoteBounds.width < 100 ||
+  finalRemoteBounds.height < 100 ||
+  finalRemoteBounds.x + finalRemoteBounds.width > finalRemotePanel.x ||
+  finalRemoteBounds.x + finalRemoteBounds.width > finalRemoteSize.width ||
+  finalRemoteBounds.y + finalRemoteBounds.height > finalRemoteSize.height
+) {
+  smokeFailures.push("installed WebContentsView did not retain a usable non-overlapping layout");
+}
 for (const key of [
   "home",
   "markdown",

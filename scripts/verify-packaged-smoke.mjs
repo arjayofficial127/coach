@@ -578,11 +578,18 @@ if (evidence.note.libraryCount !== 1 || !evidence.note.libraryRoundTrip) {
 if (!evidence.note.disconnectedWithoutDeleting) {
   failures.push("disconnecting the vault removed or retained authority over the Markdown note");
 }
+const finalRemotePanel = evidence.remote.vaultPanelBounds;
+const finalRemoteSize = evidence.remote.windowContentSize;
 if (
-  !vaultPanelBounds ||
+  !finalRemotePanel ||
+  !finalRemoteSize ||
+  evidence.remote.viewBounds.x < 0 ||
+  evidence.remote.viewBounds.y < 0 ||
   evidence.remote.viewBounds.width < 100 ||
   evidence.remote.viewBounds.height < 100 ||
-  evidence.remote.viewBounds.x + evidence.remote.viewBounds.width > vaultPanelBounds.x
+  evidence.remote.viewBounds.x + evidence.remote.viewBounds.width > finalRemotePanel.x ||
+  evidence.remote.viewBounds.x + evidence.remote.viewBounds.width > finalRemoteSize.width ||
+  evidence.remote.viewBounds.y + evidence.remote.viewBounds.height > finalRemoteSize.height
 ) {
   failures.push("WebContentsView did not retain a usable non-overlapping layout");
 }

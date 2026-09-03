@@ -109,8 +109,22 @@ export function noteBody(content: string): string {
   return content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
 }
 
-export function notePreview(content: string): string {
-  return noteBody(content)
+export function notePreview(content: string, titleAlreadyShown?: string): string {
+  let body = noteBody(content).trim();
+  const normalize = (value: string) => value.replace(/\s+/g, " ").trim();
+  const title = titleAlreadyShown ? normalize(titleAlreadyShown) : "";
+  if (title) {
+    // Captures can contain both a generated H1 and a title-only body paragraph. Omit
+    // these leading echoes in the card, never in the saved note or the source editor.
+    const heading = /^#[\t ]+([^\r\n]+)(?:\r?\n|$)/.exec(body);
+    if (heading && normalize(heading[1] ?? "") === title)
+      body = body.slice(heading[0].length).trimStart();
+    const paragraphs = body.split(/\r?\n[\t ]*\r?\n/);
+    let first = 0;
+    while (first < paragraphs.length && normalize(paragraphs[first] ?? "") === title) first++;
+    body = paragraphs.slice(first).join("\n\n");
+  }
+  return body
     .replace(/[#*`>[\]]/g, "")
     .replace(/\s+/g, " ")
     .trim()
