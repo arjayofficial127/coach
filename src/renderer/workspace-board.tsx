@@ -11,7 +11,9 @@ export function WorkspaceBoard({
   onChange: (board: CoachBoard) => void;
   onLink: (target: string) => void;
 }) {
-  const [view, setView] = useState<"board" | "table" | "calendar">("board");
+  const [view, setView] = useState<"board" | "table" | "calendar">(
+    board.defaultView === "calendar" ? "calendar" : "board",
+  );
   const [month, setMonth] = useState(() => {
     const date = new Date();
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;

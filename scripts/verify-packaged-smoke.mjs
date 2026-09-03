@@ -540,6 +540,14 @@ for (const key of [
   "folderRename",
   "renameDraftRetained",
   "renamedInboxCapture",
+  "unifiedNavigation",
+  "homeLayout",
+  "plannerTemplate",
+  "boardEmbed",
+  "explicitSourceCapture",
+  "sourceIsolation",
+  "sourceOverlaySafety",
+  "sourceBounds",
 ]) {
   if (!evidence.workspaceStudio?.[key]) failures.push(`workspace studio ${key} gate failed`);
 }

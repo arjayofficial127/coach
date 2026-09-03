@@ -465,6 +465,11 @@ function colorLuminance(hex: string): number {
 
 export function LatticeApp() {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const [workspaceSidebarTarget, setWorkspaceSidebarTarget] = useState<HTMLDivElement | null>(null);
+  const [workspaceTabsTarget, setWorkspaceTabsTarget] = useState<HTMLDivElement | null>(null);
+  const [workspaceSourceViewport, setWorkspaceSourceViewport] = useState<HTMLDivElement | null>(
+    null,
+  );
   const workspaceHeadingRef = useRef<HTMLDivElement>(null);
   const webStageRef = useRef<HTMLElement>(null);
   const omniboxRef = useRef<HTMLInputElement>(null);
@@ -524,6 +529,9 @@ export function LatticeApp() {
     Record<string, { kind: "dashboard" } | { kind: "tab"; tabId: string }>
   >({});
   const [surface, setSurface] = useState<Surface>("home");
+  const researchScope = `${profileState?.activeProfileId}:${workspace.activeDesktopId}:${profileBusy}:${surface}`;
+  const researchScopeRef = useRef(researchScope);
+  researchScopeRef.current = researchScope;
   const [address, setAddress] = useState("");
   const [homeQuery, setHomeQuery] = useState("");
   const [latticeNoteMode, setLatticeNoteMode] = useState(false);
@@ -1706,31 +1714,101 @@ export function LatticeApp() {
   }, [contextualTab]);
 
   useEffect(() => {
-    const viewport = viewportRef.current;
+    const researchVisible =
+      surface === "files" &&
+      Boolean(workspaceSourceViewport) &&
+      Boolean(contextualTab?.url.startsWith("https://"));
+    const viewport = researchVisible ? workspaceSourceViewport : viewportRef.current;
     if (!viewport) return;
     let disposed = false;
+    let lastBounds = "";
+    let trackingFrame = 0;
     const updateBounds = () => {
-      const bounds = viewport.getBoundingClientRect();
+      const raw = viewport.getBoundingClientRect();
+      const stage = webStageRef.current?.getBoundingClientRect();
+      const top = Math.max(raw.top, stage?.top ?? 0, 0);
+      const left = Math.max(raw.left, stage?.left ?? 0, 0);
+      const bounds = {
+        x: left,
+        y: top,
+        width: Math.max(
+          1,
+          Math.min(raw.right, stage?.right ?? window.innerWidth, window.innerWidth) - left,
+        ),
+        height: Math.max(
+          1,
+          Math.min(raw.bottom, window.innerHeight, stage?.bottom ?? window.innerHeight) - top,
+        ),
+      };
+      // Native views sit above DOM overlays. Reserve space for floating trusted controls.
+      if (researchVisible) {
+        for (const overlay of document.querySelectorAll<HTMLElement>(
+          ".recovery-bar, .zoom-feedback",
+        )) {
+          const rect = overlay.getBoundingClientRect();
+          if (
+            rect.width > 0 &&
+            rect.height > 0 &&
+            rect.right > bounds.x &&
+            rect.left < bounds.x + bounds.width &&
+            rect.bottom > bounds.y &&
+            rect.top < bounds.y + bounds.height
+          )
+            bounds.height = Math.max(1, rect.top - bounds.y - 2);
+        }
+      }
+      const signature = JSON.stringify(bounds);
+      if (signature === lastBounds) return;
+      lastBounds = signature;
       void window.lattice.browser
         .setBounds({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height })
         .then(() => {
           if (!disposed)
             return window.lattice.browser.setVisible(
-              showNativeBrowser && !browserMenuOpen && !commandOpen && !profileMenuOpen,
+              (showNativeBrowser || researchVisible) &&
+                bounds.width > 2 &&
+                bounds.height > 2 &&
+                !browserMenuOpen &&
+                !commandOpen &&
+                !profileMenuOpen &&
+                !profileBusy &&
+                !workspaceMenuOpen,
             );
         });
     };
     const observer = new ResizeObserver(updateBounds);
     observer.observe(viewport);
     window.addEventListener("resize", updateBounds);
+    window.addEventListener("scroll", updateBounds, true);
     updateBounds();
+    // Position can change without a resize (notices, title edits, embeds). Only send changed bounds.
+    if (researchVisible) {
+      const trackPosition = () => {
+        if (disposed) return;
+        updateBounds();
+        trackingFrame = requestAnimationFrame(trackPosition);
+      };
+      trackingFrame = requestAnimationFrame(trackPosition);
+    }
     return () => {
       disposed = true;
       observer.disconnect();
+      cancelAnimationFrame(trackingFrame);
       window.removeEventListener("resize", updateBounds);
+      window.removeEventListener("scroll", updateBounds, true);
       void window.lattice.browser.setVisible(false);
     };
-  }, [browserMenuOpen, commandOpen, profileMenuOpen, showNativeBrowser]);
+  }, [
+    browserMenuOpen,
+    commandOpen,
+    profileMenuOpen,
+    profileBusy,
+    showNativeBrowser,
+    workspaceSourceViewport,
+    surface,
+    contextualTab?.url,
+    workspaceMenuOpen,
+  ]);
 
   useEffect(() => {
     if (!commandOpen) return;
@@ -3287,6 +3365,7 @@ export function LatticeApp() {
         settings.activeTheme === "lattice-dark" ? "" : " theme-adaptive"
       }`}
       data-theme={settings.activeTheme}
+      data-surface={surface}
       data-theme-name={
         settings.activeTheme === "custom"
           ? previewCustomTheme.name
@@ -3960,6 +4039,7 @@ export function LatticeApp() {
           </form>
         )}
 
+        <div ref={setWorkspaceSidebarTarget} id="workspace-sidebar-slot" />
         <div className="section-label navigation-label">
           <span>Navigate</span>
         </div>
@@ -4201,6 +4281,7 @@ export function LatticeApp() {
               {activeDesktopFiles?.inboxCount ?? 0}
             </span>
           </button>
+          <div ref={setWorkspaceTabsTarget} id="workspace-tabs-slot" />
           <div className="tabs-viewport">
             {desktopTabs.map((tab) => (
               <div
@@ -5110,6 +5191,30 @@ export function LatticeApp() {
 
             {surface === "files" && (
               <LocalFilesSurface
+                sidebarTarget={navigationExpanded && !focusMode ? workspaceSidebarTarget : null}
+                tabsTarget={!focusMode ? workspaceTabsTarget : null}
+                browserTabs={desktopTabs}
+                sourceTab={contextualTab}
+                onSourceViewport={setWorkspaceSourceViewport}
+                onSourceTab={async (id) => {
+                  if (!desktopTabs.some((tab) => tab.id === id)) return;
+                  const scope = researchScope;
+                  const next = await window.lattice.browser.switchTab(id);
+                  if (researchScopeRef.current === scope) setBrowserSnapshot(next);
+                }}
+                onResearchUrl={async (input) => {
+                  const url = new URL(input);
+                  if (url.protocol !== "https:" || url.username || url.password)
+                    throw new Error("Use HTTPS.");
+                  const existing = desktopTabs.find((tab) => tab.url === url.href);
+                  const scope = researchScope;
+                  const next = existing
+                    ? await window.lattice.browser.switchTab(existing.id)
+                    : await window.lattice.browser.createTab(url.href);
+                  if (researchScopeRef.current === scope) setBrowserSnapshot(next);
+                }}
+                onFocus={toggleDistractionFree}
+                onOpenApp={showRunnableApp}
                 sessionKey={`${profileState?.activeProfileId ?? "pending"}:${vault?.id ?? "disconnected"}`}
                 onSettings={() => setSurface("settings")}
                 onOpenUrl={(url) => void openUrl(url, true)}

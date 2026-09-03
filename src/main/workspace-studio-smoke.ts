@@ -77,19 +77,21 @@ export async function verifyWorkspaceStudio(
     }
   };
   window.webContents.send(IPC.shellCommand, "show-files");
+  console.log("[smoke] workspace waiting for Home");
   await wait(
     "Boolean(document.querySelector('[data-workspace-home]')) && !document.querySelector('.ws-header-actions button')?.disabled",
     "Home loaded",
   );
   await create("Markdown note", "Workspace smoke note", "[data-markdown-preview]");
+  console.log("[smoke] workspace note created");
   await click(".ws-document-tools", "Write");
   await wait("Boolean(document.querySelector('.ws-source'))", "Markdown source");
   const content =
     "# Living workspace\n\n- [ ] Review the board\n\n> Local and inspectable.\n\n[[Workspace smoke board.coach]]\n\n| Name | Status |\n| --- | --- |\n| Editor | Ready |\n";
   await fill(".ws-source", content);
-  await click(".ws-navigation", "Home");
+  await click(".ws-sidebar-nav", "Home");
   await wait("Boolean(document.querySelector('[data-workspace-home]'))", "Home switch");
-  await click(".ws-navigation", "Files");
+  await click(".ws-sidebar-nav", "Files & notes");
   await wait("Boolean(document.querySelector('.ws-document'))", "editor return");
   await click(".ws-document-tools", "Write");
   const draftRetained = await evaluate<boolean>(
@@ -107,6 +109,7 @@ export async function verifyWorkspaceStudio(
     "rich Markdown rendered",
   );
   await create("Coach board", "Workspace smoke board", "[data-coach-board]");
+  console.log("[smoke] workspace board created");
   await click(".ws-board-column", "Add card");
   await wait("Boolean(document.querySelector('[aria-label=\"Card title\"]'))", "card created");
   await fill('[aria-label="Card title"]', "Ship the workspace");
@@ -133,16 +136,18 @@ export async function verifyWorkspaceStudio(
     "two file panes",
   );
   const editorScreenshotPath = await capture("workspace-studio-editor.png");
-  await click(".ws-navigation", "Home");
+  console.log("[smoke] workspace editor captured");
+  await click(".ws-sidebar-nav", "Home");
   await wait("Boolean(document.querySelector('[data-workspace-home]'))", "Home restored");
   await fill('[aria-label="Quick capture"]', "Workspace studio Inbox smoke");
-  await click(".ws-capture", "Capture");
+  await click(".ws-capture", "Capture to Inbox");
   await wait(
     "document.querySelector('[data-workspace-home]')?.textContent.includes('Workspace studio Inbox smoke')",
     "Inbox capture visible",
   );
   const homeScreenshotPath = await capture("workspace-studio-home.png");
-  await click(".ws-navigation", "Files");
+  console.log("[smoke] workspace Home captured");
+  await click(".ws-sidebar-nav", "Files & notes");
   await click(".ws-panes > .ws-document .ws-document-tools", "Write");
   const renamedDraft = `${content}\nDraft retained across an explicit rename.\n`;
   await fill(".ws-panes > .ws-document .ws-source", renamedDraft);
@@ -180,9 +185,9 @@ export async function verifyWorkspaceStudio(
     "Boolean(document.querySelector('.ws-tree [aria-label=\"Rename folder Incoming\"]')) && !document.querySelector('.ws-rename-form')",
     "Inbox folder renamed",
   );
-  await click(".ws-navigation", "Home");
+  await click(".ws-sidebar-nav", "Home");
   await fill('[aria-label="Quick capture"]', "Captured after renaming Inbox");
-  await click(".ws-capture", "Capture");
+  await click(".ws-capture", "Capture to Inbox");
   await wait(
     "document.querySelector('[data-workspace-home]')?.textContent.includes('Captured after renaming Inbox')",
     "renamed Inbox still captures",

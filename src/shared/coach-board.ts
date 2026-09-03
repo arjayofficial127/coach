@@ -86,6 +86,10 @@ export function newCoachBoard(title: string): CoachBoard {
   };
 }
 
+export function newCoachPlanner(title: string): CoachBoard {
+  return { ...newCoachBoard(title), defaultView: "calendar" };
+}
+
 export function parseCoachObject(content: string): Record<string, unknown> | null {
   try {
     const value: unknown = JSON.parse(content);

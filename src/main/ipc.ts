@@ -138,7 +138,7 @@ const workspaceCreateEntrySchema = z
     name: z.string().trim().min(1).max(120),
     kind: z.enum(["folder", "file"]),
     fileType: z.enum(["markdown", "text", "coach"]).optional(),
-    coachKind: z.enum(["document", "board"]).optional(),
+    coachKind: z.enum(["document", "board", "planner"]).optional(),
   })
   .strict()
   .refine((input) => input.kind === "folder" || Boolean(input.fileType), {
@@ -190,6 +190,7 @@ export interface BrowserController {
   forward(): void;
   reload(): void;
   snapshot(): BrowserSnapshot;
+  captureSelection(tabId: string): Promise<import("../shared/contracts").BrowserSourceCapture>;
   captureTabPreview(tabId: string): Promise<string | null>;
   searchTabContents(tabIds: string[], query: string): Promise<string[]>;
   loadSiteIcons(urls: string[]): Promise<Record<string, string>>;
@@ -258,6 +259,9 @@ export function registerIpc(
   handle(IPC.browserForward, () => browser.forward());
   handle(IPC.browserReload, () => browser.reload());
   handle(IPC.browserSnapshot, () => browser.snapshot());
+  handle(IPC.browserCaptureSelection, (_event, payload) =>
+    browser.captureSelection(tabIdSchema.parse(payload)),
+  );
   handle(IPC.browserCaptureTabPreview, (_event, payload) =>
     browser.captureTabPreview(tabIdSchema.parse(payload)),
   );

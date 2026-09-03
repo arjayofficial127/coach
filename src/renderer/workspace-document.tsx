@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { isCoachBoard, parseCoachObject, writeCoachObject } from "../shared/coach-board";
 import { Icon } from "./icon";
 import { insertMarkdown, type WorkspaceTab, workspaceTitle } from "./local-workspace-model";
@@ -11,6 +11,7 @@ const inserts = [
   ["Callout", "\n> $selection\n"],
   ["Table", "\n| Name | Status |\n| --- | --- |\n| $selection | Next |\n"],
   ["Link to file", "[[$selection]]"],
+  ["Embed board", "\n![[$selection]]\n"],
   ["Source link", "[$selection](https://example.com)"],
 ] as const;
 
@@ -23,6 +24,8 @@ export function WorkspaceDocument({
   onSplit,
   onReload,
   onRename,
+  onEmbed,
+  onResearch,
 }: {
   tab: WorkspaceTab;
   saving: boolean;
@@ -32,6 +35,8 @@ export function WorkspaceDocument({
   onSplit: () => void;
   onReload: () => void;
   onRename: () => void;
+  onEmbed?: (target: string) => ReactNode;
+  onResearch?: () => void;
 }) {
   const [mode, setMode] = useState<"write" | "preview">("preview");
   const [raw, setRaw] = useState(false);
@@ -108,6 +113,12 @@ export function WorkspaceDocument({
         </button>
       </header>
       <div className="ws-document-tools">
+        {onResearch && (
+          <button type="button" onClick={onResearch}>
+            <Icon name="globe" />
+            Research beside
+          </button>
+        )}
         {tab.document.fileType === "markdown" && (
           <div className="ws-segmented">
             <button type="button" aria-pressed={mode === "write"} onClick={() => setMode("write")}>
@@ -185,7 +196,13 @@ export function WorkspaceDocument({
           {mode === "write" ? (
             sourceEditor
           ) : (
-            <WorkspaceMarkdown content={tab.draft} onChange={onChange} onLink={onLink} />
+            <WorkspaceMarkdown
+              content={tab.draft}
+              onChange={onChange}
+              onLink={onLink}
+              onEmbed={onEmbed}
+              titleAlreadyShown={workspaceTitle(tab.document.name)}
+            />
           )}
         </>
       ) : tab.document.fileType === "coach" && !raw && isCoachBoard(coach) ? (

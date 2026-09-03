@@ -17,9 +17,10 @@ import { ProfileStore } from "./profiles/profile-store";
 import { installLatticeProtocol } from "./protocol";
 import { VaultService } from "./vault/vault-service";
 import { verifyWorkspaceStudio, type WorkspaceStudioEvidence } from "./workspace-studio-smoke";
+import { verifyWorkspaceVision } from "./workspace-vision-smoke";
 
 export interface PhaseNineSmokeEvidence {
-  workspaceStudio: WorkspaceStudioEvidence;
+  workspaceStudio: WorkspaceStudioEvidence & Awaited<ReturnType<typeof verifyWorkspaceVision>>;
   packaged: boolean;
   versions: { electron: string; chromium: string; node: string };
   shell: {
@@ -3045,14 +3046,20 @@ export async function runPhaseNineSmoke(
     await window.webContents.executeJavaScript(
       `document.querySelector(".profile-menu-backdrop")?.click()`,
     );
+    smokeStage("profile isolation starting");
     const profileIsolation = await runtime.collectProfileIsolationProbe();
+    smokeStage("profile isolation complete");
     const profileRegistry = await readFile(path.join(profileRoot, "profiles.json"), "utf8");
     const registryContainsNoCredentials =
       !/(password|access[_-]?token|refresh[_-]?token|id[_-]?token|google[_-]?id)/i.test(
         profileRegistry,
       );
 
-    const workspaceStudio = await verifyWorkspaceStudio(window, smokeRoot);
+    smokeStage("workspace studio starting");
+    const workspaceStudio = {
+      ...(await verifyWorkspaceStudio(window, smokeRoot)),
+      ...(await verifyWorkspaceVision(window, runtime, smokeRoot)),
+    };
     smokeStage("workspace studio");
 
     await window.webContents.executeJavaScript(`(async () => {

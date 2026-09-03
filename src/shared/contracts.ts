@@ -9,6 +9,7 @@ export const IPC = {
   browserForward: "browser:forward",
   browserReload: "browser:reload",
   browserSnapshot: "browser:snapshot",
+  browserCaptureSelection: "browser:capture-selection",
   browserCaptureTabPreview: "browser:capture-tab-preview",
   browserSearchTabContents: "browser:search-tab-contents",
   browserLoadSiteIcons: "browser:load-site-icons",
@@ -105,6 +106,12 @@ export interface BrowserState {
 export interface BrowserSnapshot {
   activeTabId: string;
   tabs: BrowserState[];
+}
+
+export interface BrowserSourceCapture {
+  url: string;
+  title: string;
+  text: string;
 }
 
 export type BrowserLinkActionKind =
@@ -430,7 +437,7 @@ export interface CreateWorkspaceEntryInput {
   name: string;
   kind: "folder" | "file";
   fileType?: WorkspaceEditableFileType;
-  coachKind?: "document" | "board";
+  coachKind?: "document" | "board" | "planner";
 }
 
 export interface SaveWorkspaceFileInput extends WorkspacePathInput {
@@ -469,6 +476,7 @@ export interface LatticeApi {
     captureTabPreview(tabId: string): Promise<string | null>;
     searchTabContents(tabIds: string[], query: string): Promise<string[]>;
     loadSiteIcons(urls: string[]): Promise<Record<string, string>>;
+    captureSelection(tabId: string): Promise<BrowserSourceCapture>;
     createTab(input?: string | BrowserCreateTabInput): Promise<BrowserSnapshot>;
     switchTab(tabId: string): Promise<BrowserSnapshot>;
     closeTab(tabId: string): Promise<BrowserSnapshot>;

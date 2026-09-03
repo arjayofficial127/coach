@@ -23,6 +23,7 @@ import type {
   ShellCommand,
 } from "../../shared/contracts";
 import { IPC } from "../../shared/contracts";
+import { sourceCapture } from "../../shared/source-capture";
 import { zoomCommandForShortcut } from "../../shared/zoom";
 import { constrainBrowserBounds } from "../policies/bounds";
 import { isAllowedRemoteNavigation, normalizeHttpUrl } from "../policies/navigation";
@@ -98,6 +99,24 @@ export class BrowserRuntime {
 
   async navigate(input: string): Promise<void> {
     await this.navigateTab(this.activeTab(), input);
+  }
+
+  async captureSelection(tabId: string) {
+    const tab = this.activeTab();
+    if (tab.id !== tabId || tab.contents.isDestroyed()) throw new Error("Source tab changed.");
+    const url = tab.contents.getURL();
+    sourceCapture(url, "", "");
+    const selection: unknown = await tab.contents.executeJavaScript(
+      "String(window.getSelection()?.toString() ?? '').slice(0, 20000)",
+    );
+    if (
+      this.closed ||
+      tab.contents.isDestroyed() ||
+      this.activeTabId !== tabId ||
+      tab.contents.getURL() !== url
+    )
+      throw new Error("Source tab changed. Capture again.");
+    return sourceCapture(url, tab.contents.getTitle(), selection);
   }
 
   async createTab(input?: string | BrowserCreateTabInput): Promise<BrowserSnapshot> {

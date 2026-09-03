@@ -309,6 +309,14 @@ for (const key of [
   "folderRename",
   "renameDraftRetained",
   "renamedInboxCapture",
+  "unifiedNavigation",
+  "homeLayout",
+  "plannerTemplate",
+  "boardEmbed",
+  "explicitSourceCapture",
+  "sourceIsolation",
+  "sourceOverlaySafety",
+  "sourceBounds",
 ]) {
   if (!smoke.workspaceStudio?.[key]) smokeFailures.push(`workspace studio ${key} gate failed`);
 }

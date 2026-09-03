@@ -1,4 +1,4 @@
-import { isCoachBoard, newCoachBoard } from "../shared/coach-board";
+import { isCoachBoard, newCoachBoard, newCoachPlanner } from "../shared/coach-board";
 import type {
   BrowserSnapshot,
   BrowserState,
@@ -221,6 +221,11 @@ export function installBrowserPreviewBridge(): void {
       onCommand: () => () => undefined,
     },
     browser: {
+      captureSelection: async (tabId) => {
+        const tab = tabs.find((item) => item.id === tabId);
+        if (!tab || !tab.url.startsWith("https://")) throw new Error("Open an HTTPS source first.");
+        return { url: tab.url, title: tab.title, text: "" };
+      },
       setBounds: async () => undefined,
       setLivePreviews: async () => undefined,
       navigate: async (input) => updateActive(normalizeAddress(input)),
@@ -582,7 +587,7 @@ export function installBrowserPreviewBridge(): void {
         } else {
           const content =
             input.fileType === "coach"
-              ? `${JSON.stringify(input.coachKind === "board" ? newCoachBoard(input.name) : { version: 1, kind: "document", title: input.name, content: "", data: {} }, null, 2)}\n`
+              ? `${JSON.stringify(input.coachKind === "planner" ? newCoachPlanner(input.name) : input.coachKind === "board" ? newCoachBoard(input.name) : { version: 1, kind: "document", title: input.name, content: "", data: {} }, null, 2)}\n`
               : input.fileType === "markdown"
                 ? `# ${input.name}\n\n`
                 : "";

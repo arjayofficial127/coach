@@ -37,10 +37,14 @@ export function WorkspaceMarkdown({
   content,
   onChange,
   onLink,
+  onEmbed,
+  titleAlreadyShown,
 }: {
   content: string;
   onChange?: (content: string) => void;
   onLink: (target: string) => void;
+  onEmbed?: (target: string) => ReactNode;
+  titleAlreadyShown?: string;
 }) {
   const body = noteBody(content);
   const prefix = content.slice(0, content.length - body.length);
@@ -49,19 +53,35 @@ export function WorkspaceMarkdown({
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i] ?? "";
     const key = i;
-    if (line.startsWith("```")) {
+    const fence = /^(`{3,})(.*)$/.exec(line);
+    if (fence) {
       const code: string[] = [];
-      while (++i < lines.length && !lines[i]?.startsWith("```")) code.push(lines[i] ?? "");
+      while (
+        ++i < lines.length &&
+        !new RegExp(`^\u0060{${fence[1]!.length},}\\s*$`).test(lines[i] ?? "")
+      )
+        code.push(lines[i] ?? "");
       blocks.push(
-        <pre key={key}>
-          <code>{code.join("\n")}</code>
-        </pre>,
+        fence[2]?.trim() === "quote" ? (
+          <blockquote key={key}>{code.join("\n")}</blockquote>
+        ) : (
+          <pre key={key}>
+            <code>{code.join("\n")}</code>
+          </pre>
+        ),
       );
       continue;
     }
     if (!line.trim()) continue;
+    const embed = /^!\[\[([^\]\n]{1,500})\]\]$/.exec(line.trim());
+    if (embed && onEmbed) {
+      blocks.push(<div key={key}>{onEmbed(embed[1]!.split("|")[0]!)}</div>);
+      continue;
+    }
     const heading = /^(#{1,6})\s+(.+)$/.exec(line);
     if (heading) {
+      if (!blocks.length && heading[1] === "#" && heading[2]?.trim() === titleAlreadyShown)
+        continue;
       blocks.push(
         createElement(`h${heading[1]?.length ?? 1}`, { key }, inline(heading[2] ?? "", onLink)),
       );

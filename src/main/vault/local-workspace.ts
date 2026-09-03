@@ -14,7 +14,7 @@ import {
   unlink,
 } from "node:fs/promises";
 import path from "node:path";
-import { isCoachBoard, newCoachBoard } from "../../shared/coach-board";
+import { isCoachBoard, newCoachBoard, newCoachPlanner } from "../../shared/coach-board";
 import type {
   CaptureDesktopInboxInput,
   CreateWorkspaceEntryInput,
@@ -274,12 +274,13 @@ function breadcrumbs(desktopName: string, relativePath: string) {
 function initialFileContent(
   name: string,
   fileType: WorkspaceEditableFileType,
-  coachKind?: "document" | "board",
+  coachKind?: "document" | "board" | "planner",
 ): string {
   const title = name.slice(0, -EDITABLE_EXTENSIONS[fileType].length);
   if (fileType === "markdown") return `# ${title}\n\n`;
   if (fileType === "text") return "";
   if (coachKind === "board") return `${JSON.stringify(newCoachBoard(title), null, 2)}\n`;
+  if (coachKind === "planner") return `${JSON.stringify(newCoachPlanner(title), null, 2)}\n`;
   return `${JSON.stringify(
     {
       version: 1,

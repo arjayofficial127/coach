@@ -107,6 +107,14 @@ export class ProfileRuntime {
     return this.activeRuntime().searchTabContents(tabIds, query);
   }
 
+  async captureSelection(tabId: string) {
+    const runtime = this.activeRuntime();
+    const result = await runtime.captureSelection(tabId);
+    if (this.closed || runtime !== this.activeRuntime())
+      throw new Error("Website profile changed.");
+    return result;
+  }
+
   loadSiteIcons(urls: string[]): Promise<Record<string, string>> {
     return this.activeRuntime().loadSiteIcons(urls);
   }

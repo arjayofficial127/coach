@@ -1,6 +1,12 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { isCoachBoard, parseCoachObject } from "../shared/coach-board";
-import type { WorkspaceDirectoryEntry, WorkspaceEditableFileType } from "../shared/contracts";
+import { isCoachBoard, parseCoachObject, writeCoachObject } from "../shared/coach-board";
+import type {
+  BrowserSourceCapture,
+  BrowserState,
+  WorkspaceDirectoryEntry,
+  WorkspaceEditableFileType,
+} from "../shared/contracts";
+import { sourceMarkdown } from "../shared/source-capture";
 import { Icon } from "./icon";
 import {
   acceptSavedDocument,
@@ -16,9 +22,12 @@ import {
 } from "./local-workspace-model";
 import { WorkspaceDocument } from "./workspace-document";
 import { WorkspaceFileRows, WorkspaceHome } from "./workspace-home";
+import { WorkspacePortal } from "./workspace-portal";
+import { WorkspaceSource } from "./workspace-source";
 import "./workspace-studio.css";
+import "./workspace-vision.css";
 
-type NewEntryKind = "folder" | "board" | WorkspaceEditableFileType;
+type NewEntryKind = "folder" | "board" | "planner" | WorkspaceEditableFileType;
 type View = "home" | "files" | "recent";
 // Session-only copies partitioned by website profile, vault identity, and desktop.
 const sessions = new Map<string, WorkspaceTab[]>();
@@ -37,6 +46,15 @@ if (typeof window !== "undefined") window.addEventListener("beforeunload", prote
 if (import.meta.hot)
   import.meta.hot.dispose(() => window.removeEventListener("beforeunload", protectSessionDrafts));
 interface Props {
+  sidebarTarget?: HTMLElement | null;
+  tabsTarget?: HTMLElement | null;
+  browserTabs?: BrowserState[];
+  sourceTab?: BrowserState | null;
+  onSourceTab?: (id: string) => Promise<void>;
+  onResearchUrl?: (url: string) => Promise<void>;
+  onSourceViewport?: (node: HTMLDivElement | null) => void;
+  onFocus?: () => void;
+  onOpenApp?: (id: "pomodoro") => void;
   desktopId: string;
   desktopName: string;
   workspaceName: string;
@@ -65,12 +83,22 @@ function WorkspaceSession({
   onReveal,
   onSettings,
   onOpenUrl,
+  sidebarTarget = null,
+  tabsTarget = null,
+  browserTabs = [],
+  sourceTab = null,
+  onSourceTab,
+  onResearchUrl,
+  onSourceViewport,
+  onFocus,
+  onOpenApp,
 }: Props) {
   const cacheKey = `${sessionKey}:${desktopId}`;
   const [index, setIndex] = useState<WorkspaceIndex | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [view, setView] = useState<View>("home");
+  const [researchOpen, setResearchOpen] = useState(false);
   const [folder, setFolder] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set([""]));
   const [query, setQuery] = useState("");
@@ -284,8 +312,14 @@ function WorkspaceSession({
   const handleLink = (target: string, source: string) => {
     const resolved = resolveNoteReference(target, source, entries);
     if (resolved.kind === "file") void openEntry(resolved.entry);
-    else if (resolved.kind === "url") onOpenUrl(resolved.url);
-    else
+    else if (resolved.kind === "url") {
+      if (onResearchUrl) {
+        setResearchOpen(true);
+        void onResearchUrl(resolved.url).catch(() =>
+          setMessage("This source could not be opened."),
+        );
+      } else onOpenUrl(resolved.url);
+    } else
       setMessage(
         resolved.kind === "blocked"
           ? "Blocked reference: only desktop-relative files and HTTPS sources can be opened."
@@ -370,12 +404,17 @@ function WorkspaceSession({
         parentPath: folder,
         name,
         kind: kind === "folder" ? "folder" : "file",
-        fileType: kind === "folder" ? undefined : kind === "board" ? "coach" : kind,
-        coachKind: kind === "board" ? "board" : undefined,
+        fileType:
+          kind === "folder" ? undefined : kind === "board" || kind === "planner" ? "coach" : kind,
+        coachKind: kind === "board" || kind === "planner" ? kind : undefined,
       });
       if (!mounted.current) return;
       const extension =
-        kind === "board" || kind === "coach" ? ".coach" : kind === "markdown" ? ".md" : ".text";
+        kind === "board" || kind === "planner" || kind === "coach"
+          ? ".coach"
+          : kind === "markdown"
+            ? ".md"
+            : ".text";
       const exact =
         kind === "folder" || name.toLowerCase().endsWith(extension) ? name : name + extension;
       const created = result.entries.find(
@@ -624,11 +663,55 @@ function WorkspaceSession({
           }),
       )
     : [];
+  const renderEmbed = (target: string, source: string) => {
+    const resolved = resolveNoteReference(target, source, entries);
+    const object =
+      resolved.kind === "file"
+        ? parseCoachObject(documents[resolved.entry.relativePath]?.content ?? "")
+        : null;
+    if (resolved.kind !== "file" || !isCoachBoard(object))
+      return (
+        <p className="ws-embed-missing">
+          Board preview unavailable.{" "}
+          <button type="button" onClick={() => handleLink(target, source)}>
+            Review reference
+          </button>
+        </p>
+      );
+    return (
+      <section className="ws-board-embed" aria-label={`Embedded board ${object.title}`}>
+        <header>
+          <strong>
+            <Icon name="grid" /> {object.title}
+          </strong>
+          <button type="button" onClick={() => void openEntry(resolved.entry, true)}>
+            Edit board beside <Icon name="arrow-right" />
+          </button>
+        </header>
+        <div className="ws-mini-board">
+          {object.columns.slice(0, 3).map((column) => (
+            <div key={column.id}>
+              <b>{column.title}</b>
+              {object.cards
+                .filter((card) => card.columnId === column.id)
+                .slice(0, 3)
+                .map((card) => (
+                  <span key={card.id}>{card.title}</span>
+                ))}
+            </div>
+          ))}
+        </div>
+        <small>Linked local file · edits are saved in its own editor</small>
+      </section>
+    );
+  };
   const documentPane = (tab: WorkspaceTab) => (
     <WorkspaceDocument
       key={tab.document.relativePath}
       tab={tab}
       saving={savingPaths.has(tab.document.relativePath)}
+      onEmbed={(target) => renderEmbed(target, tab.document.relativePath)}
+      onResearch={() => setResearchOpen((current) => !current)}
       onChange={(draft) =>
         updateTabs((current) =>
           current.map((item) =>
@@ -651,6 +734,62 @@ function WorkspaceSession({
     />
   );
 
+  const canInsertSource = Boolean(
+    activeTab &&
+      (activeTab.document.fileType === "markdown" ||
+        activeTab.document.fileType === "text" ||
+        (parseCoachObject(activeTab.draft)?.kind === "document" &&
+          typeof parseCoachObject(activeTab.draft)?.content === "string")),
+  );
+  const insertSource = (source: BrowserSourceCapture) => {
+    if (!activeTab || !canInsertSource || pendingRenames.has(cacheKey)) return;
+    const selectedPath = activeTab.document.relativePath;
+    updateTabs((current) =>
+      current.map((tab) => {
+        if (tab.document.relativePath !== selectedPath) return tab;
+        const object = parseCoachObject(tab.draft);
+        const snippet = sourceMarkdown(source);
+        const draft =
+          tab.document.fileType === "coach" && object?.kind === "document"
+            ? writeCoachObject({ ...object, content: `${object.content}\n\n${snippet}` })
+            : `${tab.draft}\n\n${tab.document.fileType === "text" ? `${source.text}\nSource: ${source.url}\n` : snippet}`;
+        return { ...tab, draft };
+      }),
+    );
+    setMessage("Source added to your draft with its URL. Choose Save to keep it on disk.");
+  };
+  const fileTabs = (
+    <nav className="ws-tabs" aria-label="Open workspace files">
+      {tabs.map((tab) => (
+        <div
+          className={view === "files" && activePath === tab.document.relativePath ? "active" : ""}
+          key={tab.document.relativePath}
+        >
+          <button
+            type="button"
+            disabled={renaming}
+            onClick={() => {
+              setView("files");
+              setActivePath(tab.document.relativePath);
+              if (besidePath === tab.document.relativePath) setBesidePath(null);
+            }}
+          >
+            <Icon name={tab.document.fileType === "coach" ? "grid" : "edit"} />
+            {tab.document.name}
+            {tab.draft !== tab.document.content && <b title="Unsaved changes">•</b>}
+          </button>
+          <button
+            type="button"
+            aria-label={`Close ${tab.document.name}`}
+            disabled={renaming}
+            onClick={() => closeTab(tab.document.relativePath)}
+          >
+            <Icon name="close" />
+          </button>
+        </div>
+      ))}
+    </nav>
+  );
   if (!connected)
     return (
       <div className="trusted-surface ws-disconnected">
@@ -664,16 +803,28 @@ function WorkspaceSession({
       </div>
     );
   return (
-    <div className="trusted-surface ws-studio" data-workspace-browser data-desktop-id={desktopId}>
+    <div
+      className={`trusted-surface ws-studio ws-vision ${sidebarTarget ? "ws-integrated" : ""}`}
+      data-workspace-browser
+      data-desktop-id={desktopId}
+      data-view={view}
+    >
+      {tabsTarget && <WorkspacePortal target={tabsTarget}>{fileTabs}</WorkspacePortal>}
       <header className="ws-header">
         <div>
-          <h1>{desktopName} workspace</h1>
+          <h1>{desktopName}</h1>
           <span className="ws-local-badge">
             <span />
             Local only
           </span>
         </div>
         <div className="ws-header-actions">
+          {onFocus && (
+            <button type="button" onClick={onFocus}>
+              <Icon name="sparkle" />
+              Focus
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -739,6 +890,7 @@ function WorkspaceSession({
               ["text", "Text file"],
               ["coach", "Coach document"],
               ["board", "Coach board"],
+              ["planner", "Planner"],
             ] as const
           ).map(([kind, label]) => (
             <button
@@ -850,38 +1002,80 @@ function WorkspaceSession({
         </div>
       )}
       <fieldset className="ws-body" disabled={renaming}>
-        <aside className="ws-tree" aria-label="Files and folders">
-          <header>
-            <button type="button" onClick={() => void openFolder("")}>
-              <Icon name="folder" />
-              {desktopName}
-            </button>
-            <button
-              type="button"
-              aria-label="New folder in current location"
-              onClick={() => setNewKind("folder")}
-            >
-              <Icon name="plus" />
-            </button>
-          </header>
-          <small className="ws-folder-location">Create in: {folder || "Desktop root"}</small>
-          {tree("")}
-          {loading && !index && <p className="ws-muted">Reading local files…</p>}
-          <footer>
-            <span className="ws-saved">
-              <Icon name="check" />
-              Local folder connected
-            </span>
-            <strong>{workspaceName}</strong>
-            <button type="button" className="ws-text-action" onClick={onSettings}>
-              Manage in Settings
-            </button>
-          </footer>
-        </aside>
-        <main className="ws-main">
+        <WorkspacePortal target={sidebarTarget}>
+          <fieldset className="ws-sidebar-surface" disabled={renaming}>
+            <nav className="ws-sidebar-nav" aria-label="Local workspace navigation">
+              <button
+                type="button"
+                aria-current={view === "home" ? "page" : undefined}
+                onClick={() => setView("home")}
+              >
+                <Icon name="home" />
+                Home
+              </button>
+              <button type="button" onClick={() => void openFolder(inboxFolder)}>
+                <Icon name="folder" />
+                Inbox{" "}
+                <small>
+                  {files.filter((entry) => entry.relativePath.startsWith(`${inboxFolder}/`)).length}
+                </small>
+              </button>
+              <button
+                type="button"
+                aria-current={view === "files" ? "page" : undefined}
+                onClick={() => setView("files")}
+              >
+                <Icon name="edit" />
+                Files &amp; notes
+              </button>
+              <button type="button" onClick={() => setView("recent")}>
+                <Icon name="timer" />
+                Recent files
+              </button>
+            </nav>
+            <aside className="ws-tree" aria-label="Files and folders">
+              <header>
+                <button type="button" onClick={() => void openFolder("")}>
+                  <Icon name="folder" />
+                  {desktopName}
+                </button>
+                <button
+                  type="button"
+                  aria-label="New folder in current location"
+                  onClick={() => setNewKind("folder")}
+                >
+                  <Icon name="plus" />
+                </button>
+              </header>
+              <small className="ws-folder-location">Create in: {folder || "Desktop root"}</small>
+              {tree("")}
+              {loading && !index && <p className="ws-muted">Reading local files…</p>}
+              <footer>
+                <span className="ws-saved">
+                  <Icon name="check" />
+                  Local folder connected
+                </span>
+                <strong>{workspaceName}</strong>
+                <button type="button" className="ws-text-action" onClick={onSettings}>
+                  Manage in Settings
+                </button>
+              </footer>
+            </aside>
+          </fieldset>
+        </WorkspacePortal>
+        <div className="ws-main">
           {view === "home" && (
             <WorkspaceHome
               files={files}
+              folders={
+                index?.directories[""]?.entries.filter((entry) => entry.kind === "folder") ?? []
+              }
+              onFolder={(entry) => void openEntry(entry)}
+              onNewFolder={() => {
+                setFolder("");
+                setNewKind("folder");
+              }}
+              onFocus={() => onOpenApp?.("pomodoro")}
               inboxFolder={inboxFolder}
               documents={documents}
               capture={capture}
@@ -934,33 +1128,7 @@ function WorkspaceSession({
                     </span>
                   ))}
               </nav>
-              <nav className="ws-tabs" aria-label="Open workspace files">
-                {tabs.map((tab) => (
-                  <div
-                    className={activePath === tab.document.relativePath ? "active" : ""}
-                    key={tab.document.relativePath}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActivePath(tab.document.relativePath);
-                        if (besidePath === tab.document.relativePath) setBesidePath(null);
-                      }}
-                    >
-                      <Icon name={tab.document.fileType === "coach" ? "grid" : "edit"} />
-                      {tab.document.name}
-                      {tab.draft !== tab.document.content && <b title="Unsaved changes">•</b>}
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Close ${tab.document.name}`}
-                      onClick={() => closeTab(tab.document.relativePath)}
-                    >
-                      <Icon name="close" />
-                    </button>
-                  </div>
-                ))}
-              </nav>
+              {!tabsTarget && fileTabs}
               {chooseBeside && (
                 <div className="ws-split-picker">
                   <strong>Open a file beside this one</strong>
@@ -987,22 +1155,43 @@ function WorkspaceSession({
               )}
               {activeTab ? (
                 <>
-                  <div
-                    className={`ws-panes ${besideTab && besidePath !== activePath ? "is-split" : ""}`}
-                  >
-                    {documentPane(activeTab)}
-                    {besideTab && besidePath !== activePath && (
-                      <div className="ws-beside">
-                        <button
-                          type="button"
-                          className="ws-close-split"
-                          onClick={() => setBesidePath(null)}
-                        >
-                          Close split
-                          <Icon name="close" />
-                        </button>
-                        {documentPane(besideTab)}
-                      </div>
+                  <div className={researchOpen ? "ws-desk-with-source" : "ws-desk"}>
+                    <div
+                      className={`ws-panes ${besideTab && besidePath !== activePath ? "is-split" : ""}`}
+                    >
+                      {documentPane(activeTab)}
+                      {besideTab && besidePath !== activePath && (
+                        <div className="ws-beside">
+                          <button
+                            type="button"
+                            className="ws-close-split"
+                            onClick={() => setBesidePath(null)}
+                          >
+                            Close split
+                            <Icon name="close" />
+                          </button>
+                          {documentPane(besideTab)}
+                        </div>
+                      )}
+                    </div>
+                    {researchOpen && onSourceTab && onResearchUrl && onSourceViewport && (
+                      <WorkspaceSource
+                        key={activeTab?.document.relativePath ?? "no-document"}
+                        destination={activeTab?.document.name ?? null}
+                        tabs={browserTabs}
+                        active={sourceTab}
+                        suspended={
+                          renaming ||
+                          newMenu ||
+                          Boolean(newKind || renameTarget || reloadPath || chooseBeside)
+                        }
+                        canInsert={canInsertSource && !renaming}
+                        onSelect={onSourceTab}
+                        onNavigate={onResearchUrl}
+                        onViewport={onSourceViewport}
+                        onInsert={insertSource}
+                        onClose={() => setResearchOpen(false)}
+                      />
                     )}
                   </div>
                   <details className="ws-link-context">
@@ -1134,7 +1323,7 @@ function WorkspaceSession({
                   : `${files.length} local files`}
             </span>
           </footer>
-        </main>
+        </div>
       </fieldset>
     </div>
   );

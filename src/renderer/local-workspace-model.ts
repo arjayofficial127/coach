@@ -4,6 +4,7 @@ import type {
   WorkspaceDirectoryListing,
   WorkspaceFileDocument,
 } from "../shared/contracts";
+import { withoutFencedCode } from "../shared/source-capture";
 
 export interface WorkspaceIndex {
   directories: Record<string, WorkspaceDirectoryListing>;
@@ -121,10 +122,7 @@ export interface NoteReference {
   label: string;
 }
 export function noteReferences(content: string): NoteReference[] {
-  const body = noteBody(content)
-    .slice(0, 100_000)
-    .replace(/```[\s\S]*?```/g, "")
-    .replace(/`[^`\n]+`/g, "");
+  const body = withoutFencedCode(noteBody(content).slice(0, 100_000)).replace(/`[^`\n]+`/g, "");
   const result: NoteReference[] = [];
   for (const match of body.matchAll(
     /\[\[([^\]\n]{1,500})\]\]|!?\[([^\]\n]{0,500})\]\(([^)\n]{1,2048})\)/g,
