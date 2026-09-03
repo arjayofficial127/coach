@@ -2,30 +2,8 @@
 .ws-sidebar-surface[hidden] {
   display: none;
 }
-.lattice-shell[data-surface="files"]:has(
-  .ws-studio[data-calm-note="true"][data-folders-open="false"]
-) {
-  grid-template-columns: 0 0 minmax(0, 1fr);
-}
-.lattice-shell[data-surface="files"]:has(
-    .ws-studio[data-calm-note="true"][data-folders-open="false"]
-  )
-  > .workspace-panel,
-.lattice-shell[data-surface="files"]:has(
-    .ws-studio[data-calm-note="true"][data-folders-open="false"]
-  )
-  > .activity-rail {
-  display: none;
-}
 .ws-studio[data-calm-note="true"][data-folders-open="false"] .ws-body {
   grid-template-columns: minmax(0, 1fr);
-}
-.lattice-shell[data-surface="files"]:has(
-    .ws-studio[data-calm-note="true"][data-folders-open="false"]
-  )
-  > .content-shell {
-  grid-column: 3;
-  grid-row: 1;
 }
 .ws-calm-location {
   display: flex;

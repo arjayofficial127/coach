@@ -109,8 +109,15 @@ export async function verifyWorkspaceStudio(
     "Boolean(document.querySelector('[data-workspace-home]')) && !document.querySelector('.ws-header-actions button')?.disabled",
     "Home loaded",
   );
+  const navigationModeBeforeNote = await evaluate<string>(
+    "document.querySelector('.lattice-shell')?.classList.contains('navigation-expanded') ? 'expanded' : 'compact'",
+  );
   await create("Markdown note", "Workspace smoke note", ".ws-page-input");
   console.log("[smoke] workspace note created");
+  await wait(
+    `document.querySelector('[aria-label="Toggle folders and search"]')?.getAttribute('aria-expanded') === 'true' && document.querySelector('.ws-sidebar-surface')?.getClientRects().length > 0 && (document.querySelector('.lattice-shell')?.classList.contains('navigation-expanded') ? 'expanded' : 'compact') === ${JSON.stringify(navigationModeBeforeNote)}`,
+    "opening a note preserves both sidebar state and the visible file sidebar",
+  );
   await click(".ws-document-tools", "Write");
   await wait("Boolean(document.querySelector('.ws-source'))", "Markdown source");
   const content =
@@ -224,18 +231,15 @@ export async function verifyWorkspaceStudio(
   })()`);
   if (!readableCaptureTitles) throw new Error("Title presentation changed the saved file");
   await click(".ws-file-details", "");
-  // The title-only capture opens as one editable page, without changing its source.
-  await evaluate(
-    "(() => { const toggle = document.querySelector('[aria-label=\"Toggle folders and search\"]'); if(toggle?.getAttribute('aria-expanded') === 'true') toggle.click(); })()",
-  );
+  // The title-only capture opens as one editable page, without changing its source or sidebars.
   await wait(
-    "!document.querySelector('.ws-file-details') && !document.querySelector('.ws-document-tools') && !document.querySelector('.ws-link-context') && !document.querySelector('.ws-toolbar-slot .primary-action') && !document.querySelector('.ws-sidebar-surface')?.getClientRects().length",
+    "!document.querySelector('.ws-file-details') && !document.querySelector('.ws-document-tools') && !document.querySelector('.ws-link-context') && !document.querySelector('.ws-toolbar-slot .primary-action') && document.querySelector('.ws-sidebar-surface')?.getClientRects().length > 0",
     "quiet default note surface",
   );
   const calmNoteScreenshotPath = await capture("workspace-calm-note.png");
   await wait(
-    "(() => { const stage = document.querySelector('.web-stage').getBoundingClientRect(); const page = document.querySelector('.ws-document').getBoundingClientRect(); const source = document.querySelector('.ws-page-input').getBoundingClientRect(); const header = document.querySelector('.ws-header').getBoundingClientRect(); return stage.width >= innerWidth - 3 && page.width >= 650 && source.width >= 500 && page.right <= stage.right + 1 && header.height < 90; })()",
-    "full-width stage and readable note column with compact header",
+    "(() => { const stage = document.querySelector('.web-stage').getBoundingClientRect(); const page = document.querySelector('.ws-document').getBoundingClientRect(); const source = document.querySelector('.ws-page-input').getBoundingClientRect(); const header = document.querySelector('.ws-header').getBoundingClientRect(); return page.width >= 650 && source.width >= 500 && page.right <= stage.right + 1 && header.height < 90; })()",
+    "readable note column with compact header and persistent sidebars",
   );
   await click(".ws-document-tools", "Markdown source");
   await wait(

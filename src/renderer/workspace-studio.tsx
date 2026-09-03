@@ -56,7 +56,6 @@ interface Props {
   onResearchUrl?: (url: string) => Promise<void>;
   onSourceViewport?: (node: HTMLDivElement | null) => void;
   onFocus?: () => void;
-  onShowNavigation?: () => void;
   onOpenApp?: (id: "pomodoro") => void;
   desktopId: string;
   desktopName: string;
@@ -94,7 +93,6 @@ function WorkspaceSession({
   onResearchUrl,
   onSourceViewport,
   onFocus,
-  onShowNavigation,
   onOpenApp,
 }: Props) {
   const cacheKey = `${sessionKey}:${desktopId}`;
@@ -102,7 +100,7 @@ function WorkspaceSession({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [view, setView] = useState<View>("home");
-  const [foldersOpen, setFoldersOpen] = useState(false);
+  const [foldersOpen, setFoldersOpen] = useState(true);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [toolbarTarget, setToolbarTarget] = useState<HTMLDivElement | null>(null);
   const [openTools, setOpenTools] = useState<Set<string>>(new Set());
@@ -858,10 +856,7 @@ function WorkspaceSession({
               type="button"
               aria-label="Toggle folders and search"
               aria-expanded={foldersOpen}
-              onClick={() => {
-                if (!foldersOpen) onShowNavigation?.();
-                setFoldersOpen(!foldersOpen);
-              }}
+              onClick={() => setFoldersOpen(!foldersOpen)}
             >
               <Icon name="folder" />
             </button>

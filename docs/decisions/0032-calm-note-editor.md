@@ -13,10 +13,12 @@ part of this request.
 
 - The main note toolbar is portaled into the workspace header; the second split document keeps
   its own small toolbar so its Save action cannot accidentally target the first document.
-- Folder navigation is collapsed on opening the workspace's first note. The header toggle
-  restores it, including from Focus; breadcrumb buttons return to Home or the actual note's
-  parent folder. New and search remain in the folder sidebar. Home/folder browsing keeps its
-  existing controls. Browser and file tabs remain shared with the shell.
+- Opening a note preserves the Coach shell's existing expanded/compact navigation state and
+  leaves folder navigation visible. The folder toggle controls only that local file sidebar;
+  Focus remains the sole explicit action that changes the distraction-free shell. Breadcrumb
+  buttons return to Home or the actual note's parent folder. New and search remain in the folder
+  sidebar. Home/folder browsing keeps its existing controls. Browser and file tabs remain shared
+  with the shell.
 - Note tools is a keyboard-accessible disclosure, not a fake ARIA menu. It closes on Escape,
   outside pointer, focus leaving, or choosing an action. Escape returns focus to the trigger.
   Source/preview, research, split, history, details, connections, rename, reload, refresh and
@@ -69,6 +71,11 @@ part of this request.
   `f913626a16d9ff1ce8aa70b653bf8cce8fcf8a92034857f7300a3deee0763d47`.
 - Final `Lattice-Setup-0.16.0.exe` SHA-256:
   `8c870191fca9390d8b21f2e5124f0bccad99bd554c5f343f355b6fd7ba1b235b`.
+- The sidebar-preservation follow-up passed TypeScript, all 237 tests and the unchanged packaged
+  smoke gate. The first packaged attempt hit the same intermittent 180-second hidden-window
+  capture timeout after `workspace board created`; its unchanged retry passed. The smoke gate now
+  records the shell navigation mode before opening a note and requires that mode plus the visible
+  file sidebar to remain unchanged afterward. Its final screenshot was visually inspected.
 - Production renderer is approximately 515 kB (143.7 kB gzip); the existing >500 kB advisory
   remains. The installer remains unsigned. Full repository-wide lint still includes unrelated
   website/generated-artifact issues; app-scoped validation is recorded rather than claiming
