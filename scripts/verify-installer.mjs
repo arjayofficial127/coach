@@ -309,6 +309,7 @@ for (const key of [
   "folderRename",
   "renameDraftRetained",
   "renamedInboxCapture",
+  "readableCaptureTitles",
   "unifiedNavigation",
   "homeLayout",
   "plannerTemplate",

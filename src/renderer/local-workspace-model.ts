@@ -219,6 +219,22 @@ export function workspaceTitle(name: string, kind: "file" | "folder" = "file"): 
   return kind === "file" && dot > 0 ? name.slice(0, dot) : name;
 }
 
+// Presentation only: captureLocalInboxNote writes this exact Markdown filename shape.
+// Keep real names for identity, links, saves and explicit renaming. Never shorten folders,
+// ordinary dated notes, or other file types just because they contain numbers or hyphens.
+export function workspaceDisplayName(name: string, kind: "file" | "folder" = "file"): string {
+  if (kind === "folder") return name;
+  const capture =
+    /^(\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])) - (.+) - [\da-f]{8}(\.md)$/i.exec(name);
+  if (!capture || new Date(`${capture[1]}T00:00:00.000Z`).toISOString().slice(0, 10) !== capture[1])
+    return name;
+  return `${capture[2]}${capture[3]}`;
+}
+
+export function workspaceDisplayTitle(name: string, kind: "file" | "folder" = "file"): string {
+  return workspaceTitle(workspaceDisplayName(name, kind), kind);
+}
+
 export function renamedWorkspacePath(value: string, fromPath: string, toPath: string): string {
   return value === fromPath
     ? toPath

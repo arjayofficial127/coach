@@ -1,7 +1,7 @@
 import { isCoachBoard, parseCoachObject } from "../shared/coach-board";
 import type { WorkspaceDirectoryEntry, WorkspaceFileDocument } from "../shared/contracts";
 import { Icon } from "./icon";
-import { notePreview, workspaceTitle } from "./local-workspace-model";
+import { notePreview, workspaceDisplayTitle } from "./local-workspace-model";
 
 export function WorkspaceFileRows({
   entries,
@@ -13,10 +13,15 @@ export function WorkspaceFileRows({
   return (
     <div className="ws-file-rows">
       {entries.map((entry) => (
-        <button type="button" key={entry.id} onClick={() => onOpen(entry)}>
+        <button
+          type="button"
+          key={entry.id}
+          aria-label={`Open ${workspaceDisplayTitle(entry.name, entry.kind)}`}
+          onClick={() => onOpen(entry)}
+        >
           <Icon name={entry.fileType === "coach" ? "grid" : "edit"} />
           <span>
-            <strong>{entry.name}</strong>
+            <strong>{workspaceDisplayTitle(entry.name, entry.kind)}</strong>
             <small>
               {entry.relativePath.split("/").slice(0, -1).join(" / ") || "Desktop root"}
             </small>
@@ -120,11 +125,12 @@ export function WorkspaceHome({
                     type="button"
                     className="ws-preview-card"
                     key={entry.id}
+                    aria-label={`Open ${workspaceDisplayTitle(entry.name)}`}
                     onClick={() => onOpen(entry)}
                   >
                     <header>
                       <Icon name={entry.fileType === "coach" ? "grid" : "edit"} />
-                      <strong>{workspaceTitle(entry.name)}</strong>
+                      <strong>{workspaceDisplayTitle(entry.name)}</strong>
                     </header>
                     {isCoachBoard(object) ? (
                       <div className="ws-mini-board">
@@ -253,7 +259,7 @@ export function WorkspaceHome({
                   <span>
                     <strong>{card.title}</strong>
                     <small>
-                      {workspaceTitle(entry.name)} · {column}
+                      {workspaceDisplayTitle(entry.name)} · {column}
                     </small>
                   </span>
                 </button>

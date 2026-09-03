@@ -17,6 +17,7 @@ import {
   resolveNoteReference,
   type WorkspaceIndex,
   type WorkspaceTab,
+  workspaceDisplayName,
   workspaceErrorMessage,
   workspaceTitle,
 } from "./local-workspace-model";
@@ -359,7 +360,7 @@ function WorkspaceSession({
           ),
         );
         if (mounted.current) {
-          setMessage(`Saved ${saved.name} locally.`);
+          setMessage(`Saved ${workspaceDisplayName(saved.name)} locally.`);
           onRefresh();
           void refresh();
         }
@@ -609,7 +610,7 @@ function WorkspaceSession({
                 type="button"
                 data-workspace-entry={entry.kind}
                 onClick={() => void openEntry(entry)}
-                title={entry.relativePath}
+                aria-label={`Open ${workspaceDisplayName(entry.name, entry.kind)}`}
               >
                 <Icon
                   name={
@@ -620,12 +621,12 @@ function WorkspaceSession({
                         : "edit"
                   }
                 />
-                <span>{entry.name}</span>
+                <span>{workspaceDisplayName(entry.name, entry.kind)}</span>
               </button>
               <button
                 type="button"
                 className="ws-rename-entry"
-                aria-label={`Rename ${entry.kind} ${entry.name}`}
+                aria-label={`Rename ${entry.kind} ${workspaceDisplayName(entry.name, entry.kind)}`}
                 onClick={() => startRename(entry)}
               >
                 <Icon name="edit" />
@@ -775,12 +776,12 @@ function WorkspaceSession({
             }}
           >
             <Icon name={tab.document.fileType === "coach" ? "grid" : "edit"} />
-            {tab.document.name}
+            {workspaceDisplayName(tab.document.name)}
             {tab.draft !== tab.document.content && <b title="Unsaved changes">•</b>}
           </button>
           <button
             type="button"
-            aria-label={`Close ${tab.document.name}`}
+            aria-label={`Close ${workspaceDisplayName(tab.document.name)}`}
             disabled={renaming}
             onClick={() => closeTab(tab.document.relativePath)}
           >
@@ -1177,7 +1178,9 @@ function WorkspaceSession({
                     {researchOpen && onSourceTab && onResearchUrl && onSourceViewport && (
                       <WorkspaceSource
                         key={activeTab?.document.relativePath ?? "no-document"}
-                        destination={activeTab?.document.name ?? null}
+                        destination={
+                          activeTab ? workspaceDisplayName(activeTab.document.name) : null
+                        }
                         tabs={browserTabs}
                         active={sourceTab}
                         suspended={
@@ -1216,7 +1219,7 @@ function WorkspaceSession({
                               if (entry) void openEntry(entry);
                             }}
                           >
-                            {document.name}
+                            {workspaceDisplayName(document.name)}
                           </button>
                         ))}
                         {!incoming.length && (
@@ -1297,7 +1300,7 @@ function WorkspaceSession({
                                 : "edit"
                           }
                         />
-                        <strong>{entry.name}</strong>
+                        <strong>{workspaceDisplayName(entry.name, entry.kind)}</strong>
                         <small>{entry.kind === "folder" ? "Folder" : entry.fileType}</small>
                       </button>
                     ))}

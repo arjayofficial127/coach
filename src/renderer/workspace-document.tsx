@@ -1,7 +1,12 @@
 import { type ReactNode, useRef, useState } from "react";
 import { isCoachBoard, parseCoachObject, writeCoachObject } from "../shared/coach-board";
 import { Icon } from "./icon";
-import { insertMarkdown, type WorkspaceTab, workspaceTitle } from "./local-workspace-model";
+import {
+  insertMarkdown,
+  type WorkspaceTab,
+  workspaceDisplayName,
+  workspaceDisplayTitle,
+} from "./local-workspace-model";
 import { WorkspaceBoard } from "./workspace-board";
 import { WorkspaceMarkdown } from "./workspace-markdown";
 
@@ -45,6 +50,8 @@ export function WorkspaceDocument({
   const input = useRef<HTMLTextAreaElement>(null);
   const coach = tab.document.fileType === "coach" ? parseCoachObject(tab.draft) : null;
   const dirty = tab.draft !== tab.document.content;
+  const displayName = workspaceDisplayName(tab.document.name);
+  const displayTitle = workspaceDisplayTitle(tab.document.name);
   const insert = (template: string) => {
     const source = input.current;
     const result = insertMarkdown(
@@ -64,7 +71,7 @@ export function WorkspaceDocument({
     <textarea
       ref={input}
       className="ws-source"
-      aria-label={`Edit ${tab.document.name}`}
+      aria-label={`Edit ${displayName}`}
       value={tab.draft}
       onChange={(event) => onChange(event.target.value)}
       spellCheck={tab.document.fileType !== "coach"}
@@ -93,10 +100,10 @@ export function WorkspaceDocument({
             <button
               type="button"
               className="ws-title-button"
-              aria-label={`Rename file ${tab.document.name}`}
+              aria-label={`Rename file ${displayName}`}
               onClick={onRename}
             >
-              {workspaceTitle(tab.document.name)} <Icon name="edit" />
+              {displayTitle} <Icon name="edit" />
             </button>
           </h2>
           {tab.document.relativePath.includes("/") && (
@@ -148,6 +155,22 @@ export function WorkspaceDocument({
           Reload saved file
         </button>
       </div>
+      <details className="ws-file-details">
+        <summary>File details</summary>
+        <dl>
+          <dt>Filename</dt>
+          <dd>{tab.document.name}</dd>
+          <dt>Location in this desktop</dt>
+          <dd>{tab.document.relativePath.split("/").slice(0, -1).join(" / ") || "Desktop root"}</dd>
+          <dt>Last saved</dt>
+          <dd>
+            <time dateTime={tab.document.updatedAt}>
+              {new Date(tab.document.updatedAt).toLocaleString()}
+            </time>
+          </dd>
+        </dl>
+        <small>Display names are simplified. The file on disk and its links are unchanged.</small>
+      </details>
       {history && (
         <div className="ws-history">
           <strong>Previous saves in this session</strong>
@@ -201,7 +224,7 @@ export function WorkspaceDocument({
               onChange={onChange}
               onLink={onLink}
               onEmbed={onEmbed}
-              titleAlreadyShown={workspaceTitle(tab.document.name)}
+              titleAlreadyShown={displayTitle}
             />
           )}
         </>

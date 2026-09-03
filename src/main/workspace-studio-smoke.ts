@@ -16,6 +16,7 @@ export interface WorkspaceStudioEvidence {
   folderRename: boolean;
   renameDraftRetained: boolean;
   renamedInboxCapture: boolean;
+  readableCaptureTitles: boolean;
   renameScreenshotPath: string;
   homeScreenshotPath: string;
   editorScreenshotPath: string;
@@ -147,6 +148,54 @@ export async function verifyWorkspaceStudio(
   );
   const homeScreenshotPath = await capture("workspace-studio-home.png");
   console.log("[smoke] workspace Home captured");
+  await wait(
+    "document.querySelector('.ws-preview-card strong')?.textContent === 'Workspace studio Inbox smoke'",
+    "capture card has a human title",
+  );
+  const capturedNote = await evaluate<{
+    name: string;
+    relativePath: string;
+    content: string;
+    updatedAt: string;
+  }>(`(async () => {
+    const desktopId = document.querySelector('.ws-studio').dataset.desktopId;
+    const listing = await window.lattice.localWorkspace.listDirectory({desktopId, relativePath: 'Inbox'});
+    const entry = listing.entries.find(item => item.name.includes('Workspace studio Inbox smoke'));
+    if (!entry) throw new Error('Missing captured note');
+    return window.lattice.localWorkspace.readFile({desktopId, relativePath: entry.relativePath});
+  })()`);
+  await evaluate(
+    "document.querySelector('.ws-preview-card[aria-label=\"Open Workspace studio Inbox smoke\"]').click()",
+  );
+  await wait(
+    "document.querySelector('.ws-panes > .ws-document h2')?.textContent.trim() === 'Workspace studio Inbox smoke' && [...document.querySelectorAll('.ws-tabs button')].some(item => item.textContent.trim() === 'Workspace studio Inbox smoke.md')",
+    "capture editor and tab have human titles",
+  );
+  await wait(
+    "!document.querySelector('.ws-panes > .ws-document .ws-file-details').open && !document.querySelector('.ws-panes > .ws-document .ws-markdown h1')",
+    "technical details closed and duplicate heading hidden",
+  );
+  await evaluate(
+    "document.querySelector('.ws-panes > .ws-document .ws-file-details summary').click()",
+  );
+  await wait(
+    `document.querySelector('.ws-panes > .ws-document .ws-file-details').open && document.querySelector('.ws-panes > .ws-document .ws-file-details').textContent.includes(${JSON.stringify(capturedNote.name)})`,
+    "exact filename available on demand",
+  );
+  await capture("workspace-readable-title.png");
+  await click(".ws-panes > .ws-document .ws-document-header", "Workspace studio Inbox smoke");
+  await wait(
+    `document.querySelector('[aria-label="New title"]')?.value === ${JSON.stringify(capturedNote.name.slice(0, -3))}`,
+    "explicit rename still shows the real filename stem",
+  );
+  await click(".ws-rename-form", "Cancel");
+  const readableCaptureTitles = await evaluate<boolean>(`(async () => {
+    const desktopId = document.querySelector('.ws-studio').dataset.desktopId;
+    const saved = await window.lattice.localWorkspace.readFile({desktopId, relativePath: ${JSON.stringify(capturedNote.relativePath)}});
+    return saved.name === ${JSON.stringify(capturedNote.name)} && saved.content === ${JSON.stringify(capturedNote.content)} && saved.updatedAt === ${JSON.stringify(capturedNote.updatedAt)};
+  })()`);
+  if (!readableCaptureTitles) throw new Error("Title presentation changed the saved file");
+  await click(".ws-tabs", "Workspace smoke note.md");
   await click(".ws-sidebar-nav", "Files & notes");
   await click(".ws-panes > .ws-document .ws-document-tools", "Write");
   const renamedDraft = `${content}\nDraft retained across an explicit rename.\n`;
@@ -212,6 +261,7 @@ export async function verifyWorkspaceStudio(
     folderRename: true,
     renameDraftRetained,
     renamedInboxCapture,
+    readableCaptureTitles,
     renameScreenshotPath,
     homeScreenshotPath,
     editorScreenshotPath,

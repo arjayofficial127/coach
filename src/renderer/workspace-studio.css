@@ -789,6 +789,24 @@
   line-height: 1.8;
   tab-size: 2;
 }
+.ws-file-details {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.ws-file-details summary {
+  cursor: pointer;
+  width: fit-content;
+}
+.ws-file-details dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 16px;
+}
+.ws-file-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 .ws-document-status {
   display: flex;
   align-items: center;
