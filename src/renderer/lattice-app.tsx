@@ -5214,6 +5214,10 @@ export function LatticeApp() {
                   if (researchScopeRef.current === scope) setBrowserSnapshot(next);
                 }}
                 onFocus={toggleDistractionFree}
+                onShowNavigation={() => {
+                  if (focusMode) toggleDistractionFree();
+                  setNavigationView(true);
+                }}
                 onOpenApp={showRunnableApp}
                 sessionKey={`${profileState?.activeProfileId ?? "pending"}:${vault?.id ?? "disconnected"}`}
                 onSettings={() => setSurface("settings")}

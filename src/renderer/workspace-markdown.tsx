@@ -154,14 +154,14 @@ export function WorkspaceMarkdown({
     <article className="ws-markdown" data-markdown-preview>
       {body.length > 100_000 && (
         <p className="ws-notice">
-          Preview shows the first 100,000 characters. Use Write to edit the complete file.
+          Preview shows the first 100,000 characters. Use Markdown source to edit the complete file.
         </p>
       )}
       {blocks.length ? (
         blocks
       ) : (
         <p className="ws-muted">
-          Your note starts here. Switch to Write to add your first thought.
+          Your note starts here. Choose Edit note to add your first thought.
         </p>
       )}
     </article>

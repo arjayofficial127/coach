@@ -27,6 +27,7 @@ import { WorkspacePortal } from "./workspace-portal";
 import { WorkspaceSource } from "./workspace-source";
 import "./workspace-studio.css";
 import "./workspace-vision.css";
+import "./workspace-calm.css";
 
 type NewEntryKind = "folder" | "board" | "planner" | WorkspaceEditableFileType;
 type View = "home" | "files" | "recent";
@@ -55,6 +56,7 @@ interface Props {
   onResearchUrl?: (url: string) => Promise<void>;
   onSourceViewport?: (node: HTMLDivElement | null) => void;
   onFocus?: () => void;
+  onShowNavigation?: () => void;
   onOpenApp?: (id: "pomodoro") => void;
   desktopId: string;
   desktopName: string;
@@ -92,6 +94,7 @@ function WorkspaceSession({
   onResearchUrl,
   onSourceViewport,
   onFocus,
+  onShowNavigation,
   onOpenApp,
 }: Props) {
   const cacheKey = `${sessionKey}:${desktopId}`;
@@ -99,6 +102,19 @@ function WorkspaceSession({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [view, setView] = useState<View>("home");
+  const [foldersOpen, setFoldersOpen] = useState(false);
+  const [connectionsOpen, setConnectionsOpen] = useState(false);
+  const [toolbarTarget, setToolbarTarget] = useState<HTMLDivElement | null>(null);
+  const [openTools, setOpenTools] = useState<Set<string>>(new Set());
+  const handleToolsOpen = useCallback((path: string, open: boolean) => {
+    setOpenTools((current) => {
+      if (current.has(path) === open) return current;
+      const next = new Set(current);
+      if (open) next.add(path);
+      else next.delete(path);
+      return next;
+    });
+  }, []);
   const [researchOpen, setResearchOpen] = useState(false);
   const [folder, setFolder] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set([""]));
@@ -211,6 +227,8 @@ function WorkspaceSession({
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const activeTab = tabs.find((tab) => tab.document.relativePath === activePath) ?? null;
   const besideTab = tabs.find((tab) => tab.document.relativePath === besidePath) ?? null;
+  const calmNote = view === "files" && Boolean(activeTab);
+  const currentFolder = calmNote ? (activePath?.split("/").slice(0, -1).join("/") ?? "") : folder;
   const documents = useMemo(
     () => ({
       ...index?.documents,
@@ -294,6 +312,11 @@ function WorkspaceSession({
       if (beside && entry.relativePath !== activePath) setBesidePath(entry.relativePath);
       else {
         setActivePath(entry.relativePath);
+        setConnectionsOpen(false);
+        if (view !== "files") {
+          setBesidePath(null);
+          setResearchOpen(false);
+        }
         if (entry.relativePath === besidePath) setBesidePath(null);
       }
       setChooseBeside(false);
@@ -360,7 +383,9 @@ function WorkspaceSession({
           ),
         );
         if (mounted.current) {
-          setMessage(`Saved ${workspaceDisplayName(saved.name)} locally.`);
+          // The document toolbar already announces saved/dirty state. Keep notices
+          // for actionable errors and explicit operations, not a second success banner.
+          setMessage("");
           onRefresh();
           void refresh();
         }
@@ -711,6 +736,19 @@ function WorkspaceSession({
       key={tab.document.relativePath}
       tab={tab}
       saving={savingPaths.has(tab.document.relativePath)}
+      toolbarTarget={tab.document.relativePath === activePath ? toolbarTarget : null}
+      disabled={renaming}
+      onToolsOpen={handleToolsOpen}
+      onRefresh={() => {
+        onRefresh();
+        void refresh();
+      }}
+      onReveal={onReveal}
+      onConnections={
+        tab.document.relativePath === activePath
+          ? () => setConnectionsOpen((current) => !current)
+          : undefined
+      }
       onEmbed={(target) => renderEmbed(target, tab.document.relativePath)}
       onResearch={() => setResearchOpen((current) => !current)}
       onChange={(draft) =>
@@ -809,78 +847,121 @@ function WorkspaceSession({
       data-workspace-browser
       data-desktop-id={desktopId}
       data-view={view}
+      data-calm-note={calmNote}
+      data-folders-open={foldersOpen}
     >
       {tabsTarget && <WorkspacePortal target={tabsTarget}>{fileTabs}</WorkspacePortal>}
       <header className="ws-header">
-        <div>
-          <h1>{desktopName}</h1>
-          <span className="ws-local-badge">
-            <span />
-            Local only
-          </span>
-        </div>
+        {calmNote ? (
+          <nav className="ws-calm-location" aria-label="Current folder">
+            <button
+              type="button"
+              aria-label="Toggle folders and search"
+              aria-expanded={foldersOpen}
+              onClick={() => {
+                if (!foldersOpen) onShowNavigation?.();
+                setFoldersOpen(!foldersOpen);
+              }}
+            >
+              <Icon name="folder" />
+            </button>
+            <button type="button" onClick={() => setView("home")}>
+              {desktopName}
+            </button>
+            {currentFolder
+              .split("/")
+              .filter(Boolean)
+              .map((part, i, parts) => (
+                <span key={parts.slice(0, i + 1).join("/")}>
+                  {" "}
+                  /{" "}
+                  <button
+                    type="button"
+                    onClick={() => void openFolder(parts.slice(0, i + 1).join("/"))}
+                  >
+                    {part}
+                  </button>
+                </span>
+              ))}
+          </nav>
+        ) : (
+          <div>
+            <h1>{desktopName}</h1>
+            <span className="ws-local-badge">
+              <span />
+              Local only
+            </span>
+          </div>
+        )}
         <div className="ws-header-actions">
+          {calmNote && <div className="ws-toolbar-slot" ref={setToolbarTarget} />}
           {onFocus && (
             <button type="button" onClick={onFocus}>
               <Icon name="sparkle" />
               Focus
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => {
-              onRefresh();
-              void refresh();
-            }}
-            disabled={loading || busy || renaming}
-          >
-            <Icon name="reload" />
-            {loading ? "Refreshing…" : "Refresh"}
-          </button>
-          <button type="button" onClick={onReveal}>
-            <Icon name="folder" />
-            Open in Explorer
-          </button>
-          <button
-            type="button"
-            className="primary-action"
-            aria-expanded={newMenu}
-            disabled={renaming}
-            onClick={() => setNewMenu(!newMenu)}
-          >
-            <Icon name="plus" />
-            New
-            <Icon name="chevron-down" />
-          </button>
+          {!calmNote && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  onRefresh();
+                  void refresh();
+                }}
+                disabled={loading || busy || renaming}
+              >
+                <Icon name="reload" />
+                {loading ? "Refreshing…" : "Refresh"}
+              </button>
+              <button type="button" onClick={onReveal}>
+                <Icon name="folder" />
+                Open in Explorer
+              </button>
+              <button
+                type="button"
+                className="primary-action"
+                aria-expanded={newMenu}
+                disabled={renaming}
+                onClick={() => setNewMenu(!newMenu)}
+              >
+                <Icon name="plus" />
+                New
+                <Icon name="chevron-down" />
+              </button>
+            </>
+          )}
         </div>
       </header>
-      <div className="ws-navigation">
-        <nav aria-label="Workspace views">
-          {(["home", "files", "recent"] as const).map((item) => (
-            <button
-              type="button"
-              key={item}
-              aria-current={view === item ? "page" : undefined}
-              onClick={() => setView(item)}
-            >
-              {item[0]?.toUpperCase()}
-              {item.slice(1)}
-            </button>
-          ))}
-        </nav>
-        <label className="ws-search">
-          <Icon name="search" />
-          <input
-            aria-label="Find workspace files"
-            value={query}
-            placeholder="Find a file…"
-            onChange={(event) => {
-              setQuery(event.target.value);
-              if (event.target.value) setView("recent");
-            }}
-          />
-        </label>
-      </div>
+      {!calmNote && (
+        <div className="ws-navigation">
+          <nav aria-label="Workspace views">
+            {(["home", "files", "recent"] as const).map((item) => (
+              <button
+                type="button"
+                key={item}
+                aria-current={view === item ? "page" : undefined}
+                onClick={() => setView(item)}
+              >
+                {item[0]?.toUpperCase()}
+                {item.slice(1)}
+              </button>
+            ))}
+          </nav>
+          <label className="ws-search">
+            <Icon name="search" />
+            <input
+              aria-label="Find workspace files"
+              value={query}
+              placeholder="Find a file…"
+              onChange={(event) => {
+                setQuery(event.target.value);
+                if (event.target.value) setView("recent");
+              }}
+            />
+          </label>
+        </div>
+      )}
       {newMenu && (
         <div className="ws-new-menu">
           <small>Create in {folder || desktopName}</small>
@@ -1004,7 +1085,36 @@ function WorkspaceSession({
       )}
       <fieldset className="ws-body" disabled={renaming}>
         <WorkspacePortal target={sidebarTarget}>
-          <fieldset className="ws-sidebar-surface" disabled={renaming}>
+          <fieldset
+            className="ws-sidebar-surface"
+            disabled={renaming}
+            hidden={calmNote && !foldersOpen}
+          >
+            <div className="ws-folder-tools">
+              <label className="ws-search">
+                <Icon name="search" />
+                <input
+                  aria-label="Search folders and files"
+                  placeholder="Find a file…"
+                  value={query}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    if (event.target.value) setView("recent");
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setFolder(currentFolder);
+                  setNewMenu(!newMenu);
+                }}
+                aria-expanded={newMenu}
+              >
+                <Icon name="plus" />
+                New
+              </button>
+            </div>
             <nav className="ws-sidebar-nav" aria-label="Local workspace navigation">
               <button
                 type="button"
@@ -1109,27 +1219,29 @@ function WorkspaceSession({
           )}
           {view === "files" && (
             <div className="ws-editing">
-              <nav className="ws-breadcrumbs" aria-label="Current folder">
-                <button type="button" onClick={() => void openFolder("")}>
-                  {desktopName}
-                </button>
-                {folder
-                  .split("/")
-                  .filter(Boolean)
-                  .map((part, i, parts) => (
-                    <span key={parts.slice(0, i + 1).join("/")}>
-                      {" "}
-                      /{" "}
-                      <button
-                        type="button"
-                        onClick={() => void openFolder(parts.slice(0, i + 1).join("/"))}
-                      >
-                        {part}
-                      </button>
-                    </span>
-                  ))}
-              </nav>
-              {!tabsTarget && fileTabs}
+              {!calmNote && (
+                <nav className="ws-breadcrumbs" aria-label="Current folder">
+                  <button type="button" onClick={() => void openFolder("")}>
+                    {desktopName}
+                  </button>
+                  {folder
+                    .split("/")
+                    .filter(Boolean)
+                    .map((part, i, parts) => (
+                      <span key={parts.slice(0, i + 1).join("/")}>
+                        {" "}
+                        /{" "}
+                        <button
+                          type="button"
+                          onClick={() => void openFolder(parts.slice(0, i + 1).join("/"))}
+                        >
+                          {part}
+                        </button>
+                      </span>
+                    ))}
+                </nav>
+              )}
+              {!tabsTarget && (!calmNote || tabs.length > 1) && fileTabs}
               {chooseBeside && (
                 <div className="ws-split-picker">
                   <strong>Open a file beside this one</strong>
@@ -1185,6 +1297,7 @@ function WorkspaceSession({
                         active={sourceTab}
                         suspended={
                           renaming ||
+                          openTools.size > 0 ||
                           newMenu ||
                           Boolean(newKind || renameTarget || reloadPath || chooseBeside)
                         }
@@ -1197,76 +1310,83 @@ function WorkspaceSession({
                       />
                     )}
                   </div>
-                  <details className="ws-link-context">
-                    <summary>
-                      Connections · {incoming.length} incoming · {references.length} outgoing
-                    </summary>
-                    <p className="ws-muted">
-                      From indexed notes and boards in this desktop. Refresh after outside edits.
-                      Repair links by editing the source; no files are automatically changed.
-                    </p>
-                    <div className="ws-context-columns">
-                      <section>
-                        <h3>Backlinks</h3>
-                        {incoming.map((document) => (
-                          <button
-                            type="button"
-                            key={document.relativePath}
-                            onClick={() => {
-                              const entry = entries.find(
-                                (item) => item.relativePath === document.relativePath,
-                              );
-                              if (entry) void openEntry(entry);
-                            }}
-                          >
-                            {workspaceDisplayName(document.name)}
-                          </button>
-                        ))}
-                        {!incoming.length && (
-                          <small>No incoming links found in the indexed files.</small>
-                        )}
-                      </section>
-                      <section>
-                        <h3>Outgoing references</h3>
-                        {[
-                          ...new Map(
-                            references.map((reference) => [reference.target, reference]),
-                          ).values(),
-                        ].map((reference) => {
-                          const resolved = resolveNoteReference(
-                            reference.target,
-                            activePath ?? "",
-                            entries,
-                          );
-                          return (
+                  {connectionsOpen && (
+                    <section className="ws-link-context" aria-label="Connections">
+                      <header>
+                        <h3>
+                          Connections · {incoming.length} incoming · {references.length} outgoing
+                        </h3>
+                        <button type="button" onClick={() => setConnectionsOpen(false)}>
+                          Close connections
+                        </button>
+                      </header>
+                      <p className="ws-muted">
+                        From indexed notes and boards in this desktop. Refresh after outside edits.
+                        Repair links by editing the source; no files are automatically changed.
+                      </p>
+                      <div className="ws-context-columns">
+                        <section>
+                          <h3>Backlinks</h3>
+                          {incoming.map((document) => (
                             <button
                               type="button"
-                              key={reference.target}
-                              onClick={() => handleLink(reference.target, activePath ?? "")}
+                              key={document.relativePath}
+                              onClick={() => {
+                                const entry = entries.find(
+                                  (item) => item.relativePath === document.relativePath,
+                                );
+                                if (entry) void openEntry(entry);
+                              }}
                             >
-                              <span>
-                                {resolved.kind === "blocked"
-                                  ? "Blocked private or unsafe reference"
-                                  : reference.label}
-                              </span>
-                              <small>
-                                {resolved.kind === "missing"
-                                  ? "Not found · review"
-                                  : resolved.kind === "ambiguous"
-                                    ? "Ambiguous · review"
-                                    : resolved.kind === "url"
-                                      ? "HTTPS source · not fetched"
-                                      : resolved.kind}
-                              </small>
+                              {workspaceDisplayName(document.name)}
                             </button>
-                          );
-                        })}
-                        {!references.length && (
-                          <small>Add [[Note name]] to connect this file.</small>
-                        )}
-                      </section>
-                    </div>
-                  </details>
+                          ))}
+                          {!incoming.length && (
+                            <small>No incoming links found in the indexed files.</small>
+                          )}
+                        </section>
+                        <section>
+                          <h3>Outgoing references</h3>
+                          {[
+                            ...new Map(
+                              references.map((reference) => [reference.target, reference]),
+                            ).values(),
+                          ].map((reference) => {
+                            const resolved = resolveNoteReference(
+                              reference.target,
+                              activePath ?? "",
+                              entries,
+                            );
+                            return (
+                              <button
+                                type="button"
+                                key={reference.target}
+                                onClick={() => handleLink(reference.target, activePath ?? "")}
+                              >
+                                <span>
+                                  {resolved.kind === "blocked"
+                                    ? "Blocked private or unsafe reference"
+                                    : reference.label}
+                                </span>
+                                <small>
+                                  {resolved.kind === "missing"
+                                    ? "Not found · review"
+                                    : resolved.kind === "ambiguous"
+                                      ? "Ambiguous · review"
+                                      : resolved.kind === "url"
+                                        ? "HTTPS source · not fetched"
+                                        : resolved.kind}
+                                </small>
+                              </button>
+                            );
+                          })}
+                          {!references.length && (
+                            <small>Add [[Note name]] to connect this file.</small>
+                          )}
+                        </section>
+                      </div>
+                    </section>
+                  )}
                 </>
               ) : (
                 <div className="ws-folder-home">
@@ -1313,19 +1433,21 @@ function WorkspaceSession({
               )}
             </div>
           )}
-          <footer className="ws-bottom">
-            <span>
-              <Icon name="lock" />
-              Your files stay on this computer. Notes are never deleted here.
-            </span>
-            <span>
-              {loading
-                ? "Reading local files…"
-                : index?.partial
-                  ? "Partial index · larger files and folders may be omitted"
-                  : `${files.length} local files`}
-            </span>
-          </footer>
+          {(!calmNote || index?.partial) && (
+            <footer className="ws-bottom">
+              <span>
+                <Icon name="lock" />
+                Your files stay on this computer. Notes are never deleted here.
+              </span>
+              <span>
+                {loading
+                  ? "Reading local files…"
+                  : index?.partial
+                    ? "Partial index · larger files and folders may be omitted"
+                    : `${files.length} local files`}
+              </span>
+            </footer>
+          )}
         </div>
       </fieldset>
     </div>

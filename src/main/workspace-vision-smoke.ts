@@ -20,12 +20,35 @@ export async function verifyWorkspaceVision(
     throw new Error(`Workspace vision gate: ${label}`);
   };
   const dom = (source: string, label: string) => wait(() => evaluate<boolean>(source), label);
-  const click = (scope: string, label: string) =>
-    evaluate(`(() => {
-    const button = [...document.querySelectorAll(${JSON.stringify(scope + " button")})].find(item => item.textContent?.trim() === ${JSON.stringify(label)});
-    if (!button || button.disabled) throw new Error('Missing enabled vision control: ' + ${JSON.stringify(label)});
-    button.click();
-  })()`);
+  const click = async (scope: string, label: string) => {
+    const isNote = await evaluate<boolean>(
+      "Boolean(document.querySelector('.ws-studio[data-calm-note=\\\"true\\\"]'))",
+    );
+    if (
+      isNote &&
+      (scope.includes(".ws-sidebar-nav") ||
+        scope.includes(".ws-tree") ||
+        (scope === ".ws-header-actions" && label === "New"))
+    ) {
+      await evaluate(
+        "(() => { const toggle = document.querySelector('[aria-label=\\\"Toggle folders and search\\\"]'); if(toggle?.getAttribute('aria-expanded') === 'false') toggle.click(); })()",
+      );
+      if (scope === ".ws-header-actions") scope = ".ws-folder-tools";
+    }
+    if (scope.includes(".ws-document-tools")) {
+      scope = ".ws-toolbar-slot .ws-document-tools";
+      await evaluate(
+        "(() => { const toggle = document.querySelector('.ws-toolbar-slot [aria-label^=\\\"Note tools for\\\"]'); if(toggle?.getAttribute('aria-expanded') === 'false') toggle.click(); })()",
+      );
+      if (label === "Write") label = "Markdown source";
+    } else if (scope.includes(".ws-document-header") && label === "Save")
+      scope = ".ws-toolbar-slot";
+    await evaluate(`(() => {
+      const button = [...document.querySelectorAll(${JSON.stringify(`${scope} button`)})].find(item => item.textContent?.trim() === ${JSON.stringify(label)});
+      if (!button || button.disabled || !button.getClientRects().length) throw new Error('Missing visible enabled workspace control: ' + ${JSON.stringify(label)});
+      button.click();
+    })()`);
+  };
   const fill = (selector: string, value: string) =>
     evaluate(`(() => {
     const input = document.querySelector(${JSON.stringify(selector)});
@@ -73,7 +96,7 @@ export async function verifyWorkspaceVision(
   await fill(".ws-panes > .ws-document .ws-source", baseline);
   await click(".ws-panes > .ws-document .ws-document-header", "Save");
   await dom(
-    "document.querySelector('.ws-panes > .ws-document .ws-document-status')?.textContent.includes('Saved locally')",
+    "document.querySelector('.ws-toolbar-slot .ws-document-status')?.textContent.includes('Saved locally')",
     "embed note saved",
   );
   await click(".ws-panes > .ws-document .ws-document-tools", "Preview");
@@ -110,6 +133,14 @@ export async function verifyWorkspaceVision(
     (view) => view instanceof WebContentsView && view.getVisible(),
   );
   console.log("[smoke] workspace vision native source");
+  await evaluate(
+    "document.querySelector('.ws-toolbar-slot [aria-label^=\"Note tools for\"]').click()",
+  );
+  await wait(() => !runtime.isVisible(), "native source hidden behind note tools");
+  await evaluate(
+    "document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))",
+  );
+  await wait(() => runtime.isVisible(), "native source returns after note tools close");
   if (!(native instanceof WebContentsView))
     throw new Error("Research did not use a native WebContentsView");
   const hostileText =
@@ -177,7 +208,7 @@ export async function verifyWorkspaceVision(
     throw new Error(`Quote capture round trip failed: ${JSON.stringify(beforeSave)}`);
   await click(".ws-panes > .ws-document .ws-document-header", "Save");
   await dom(
-    "document.querySelector('.ws-panes > .ws-document .ws-document-status')?.textContent.includes('Saved locally')",
+    "document.querySelector('.ws-toolbar-slot .ws-document-status')?.textContent.includes('Saved locally')",
     "explicit source save",
   );
   await click(".ws-panes > .ws-document .ws-document-tools", "Preview");

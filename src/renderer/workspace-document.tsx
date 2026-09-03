@@ -1,4 +1,4 @@
-import { type ReactNode, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { isCoachBoard, parseCoachObject, writeCoachObject } from "../shared/coach-board";
 import { Icon } from "./icon";
 import {
@@ -9,6 +9,8 @@ import {
 } from "./local-workspace-model";
 import { WorkspaceBoard } from "./workspace-board";
 import { WorkspaceMarkdown } from "./workspace-markdown";
+import { notePage, writeNotePage } from "./workspace-page-model";
+import { WorkspacePortal } from "./workspace-portal";
 
 const inserts = [
   ["Heading", "\n## $selection\n"],
@@ -31,6 +33,12 @@ export function WorkspaceDocument({
   onRename,
   onEmbed,
   onResearch,
+  toolbarTarget = null,
+  onRefresh,
+  onReveal,
+  onConnections,
+  onToolsOpen,
+  disabled = false,
 }: {
   tab: WorkspaceTab;
   saving: boolean;
@@ -42,25 +50,86 @@ export function WorkspaceDocument({
   onRename: () => void;
   onEmbed?: (target: string) => ReactNode;
   onResearch?: () => void;
+  toolbarTarget?: HTMLElement | null;
+  onRefresh?: () => void;
+  onReveal?: () => void;
+  onConnections?: () => void;
+  onToolsOpen?: (path: string, open: boolean) => void;
+  disabled?: boolean;
 }) {
-  const [mode, setMode] = useState<"write" | "preview">("preview");
+  const [mode, setMode] = useState<"page" | "write" | "preview">("page");
   const [raw, setRaw] = useState(false);
   const [history, setHistory] = useState(false);
   const [insertOpen, setInsertOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const menu = useRef<HTMLFieldSetElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const coach = tab.document.fileType === "coach" ? parseCoachObject(tab.draft) : null;
   const dirty = tab.draft !== tab.document.content;
   const displayName = workspaceDisplayName(tab.document.name);
   const displayTitle = workspaceDisplayTitle(tab.document.name);
+  const [pagePrefix, setPagePrefix] = useState(() => notePage(tab.draft, displayTitle).prefix);
+  const page = tab.draft.startsWith(pagePrefix)
+    ? { prefix: pagePrefix, body: tab.draft.slice(pagePrefix.length) }
+    : notePage(tab.draft, displayTitle);
+  const isPage = tab.document.fileType === "markdown" && mode === "page";
+  const changeText = (value: string) => {
+    if (!isPage) return onChange(value);
+    const source = writeNotePage(page, value);
+    setPagePrefix(source.slice(0, source.length - value.length));
+    onChange(source);
+  };
+  const selectMode = (next: typeof mode) => {
+    if (next === "page") setPagePrefix(notePage(tab.draft, displayTitle).prefix);
+    setMode(next);
+  };
+  useEffect(() => {
+    onToolsOpen?.(tab.document.relativePath, toolsOpen || insertOpen);
+    return () => onToolsOpen?.(tab.document.relativePath, false);
+  }, [toolsOpen, insertOpen, onToolsOpen, tab.document.relativePath]);
+  useEffect(() => {
+    if (!toolsOpen && !insertOpen) return;
+    if (toolsOpen) menu.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    const dismiss = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !menu.current?.contains(event.target) &&
+        !menuButton.current?.contains(event.target)
+      )
+        setToolsOpen(false);
+    };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        setToolsOpen(false);
+        setInsertOpen(false);
+        if (toolsOpen) menuButton.current?.focus();
+        else input.current?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", dismissOnEscape, true);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener("keydown", dismissOnEscape, true);
+    };
+  }, [toolsOpen, insertOpen]);
+  const action = (run: () => void) => {
+    setToolsOpen(false);
+    menuButton.current?.focus();
+    run();
+  };
   const insert = (template: string) => {
     const source = input.current;
     const result = insertMarkdown(
-      tab.draft,
-      source?.selectionStart ?? tab.draft.length,
-      source?.selectionEnd ?? tab.draft.length,
+      isPage ? page.body : tab.draft,
+      source?.selectionStart ?? (isPage ? page.body.length : tab.draft.length),
+      source?.selectionEnd ?? (isPage ? page.body.length : tab.draft.length),
       template,
     );
-    onChange(result.content);
+    changeText(result.content);
     setInsertOpen(false);
     requestAnimationFrame(() => {
       input.current?.focus();
@@ -70,13 +139,18 @@ export function WorkspaceDocument({
   const sourceEditor = (
     <textarea
       ref={input}
-      className="ws-source"
+      className={`ws-source ${isPage || tab.document.fileType === "text" ? "ws-page-input" : ""}`}
       aria-label={`Edit ${displayName}`}
-      value={tab.draft}
-      onChange={(event) => onChange(event.target.value)}
+      value={isPage ? page.body : tab.draft}
+      placeholder="Continue your thought…"
+      onChange={(event) => changeText(event.target.value)}
       spellCheck={tab.document.fileType !== "coach"}
       onKeyDown={(event) => {
-        if (event.key === "/" && (event.ctrlKey || event.metaKey)) {
+        if (
+          tab.document.fileType === "markdown" &&
+          event.key === "/" &&
+          (event.ctrlKey || event.metaKey)
+        ) {
           event.preventDefault();
           setInsertOpen(true);
         }
@@ -89,13 +163,115 @@ export function WorkspaceDocument({
       data-workspace-editor
       data-workspace-file={tab.document.relativePath}
     >
+      <WorkspacePortal target={toolbarTarget}>
+        <fieldset
+          className="ws-note-toolbar"
+          disabled={disabled}
+          data-workspace-file={tab.document.relativePath}
+        >
+          <span className={`ws-document-status ${dirty ? "ws-unsaved" : "ws-saved"}`} role="status">
+            <Icon name={dirty ? "edit" : "check"} />
+            {saving ? "Saving…" : dirty ? "Unsaved changes" : "Saved locally"}
+          </span>
+          {(dirty || saving) && (
+            <button type="button" className="primary-action" disabled={saving} onClick={onSave}>
+              {saving ? "Saving…" : "Save"}
+            </button>
+          )}
+          <button
+            ref={menuButton}
+            type="button"
+            aria-label={`Note tools for ${displayTitle}`}
+            aria-expanded={toolsOpen}
+            onClick={() => setToolsOpen(!toolsOpen)}
+          >
+            <Icon name="more" />
+          </button>
+          {toolsOpen && (
+            <fieldset
+              className="ws-document-tools"
+              ref={menu}
+              aria-label="Note tools"
+              onBlur={(event) => {
+                if (
+                  event.relatedTarget instanceof Node &&
+                  !event.currentTarget.contains(event.relatedTarget) &&
+                  event.relatedTarget !== menuButton.current
+                )
+                  setToolsOpen(false);
+              }}
+            >
+              {tab.document.fileType === "markdown" && (
+                <>
+                  <button
+                    type="button"
+                    aria-pressed={mode === "page"}
+                    onClick={() => action(() => selectMode("page"))}
+                  >
+                    Edit note
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={mode === "write"}
+                    onClick={() => action(() => selectMode("write"))}
+                  >
+                    Markdown source
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={mode === "preview"}
+                    onClick={() => action(() => selectMode("preview"))}
+                  >
+                    Preview
+                  </button>
+                </>
+              )}
+              {tab.document.fileType === "coach" && (
+                <button type="button" onClick={() => action(() => setRaw(!raw))}>
+                  {raw ? "Visual editor" : "View JSON"}
+                </button>
+              )}
+              {onResearch && (
+                <button type="button" onClick={() => action(onResearch)}>
+                  Research beside
+                </button>
+              )}
+              <button type="button" onClick={() => action(onSplit)}>
+                Open beside
+              </button>
+              <button type="button" onClick={() => action(() => setHistory(!history))}>
+                Session history
+              </button>
+              <button type="button" onClick={() => action(() => setDetailsOpen(!detailsOpen))}>
+                File details
+              </button>
+              {onConnections && (
+                <button type="button" onClick={() => action(onConnections)}>
+                  Connections
+                </button>
+              )}
+              <button type="button" onClick={() => action(onRename)}>
+                Rename file
+              </button>
+              <button type="button" disabled={saving} onClick={() => action(onReload)}>
+                Reload saved file
+              </button>
+              {onRefresh && (
+                <button type="button" onClick={() => action(onRefresh)}>
+                  Refresh files
+                </button>
+              )}
+              {onReveal && (
+                <button type="button" onClick={() => action(onReveal)}>
+                  Open in Explorer
+                </button>
+              )}
+            </fieldset>
+          )}
+        </fieldset>
+      </WorkspacePortal>
       <header className="ws-document-header">
         <div>
-          <span className="ws-kicker">
-            {tab.document.fileType === "coach"
-              ? `Coach · ${coach?.kind ?? "JSON needs repair"}`
-              : tab.document.fileType}
-          </span>
           <h2>
             <button
               type="button"
@@ -106,74 +282,50 @@ export function WorkspaceDocument({
               {displayTitle} <Icon name="edit" />
             </button>
           </h2>
-          {tab.document.relativePath.includes("/") && (
-            <small>{tab.document.relativePath.split("/").slice(0, -1).join(" / ")}</small>
-          )}
         </div>
-        <button
-          type="button"
-          className="primary-action"
-          disabled={!dirty || saving}
-          onClick={onSave}
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
       </header>
-      <div className="ws-document-tools">
-        {onResearch && (
-          <button type="button" onClick={onResearch}>
-            <Icon name="globe" />
-            Research beside
-          </button>
-        )}
-        {tab.document.fileType === "markdown" && (
-          <div className="ws-segmented">
-            <button type="button" aria-pressed={mode === "write"} onClick={() => setMode("write")}>
-              Write
-            </button>
+      {detailsOpen && (
+        <section className="ws-file-details" aria-label="File details">
+          <header>
+            <strong>File details</strong>
             <button
               type="button"
-              aria-pressed={mode === "preview"}
-              onClick={() => setMode("preview")}
+              aria-label="Close file details"
+              onClick={() => setDetailsOpen(false)}
             >
-              Preview
+              <Icon name="close" />
             </button>
-          </div>
-        )}
-        {tab.document.fileType === "coach" && (
-          <button type="button" onClick={() => setRaw(!raw)}>
-            {raw ? "Visual editor" : "View JSON"}
-          </button>
-        )}
-        <button type="button" onClick={onSplit}>
-          <Icon name="grid" /> Open beside
-        </button>
-        <button type="button" onClick={() => setHistory(!history)} aria-expanded={history}>
-          <Icon name="timer" /> Session history
-        </button>
-        <button type="button" onClick={onReload} disabled={saving}>
-          Reload saved file
-        </button>
-      </div>
-      <details className="ws-file-details">
-        <summary>File details</summary>
-        <dl>
-          <dt>Filename</dt>
-          <dd>{tab.document.name}</dd>
-          <dt>Location in this desktop</dt>
-          <dd>{tab.document.relativePath.split("/").slice(0, -1).join(" / ") || "Desktop root"}</dd>
-          <dt>Last saved</dt>
-          <dd>
-            <time dateTime={tab.document.updatedAt}>
-              {new Date(tab.document.updatedAt).toLocaleString()}
-            </time>
-          </dd>
-        </dl>
-        <small>Display names are simplified. The file on disk and its links are unchanged.</small>
-      </details>
+          </header>
+          <dl>
+            <dt>Filename</dt>
+            <dd>{tab.document.name}</dd>
+            <dt>Location in this desktop</dt>
+            <dd>
+              {tab.document.relativePath.split("/").slice(0, -1).join(" / ") || "Desktop root"}
+            </dd>
+            <dt>Last saved</dt>
+            <dd>
+              <time dateTime={tab.document.updatedAt}>
+                {new Date(tab.document.updatedAt).toLocaleString()}
+              </time>
+            </dd>
+            <dt>Format</dt>
+            <dd>{tab.document.fileType}</dd>
+            <dt>Source length</dt>
+            <dd>{tab.draft.length.toLocaleString()} characters</dd>
+          </dl>
+          <small>
+            Local file. Display names are simplified; generated headings and metadata remain in
+            Markdown source. Notes are never deleted here.
+          </small>
+        </section>
+      )}
       {history && (
         <div className="ws-history">
           <strong>Previous saves in this session</strong>
+          <button type="button" onClick={() => setHistory(false)}>
+            Close history
+          </button>
           <p>
             Restore creates a draft; Save is still required. These copies do not survive closing
             Coach.
@@ -195,16 +347,16 @@ export function WorkspaceDocument({
       )}
       {tab.document.fileType === "markdown" ? (
         <>
-          {mode === "write" && (
+          {mode !== "preview" && (
             <div className="ws-insert-toolbar">
               <button
                 type="button"
                 aria-expanded={insertOpen}
                 onClick={() => setInsertOpen(!insertOpen)}
               >
-                <Icon name="plus" /> Insert block
+                <Icon name="plus" />
+                <span className="ws-insert-label">Insert block</span>
               </button>
-              <small>Ctrl+/ for blocks · Ctrl+S to save</small>
               {insertOpen && (
                 <div className="ws-insert-menu">
                   {inserts.map(([label, template]) => (
@@ -216,12 +368,12 @@ export function WorkspaceDocument({
               )}
             </div>
           )}
-          {mode === "write" ? (
+          {mode !== "preview" ? (
             sourceEditor
           ) : (
             <WorkspaceMarkdown
-              content={tab.draft}
-              onChange={onChange}
+              content={page.body}
+              onChange={(value) => onChange(writeNotePage(page, value))}
               onLink={onLink}
               onEmbed={onEmbed}
               titleAlreadyShown={displayTitle}
@@ -274,12 +426,15 @@ export function WorkspaceDocument({
           {sourceEditor}
         </>
       )}
-      <footer className="ws-document-status">
-        <span className={dirty ? "ws-unsaved" : "ws-saved"}>
-          <Icon name={dirty ? "edit" : "check"} />
-          {dirty ? "Unsaved changes" : "Saved locally"}
-        </span>
-        <small>{tab.draft.length.toLocaleString()} characters</small>
+      <footer className="ws-writing-hint">
+        {mode === "preview" && tab.document.fileType === "markdown" ? (
+          <button type="button" onClick={() => selectMode("page")}>
+            Edit note
+          </button>
+        ) : (
+          "Ctrl+S to save"
+        )}
+        {tab.document.fileType === "markdown" && mode !== "preview" && " · Ctrl+/ for blocks"}
       </footer>
     </section>
   );

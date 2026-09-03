@@ -17,6 +17,8 @@ export interface WorkspaceStudioEvidence {
   renameDraftRetained: boolean;
   renamedInboxCapture: boolean;
   readableCaptureTitles: boolean;
+  calmNote: boolean;
+  calmNoteScreenshotPath: string;
   renameScreenshotPath: string;
   homeScreenshotPath: string;
   editorScreenshotPath: string;
@@ -37,10 +39,34 @@ export async function verifyWorkspaceStudio(
     }
     throw new Error(`Workspace studio gate: ${label}`);
   };
-  const click = async (scope: string, text: string) => {
-    await evaluate(
-      `(() => { const button = [...document.querySelectorAll(${JSON.stringify(`${scope} button`)})].find(item => item.textContent?.trim() === ${JSON.stringify(text)}); if (!button || button.disabled) throw new Error(${JSON.stringify(`Missing enabled button: ${text}`)}); button.click(); })()`,
+  const click = async (scope: string, label: string) => {
+    const isNote = await evaluate<boolean>(
+      "Boolean(document.querySelector('.ws-studio[data-calm-note=\\\"true\\\"]'))",
     );
+    if (
+      isNote &&
+      (scope.includes(".ws-sidebar-nav") ||
+        scope.includes(".ws-tree") ||
+        (scope === ".ws-header-actions" && label === "New"))
+    ) {
+      await evaluate(
+        "(() => { const toggle = document.querySelector('[aria-label=\\\"Toggle folders and search\\\"]'); if(toggle?.getAttribute('aria-expanded') === 'false') toggle.click(); })()",
+      );
+      if (scope === ".ws-header-actions") scope = ".ws-folder-tools";
+    }
+    if (scope.includes(".ws-document-tools")) {
+      scope = ".ws-toolbar-slot .ws-document-tools";
+      await evaluate(
+        "(() => { const toggle = document.querySelector('.ws-toolbar-slot [aria-label^=\\\"Note tools for\\\"]'); if(toggle?.getAttribute('aria-expanded') === 'false') toggle.click(); })()",
+      );
+      if (label === "Write") label = "Markdown source";
+    } else if (scope.includes(".ws-document-header") && label === "Save")
+      scope = ".ws-toolbar-slot";
+    await evaluate(`(() => {
+      const button = [...document.querySelectorAll(${JSON.stringify(`${scope} button`)})].find(item => item.textContent?.trim() === ${JSON.stringify(label)});
+      if (!button || button.disabled || !button.getClientRects().length) throw new Error('Missing visible enabled workspace control: ' + ${JSON.stringify(label)});
+      button.click();
+    })()`);
   };
   const fill = async (selector: string, value: string) => {
     await evaluate(
@@ -83,7 +109,7 @@ export async function verifyWorkspaceStudio(
     "Boolean(document.querySelector('[data-workspace-home]')) && !document.querySelector('.ws-header-actions button')?.disabled",
     "Home loaded",
   );
-  await create("Markdown note", "Workspace smoke note", "[data-markdown-preview]");
+  await create("Markdown note", "Workspace smoke note", ".ws-page-input");
   console.log("[smoke] workspace note created");
   await click(".ws-document-tools", "Write");
   await wait("Boolean(document.querySelector('.ws-source'))", "Markdown source");
@@ -176,14 +202,12 @@ export async function verifyWorkspaceStudio(
     "capture editor and tab have human titles",
   );
   await wait(
-    "!document.querySelector('.ws-panes > .ws-document .ws-file-details').open && !document.querySelector('.ws-panes > .ws-document .ws-markdown h1')",
+    "!document.querySelector('.ws-file-details') && !document.querySelector('.ws-document-tools') && document.querySelector('.ws-page-input')?.value === ''",
     "technical details closed and duplicate heading hidden",
   );
-  await evaluate(
-    "document.querySelector('.ws-panes > .ws-document .ws-file-details summary').click()",
-  );
+  await click(".ws-document-tools", "File details");
   await wait(
-    `document.querySelector('.ws-panes > .ws-document .ws-file-details').open && document.querySelector('.ws-panes > .ws-document .ws-file-details').textContent.includes(${JSON.stringify(capturedNote.name)})`,
+    `document.querySelector('.ws-panes > .ws-document .ws-file-details').textContent.includes(${JSON.stringify(capturedNote.name)})`,
     "exact filename available on demand",
   );
   await capture("workspace-readable-title.png");
@@ -199,6 +223,75 @@ export async function verifyWorkspaceStudio(
     return saved.name === ${JSON.stringify(capturedNote.name)} && saved.content === ${JSON.stringify(capturedNote.content)} && saved.updatedAt === ${JSON.stringify(capturedNote.updatedAt)};
   })()`);
   if (!readableCaptureTitles) throw new Error("Title presentation changed the saved file");
+  await click(".ws-file-details", "");
+  // The title-only capture opens as one editable page, without changing its source.
+  await evaluate(
+    "(() => { const toggle = document.querySelector('[aria-label=\"Toggle folders and search\"]'); if(toggle?.getAttribute('aria-expanded') === 'true') toggle.click(); })()",
+  );
+  await wait(
+    "!document.querySelector('.ws-file-details') && !document.querySelector('.ws-document-tools') && !document.querySelector('.ws-link-context') && !document.querySelector('.ws-toolbar-slot .primary-action') && !document.querySelector('.ws-sidebar-surface')?.getClientRects().length",
+    "quiet default note surface",
+  );
+  const calmNoteScreenshotPath = await capture("workspace-calm-note.png");
+  await wait(
+    "(() => { const stage = document.querySelector('.web-stage').getBoundingClientRect(); const page = document.querySelector('.ws-document').getBoundingClientRect(); const source = document.querySelector('.ws-page-input').getBoundingClientRect(); const header = document.querySelector('.ws-header').getBoundingClientRect(); return stage.width >= innerWidth - 3 && page.width >= 650 && source.width >= 500 && page.right <= stage.right + 1 && header.height < 90; })()",
+    "full-width stage and readable note column with compact header",
+  );
+  await click(".ws-document-tools", "Markdown source");
+  await wait(
+    `document.querySelector('.ws-panes > .ws-document .ws-source')?.value === ${JSON.stringify(capturedNote.content)}`,
+    "complete source still accessible",
+  );
+  await click(".ws-document-tools", "Edit note");
+  await fill(".ws-panes > .ws-document .ws-page-input", "One new thought.");
+  await evaluate(
+    "document.querySelector('.ws-page-input').dispatchEvent(new KeyboardEvent('keydown', {key:'s',ctrlKey:true,bubbles:true}))",
+  );
+  await wait(
+    "document.querySelector('.ws-toolbar-slot .ws-document-status')?.textContent.includes('Saved locally') && !document.querySelector('.ws-toolbar-slot .primary-action') && !document.querySelector('.ws-studio > .ws-notice')",
+    "Ctrl+S saves page and hides idle Save",
+  );
+  const pageSaved = await evaluate<boolean>(`(async () => {
+    const desktopId = document.querySelector('.ws-studio').dataset.desktopId;
+    const saved = await window.lattice.localWorkspace.readFile({desktopId, relativePath: ${JSON.stringify(capturedNote.relativePath)}});
+    return saved.content.startsWith(${JSON.stringify(capturedNote.content)}) && saved.content.endsWith('One new thought.');
+  })()`);
+  if (!pageSaved) throw new Error("Clean page save lost source prefix or body");
+  await click(".ws-document-tools", "Session history");
+  await evaluate("document.querySelector('.ws-history button:not(:first-of-type)').click()");
+  await wait(
+    "document.querySelector('.ws-toolbar-slot .ws-document-status')?.textContent.includes('Unsaved changes')",
+    "history restore remains an unsaved draft",
+  );
+  await click(".ws-history", "Close history");
+  await click(".ws-document-tools", "Reload saved file");
+  await click(".ws-notice", "Keep editing");
+  await wait(
+    "document.querySelector('.ws-toolbar-slot .ws-document-status')?.textContent.includes('Unsaved changes')",
+    "reload cancellation retains draft",
+  );
+  await click(".ws-document-tools", "Reload saved file");
+  await click(".ws-notice", "Discard draft and reload");
+  await wait(
+    "document.querySelector('.ws-page-input')?.value.includes('One new thought.')",
+    "explicit reload restores saved body",
+  );
+  await click(".ws-document-tools", "Connections");
+  await wait(
+    "Boolean(document.querySelector('.ws-link-context'))",
+    "connections available on demand",
+  );
+  await click(".ws-link-context", "Close connections");
+  await evaluate(
+    "document.querySelector('.ws-toolbar-slot [aria-label^=\"Note tools for\"]').click()",
+  );
+  await evaluate(
+    "document.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape',bubbles:true}))",
+  );
+  await wait(
+    "!document.querySelector('.ws-document-tools') && document.activeElement?.getAttribute('aria-label')?.startsWith('Note tools for')",
+    "Escape closes tools and returns focus",
+  );
   await click(".ws-tabs", "Workspace smoke note.md");
   await click(".ws-sidebar-nav", "Files & notes");
   await click(".ws-panes > .ws-document .ws-document-tools", "Write");
@@ -226,7 +319,7 @@ export async function verifyWorkspaceStudio(
     throw new Error("File rename changed the saved bytes or lost its open draft");
   await click(".ws-panes > .ws-document .ws-document-header", "Save");
   await wait(
-    "document.querySelector('.ws-panes > .ws-document .ws-document-status')?.textContent.includes('Saved locally')",
+    "document.querySelector('.ws-toolbar-slot .ws-document-status')?.textContent.includes('Saved locally')",
     "renamed draft saved",
   );
   const renameScreenshotPath = await capture("workspace-title-editing.png");
@@ -266,6 +359,8 @@ export async function verifyWorkspaceStudio(
     renameDraftRetained,
     renamedInboxCapture,
     readableCaptureTitles,
+    calmNote: true,
+    calmNoteScreenshotPath,
     renameScreenshotPath,
     homeScreenshotPath,
     editorScreenshotPath,

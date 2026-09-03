@@ -93,7 +93,7 @@ describe("readable capture titles", () => {
     expect(html).not.toContain("fd1d6b08");
   });
 
-  it("keeps exact filename and saved date inside closed details, without duplicating the note heading", () => {
+  it("keeps technical details off the default page, without changing source or duplicating the heading", () => {
     const original = JSON.stringify(document);
     const html = renderToStaticMarkup(
       <WorkspaceDocument
@@ -110,9 +110,9 @@ describe("readable capture titles", () => {
     const heading = html.match(/<h2>[\s\S]*?<\/h2>/)?.[0];
     expect(heading).toContain("catch this bro");
     expect(heading).not.toContain("fd1d6b08");
-    expect(html).toContain('<details class="ws-file-details"><summary>File details</summary>');
-    expect(html).toContain(`<dd>${name}</dd>`);
-    expect(html).toContain('<time dateTime="2026-09-03T00:00:00.000Z">');
+    expect(html).not.toContain('class="ws-file-details"');
+    expect(html).toContain('aria-label="Note tools for catch this bro" aria-expanded="false"');
+    expect(html).toContain("My thought.</textarea>");
     expect(html).not.toContain("<h1>");
     expect(JSON.stringify(document)).toBe(original);
   });

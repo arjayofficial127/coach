@@ -541,6 +541,7 @@ for (const key of [
   "renameDraftRetained",
   "renamedInboxCapture",
   "readableCaptureTitles",
+  "calmNote",
   "unifiedNavigation",
   "homeLayout",
   "plannerTemplate",
