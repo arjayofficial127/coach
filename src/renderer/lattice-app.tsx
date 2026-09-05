@@ -3272,7 +3272,7 @@ export function LatticeApp() {
     setStatus(expanded ? "Expanded navigation" : "Compact navigation");
   };
 
-  const startNavigationResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const startNavigationResize = (event: ReactPointerEvent<HTMLHRElement>) => {
     if (event.button !== 0) return;
     event.preventDefault();
     const startX = event.clientX;
@@ -4126,13 +4126,10 @@ export function LatticeApp() {
             data-action-description={actionHelpText.navigationDashboard}
             onClick={showDashboard}
           >
-            <span className="navigation-row-icon violet">
-              <Icon name="home" />
+            <span className="navigation-row-icon dashboard">
+              <Icon name="dashboard" />
             </span>
-            <span>
-              <strong>Dashboard</strong>
-              <small>Review what matters</small>
-            </span>
+            <strong>Dashboard</strong>
           </button>
           <button
             type="button"
@@ -4141,32 +4138,27 @@ export function LatticeApp() {
             data-action-description={actionHelpText.browse}
             onClick={() => void showBrowser()}
           >
-            <span className="navigation-row-icon cyan">
-              <Icon name="globe" />
+            <span className="navigation-row-icon browse">
+              <Icon name="compass" />
             </span>
-            <span>
-              <strong>Browse</strong>
-              <small>Start somewhere new</small>
-            </span>
+            <strong>Browse</strong>
           </button>
           <button
             type="button"
             className={surface === "files" ? "navigation-row active" : "navigation-row"}
             aria-current={surface === "files" ? "page" : undefined}
             data-action-description={actionHelpText.localFiles}
+            aria-label={
+              vault
+                ? `Files and Inbox, ${activeDesktopFiles?.fileCount ?? 0} files, ${activeDesktopFiles?.inboxCount ?? 0} in Inbox`
+                : "Files and Inbox, connect a local folder"
+            }
             onClick={showFiles}
           >
-            <span className="navigation-row-icon violet">
+            <span className="navigation-row-icon files">
               <Icon name="folder" />
             </span>
-            <span>
-              <strong>Files &amp; Inbox</strong>
-              <small>
-                {vault
-                  ? `${activeDesktopFiles?.inboxCount ?? 0} in Inbox`
-                  : "Connect a local folder"}
-              </small>
-            </span>
+            <strong>Files &amp; Inbox</strong>
             <b aria-hidden="true">{activeDesktopFiles?.fileCount ?? 0}</b>
           </button>
           <button
@@ -4177,16 +4169,14 @@ export function LatticeApp() {
                 : "library-row navigation-row"
             }
             aria-current={surface === "pages" ? "page" : undefined}
+            aria-label={`Canvas pages, ${canvasPages.length}`}
             data-action-description={actionHelpText.canvasPages}
             onClick={() => void showCanvasPages()}
           >
-            <span className="navigation-row-icon amber">
-              <Icon name="grid" />
+            <span className="navigation-row-icon canvas">
+              <Icon name="canvas" />
             </span>
-            <span>
-              <strong>Canvas pages</strong>
-              <small>Connected thinking space</small>
-            </span>
+            <strong>Canvas pages</strong>
             <b aria-hidden="true">{canvasPages.length}</b>
           </button>
           <button
@@ -4194,21 +4184,19 @@ export function LatticeApp() {
             className={surface === "apps" ? "navigation-row active" : "navigation-row"}
             aria-current={surface === "apps" ? "page" : undefined}
             data-action-description={actionHelpText.runnableApps}
+            aria-label={
+              runnableApps.pomodoro.activeRun
+                ? `Runnable apps, running ${runnableApps.pomodoro.activeRun.task}`
+                : dailyFlowInboxCount > 0
+                  ? `Runnable apps, ${dailyFlowInboxCount} to clarify`
+                  : "Runnable apps"
+            }
             onClick={showRunnableApps}
           >
-            <span className="navigation-row-icon green">
-              <Icon name="timer" />
+            <span className="navigation-row-icon apps">
+              <Icon name="apps" />
             </span>
-            <span>
-              <strong>Runnable apps</strong>
-              <small>
-                {runnableApps.pomodoro.activeRun
-                  ? `Running · ${runnableApps.pomodoro.activeRun.task}`
-                  : dailyFlowInboxCount > 0
-                    ? `${dailyFlowInboxCount} to clarify`
-                    : "Pomodoro · Daily Flow · Wealth Lab"}
-              </small>
-            </span>
+            <strong>Runnable apps</strong>
             <kbd>7</kbd>
           </button>
           <button
@@ -4221,10 +4209,7 @@ export function LatticeApp() {
             <span className="navigation-row-icon settings">
               <Icon name="settings" />
             </span>
-            <span>
-              <strong>Settings</strong>
-              <small>Appearance, privacy, and behavior</small>
-            </span>
+            <strong>Settings</strong>
           </button>
         </div>
 
@@ -4238,7 +4223,9 @@ export function LatticeApp() {
           data-action-description={actionHelpText.savedLinks}
           onClick={() => void showLibrary()}
         >
-          <Icon name="bookmark" />
+          <span className="navigation-row-icon saved">
+            <Icon name="bookmark" />
+          </span>
           <span>Saved links</span>
           <b aria-hidden="true">{links.length}</b>
         </button>
@@ -4249,7 +4236,9 @@ export function LatticeApp() {
           data-action-description={actionHelpText.readingQueue}
           onClick={() => void showReadingQueue()}
         >
-          <Icon name="folder" />
+          <span className="navigation-row-icon queue">
+            <Icon name="queue" />
+          </span>
           <span>Reading queue</span>
           <b aria-hidden="true">{queueCount}</b>
         </button>
@@ -4304,9 +4293,8 @@ export function LatticeApp() {
           )}
           {vault && <span className="vault-card-status" aria-hidden="true" />}
         </div>
-        <div
+        <hr
           className="navigation-resizer"
-          role="separator"
           aria-label="Resize navigation"
           aria-orientation="vertical"
           aria-valuemin={MIN_NAVIGATION_WIDTH}

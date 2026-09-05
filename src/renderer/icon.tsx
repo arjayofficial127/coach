@@ -8,6 +8,9 @@ export type IconName =
   | "chevron-down"
   | "close"
   | "command"
+  | "compass"
+  | "canvas"
+  | "dashboard"
   | "desktop"
   | "edit"
   | "file"
@@ -27,8 +30,10 @@ export type IconName =
   | "moon"
   | "move"
   | "leaf"
+  | "apps"
   | "sparkle"
   | "timer"
+  | "queue"
   | "trash";
 
 const paths: Record<IconName, ReactNode> = {
@@ -40,6 +45,27 @@ const paths: Record<IconName, ReactNode> = {
   close: <path d="m7 7 10 10M17 7 7 17" />,
   command: (
     <path d="M9 6V4.5a2.5 2.5 0 1 0-2.5 2.5H18M15 18v1.5a2.5 2.5 0 1 0 2.5-2.5H6M6 7a2.5 2.5 0 1 0 0 5h12a2.5 2.5 0 1 0 0 5H6" />
+  ),
+  compass: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m15.8 8.2-2.1 5.5-5.5 2.1 2.1-5.5Z" />
+      <circle cx="12" cy="12" r=".8" fill="currentColor" stroke="none" />
+    </>
+  ),
+  canvas: (
+    <>
+      <rect x="3.5" y="3.5" width="6" height="6" rx="1.4" />
+      <rect x="14.5" y="14.5" width="6" height="6" rx="1.4" />
+      <circle cx="17.5" cy="6.5" r="2.5" />
+      <path d="M9.5 6.5H15M17.5 9v5.5M9.2 9.2l5.6 5.6" />
+    </>
+  ),
+  dashboard: (
+    <>
+      <path d="M4 11V5a1 1 0 0 1 1-1h5v7ZM14 4h5a1 1 0 0 1 1 1v10h-6ZM4 15h6v5H5a1 1 0 0 1-1-1Z" />
+      <path d="M14 19h6" />
+    </>
   ),
   desktop: <path d="M4 5h16v11H4zM9 20h6M12 16v4" />,
   edit: <path d="M4 20h4l11-11-4-4L4 16v4ZM13.5 6.5l4 4" />,
@@ -96,6 +122,12 @@ const paths: Record<IconName, ReactNode> = {
       <path d="M4 21c3.2-5 7.1-8.6 12.8-12" />
     </>
   ),
+  apps: (
+    <>
+      <path d="M8 3.5h8M12 3.5v3M7 9.5h10a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-5a3 3 0 0 1 3-3Z" />
+      <path d="M8 13v4M6 15h4M15.5 14h.01M17.5 16h.01" />
+    </>
+  ),
   sparkle: (
     <path d="m12 2 1.2 4.2L17 8l-3.8 1.8L12 14l-1.2-4.2L7 8l3.8-1.8ZM5 14l.7 2.3L8 17l-2.3.7L5 20l-.7-2.3L2 17l2.3-.7ZM19 14l.6 1.8 1.9.7-1.9.7L19 19l-.6-1.8-1.9-.7 1.9-.7Z" />
   ),
@@ -103,6 +135,12 @@ const paths: Record<IconName, ReactNode> = {
     <>
       <circle cx="12" cy="13" r="8" />
       <path d="M9 2h6M12 5V2M17.7 7.3 19 6M12 9v4l2.6 1.6" />
+    </>
+  ),
+  queue: (
+    <>
+      <path d="M5 5h14M5 10h10M5 15h7" />
+      <path d="m15 15 2.5 2.5L21 14" />
     </>
   ),
   trash: (
