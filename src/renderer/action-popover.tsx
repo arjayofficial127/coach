@@ -47,6 +47,41 @@ interface PopoverPosition {
   ready: boolean;
 }
 
+interface RectLike {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+  width: number;
+  height: number;
+}
+
+export function actionPopoverIntersectsSurface(
+  candidate: { left: number; top: number },
+  popover: Pick<RectLike, "width" | "height">,
+  surface: Pick<RectLike, "left" | "top" | "right" | "bottom">,
+): boolean {
+  return (
+    candidate.left < surface.right &&
+    candidate.left + popover.width > surface.left &&
+    candidate.top < surface.bottom &&
+    candidate.top + popover.height > surface.top
+  );
+}
+
+function nativeSurfaceBounds(element: HTMLElement): DOMRect | null {
+  const shell = element.closest<HTMLElement>(".lattice-shell");
+  if (!shell) return null;
+  let surface: HTMLElement | null = null;
+  if (shell.dataset.surface === "browser" && !shell.querySelector(".new-tab-surface")) {
+    surface = shell.querySelector<HTMLElement>(".native-view-slot");
+  } else if (shell.dataset.surface === "files") {
+    surface = shell.querySelector<HTMLElement>("[data-workspace-source-viewport]");
+  }
+  const bounds = surface?.getBoundingClientRect();
+  return bounds && bounds.width > 2 && bounds.height > 2 ? bounds : null;
+}
+
 function controlKind(element: HTMLElement): ActionControlKind {
   if (element instanceof HTMLAnchorElement || element.getAttribute("role") === "link")
     return "link";
@@ -237,6 +272,7 @@ export function ActionPopover() {
       if (!popover.matches(":popover-open")) popover.showPopover();
       const targetBounds = target.element.getBoundingClientRect();
       const popoverBounds = popover.getBoundingClientRect();
+      const nativeBounds = nativeSurfaceBounds(target.element);
       const margin = 10;
       const gap = 11;
       const defaultPreferred: Placement[] =
@@ -258,7 +294,8 @@ export function ActionPopover() {
           next.left >= margin &&
           next.top >= margin &&
           next.left + popoverBounds.width <= window.innerWidth - margin &&
-          next.top + popoverBounds.height <= window.innerHeight - margin;
+          next.top + popoverBounds.height <= window.innerHeight - margin &&
+          (!nativeBounds || !actionPopoverIntersectsSurface(next, popoverBounds, nativeBounds));
         if (!fits) continue;
         placement = option;
         candidate = next;
