@@ -686,12 +686,14 @@ function WorkspaceSession({
                     {counts && (
                       <small className="ws-tree-counts">
                         <span>
-                          <Icon name="edit" /> Files{" "}
+                          <Icon name="edit" />
+                          <span className="sr-only">Files: </span>
                           {displayCount(counts.directFiles, counts.directComplete)} (
                           {displayCount(counts.totalFiles, counts.totalComplete)})
                         </span>
                         <span>
-                          <Icon name="folder" /> Folders{" "}
+                          <Icon name="folder" />
+                          <span className="sr-only">Folders: </span>
                           {displayCount(counts.directFolders, counts.directComplete)} (
                           {displayCount(counts.totalFolders, counts.totalComplete)})
                         </span>
