@@ -672,21 +672,13 @@ function WorkspaceSession({
                   aria-label={`Open ${workspaceEntryTitle(entry)}`}
                   title={entry.name}
                 >
-                  <Icon
-                    name={
-                      entry.kind === "folder"
-                        ? "folder"
-                        : entry.fileType === "coach"
-                          ? "grid"
-                          : "edit"
-                    }
-                  />
+                  <Icon name={entry.kind === "folder" ? "folder" : "file"} />
                   <span className="ws-tree-entry-copy">
                     <span className="ws-tree-entry-title">{workspaceEntryTitle(entry)}</span>
                     {counts && (
                       <small className="ws-tree-counts">
                         <span>
-                          <Icon name="edit" />
+                          <Icon name="file" />
                           <span className="sr-only">Files: </span>
                           {displayCount(counts.directFiles, counts.directComplete)}(
                           {displayCount(counts.totalFiles, counts.totalComplete)})
