@@ -1215,6 +1215,13 @@ kbd {
   color: var(--text);
 }
 
+.navigation-row > svg:last-child {
+  width: 13px;
+  height: 13px;
+  justify-self: end;
+  color: var(--subtle);
+}
+
 .desktop-select {
   display: grid;
   width: 22px;
@@ -3537,6 +3544,62 @@ kbd {
 
 .library-surface {
   padding: 38px 40px;
+}
+
+.libraries-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+
+.libraries-tabs button {
+  display: grid;
+  min-height: 34px;
+  grid-template-columns: 16px auto auto;
+  align-items: center;
+  gap: 7px;
+  border-radius: 8px;
+  background: transparent;
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.libraries-tabs button:hover {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  color: var(--text);
+}
+
+.libraries-tabs button.active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.libraries-tabs svg {
+  width: 14px;
+  height: 14px;
+}
+
+.libraries-tabs b {
+  min-width: 17px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 5px;
+  color: var(--subtle);
+  font-size: 8px;
+  font-weight: 650;
+  text-align: center;
+}
+
+.canvas-surface > .libraries-tabs {
+  margin: 24px 34px 0;
+}
+
+.canvas-index > .libraries-tabs {
+  margin: 0 0 24px;
 }
 
 .library-header {

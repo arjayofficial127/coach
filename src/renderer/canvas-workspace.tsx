@@ -1,6 +1,7 @@
 import {
   type FormEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -31,6 +32,7 @@ interface CanvasWorkspaceProps {
   onDirtyChange(dirty: boolean): void;
   reportStatus(message: string): void;
   offerRecovery(message: string, run: () => void | Promise<void>, actionLabel?: string): void;
+  navigation?: ReactNode;
 }
 
 interface DragState {
@@ -84,6 +86,7 @@ export function CanvasWorkspace({
   onDirtyChange,
   reportStatus,
   offerRecovery,
+  navigation,
 }: CanvasWorkspaceProps) {
   const [draft, setDraft] = useState<CanvasPageRecord | null>(null);
   const draftRef = useRef<CanvasPageRecord | null>(null);
@@ -516,6 +519,7 @@ export function CanvasWorkspace({
   if (!vault) {
     return (
       <div className="trusted-surface canvas-surface">
+        {navigation}
         <div className="empty-library">
           <span className="empty-icon">
             <Icon name="folder" />
@@ -533,6 +537,7 @@ export function CanvasWorkspace({
   if (!draft) {
     return (
       <div className="trusted-surface canvas-surface canvas-index">
+        {navigation}
         <header className="canvas-index-header">
           <div>
             <span className="eyebrow">Obsidian JSON Canvas</span>

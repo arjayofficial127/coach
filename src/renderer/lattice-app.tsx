@@ -275,12 +275,6 @@ const railItems: Array<{
     description: actionHelpText.localFiles,
   },
   {
-    id: "pages",
-    label: "Canvas pages",
-    icon: "grid",
-    description: actionHelpText.canvasPages,
-  },
-  {
     id: "apps",
     label: "Runnable apps",
     icon: "timer",
@@ -288,15 +282,9 @@ const railItems: Array<{
   },
   {
     id: "library",
-    label: "Saved links",
-    icon: "bookmark",
-    description: actionHelpText.savedLinks,
-  },
-  {
-    id: "queue",
-    label: "Reading queue",
-    icon: "folder",
-    description: actionHelpText.readingQueue,
+    label: "Libraries",
+    icon: "library",
+    description: "Open saved links, reading queues, and pages",
   },
   {
     id: "settings",
@@ -3269,7 +3257,44 @@ export function LatticeApp() {
     else await showLibrary();
   };
 
-  const activeRailItem = surface;
+  const activeRailItem: Surface = ["library", "queue", "pages"].includes(surface)
+    ? "library"
+    : surface;
+  const libraryOpen = surface === "library" || surface === "queue" || surface === "pages";
+  const libraryNavigation = (
+    <nav className="libraries-tabs" aria-label="Libraries">
+      <button
+        type="button"
+        className={surface === "library" ? "active" : ""}
+        aria-current={surface === "library" ? "page" : undefined}
+        onClick={() => void showLibrary()}
+      >
+        <Icon name="bookmark" />
+        Saved links
+        <b>{links.length}</b>
+      </button>
+      <button
+        type="button"
+        className={surface === "queue" ? "active" : ""}
+        aria-current={surface === "queue" ? "page" : undefined}
+        onClick={() => void showReadingQueue()}
+      >
+        <Icon name="queue" />
+        Reading queue
+        <b>{queueCount}</b>
+      </button>
+      <button
+        type="button"
+        className={surface === "pages" ? "active" : ""}
+        aria-current={surface === "pages" ? "page" : undefined}
+        onClick={() => void showCanvasPages()}
+      >
+        <Icon name="canvas" />
+        Pages
+        <b>{canvasPages.length}</b>
+      </button>
+    </nav>
+  );
 
   const setNavigationView = (expanded: boolean) => {
     setNavigationExpanded(expanded);
@@ -4168,24 +4193,6 @@ export function LatticeApp() {
           </button>
           <button
             type="button"
-            className={
-              surface === "pages"
-                ? "library-row navigation-row active"
-                : "library-row navigation-row"
-            }
-            aria-current={surface === "pages" ? "page" : undefined}
-            aria-label={`Canvas pages, ${canvasPages.length}`}
-            data-action-description={actionHelpText.canvasPages}
-            onClick={() => void showCanvasPages()}
-          >
-            <span className="navigation-row-icon canvas">
-              <Icon name="canvas" />
-            </span>
-            <strong>Canvas pages</strong>
-            <b aria-hidden="true">{canvasPages.length}</b>
-          </button>
-          <button
-            type="button"
             className={surface === "apps" ? "navigation-row active" : "navigation-row"}
             aria-current={surface === "apps" ? "page" : undefined}
             data-action-description={actionHelpText.runnableApps}
@@ -4206,6 +4213,20 @@ export function LatticeApp() {
           </button>
           <button
             type="button"
+            className={libraryOpen ? "navigation-row active" : "navigation-row"}
+            aria-current={libraryOpen ? "page" : undefined}
+            aria-label={`Libraries, ${links.length} saved links, ${queueCount} queued, ${canvasPages.length} pages`}
+            data-action-description="Open saved links, reading queues, and pages"
+            onClick={() => void showLibrary()}
+          >
+            <span className="navigation-row-icon saved">
+              <Icon name="library" />
+            </span>
+            <strong>Libraries</strong>
+            <Icon name="arrow-right" />
+          </button>
+          <button
+            type="button"
             className={surface === "settings" ? "navigation-row active" : "navigation-row"}
             aria-current={surface === "settings" ? "page" : undefined}
             data-action-description={actionHelpText.settings}
@@ -4217,36 +4238,6 @@ export function LatticeApp() {
             <strong>Settings</strong>
           </button>
         </div>
-
-        <div className="section-label library-label">
-          <span>Library</span>
-        </div>
-        <button
-          type="button"
-          className={surface === "library" ? "library-row active" : "library-row"}
-          aria-current={surface === "library" ? "page" : undefined}
-          data-action-description={actionHelpText.savedLinks}
-          onClick={() => void showLibrary()}
-        >
-          <span className="navigation-row-icon saved">
-            <Icon name="bookmark" />
-          </span>
-          <span>Saved links</span>
-          <b aria-hidden="true">{links.length}</b>
-        </button>
-        <button
-          type="button"
-          className={surface === "queue" ? "library-row active" : "library-row"}
-          aria-current={surface === "queue" ? "page" : undefined}
-          data-action-description={actionHelpText.readingQueue}
-          onClick={() => void showReadingQueue()}
-        >
-          <span className="navigation-row-icon queue">
-            <Icon name="queue" />
-          </span>
-          <span>Reading queue</span>
-          <b aria-hidden="true">{queueCount}</b>
-        </button>
         <div className="workspace-spacer" />
         <button
           type="button"
@@ -4360,6 +4351,26 @@ export function LatticeApp() {
             <span className="desktop-context-name">Files</span>
             <span className="desktop-context-count" aria-hidden="true">
               {activeDesktopFiles?.inboxCount ?? 0}
+            </span>
+          </button>
+          <button
+            className={
+              libraryOpen
+                ? "desktop-context libraries-context active"
+                : "desktop-context libraries-context"
+            }
+            type="button"
+            aria-current={libraryOpen ? "page" : undefined}
+            aria-label="Open Libraries"
+            data-action-description="Open saved links, reading queues, and pages"
+            onClick={() => void showLibrary()}
+          >
+            <span className="favicon desktop-tab-icon violet">
+              <Icon name="library" />
+            </span>
+            <span className="desktop-context-name">Libraries</span>
+            <span className="desktop-context-count" aria-hidden="true">
+              {links.length + canvasPages.length}
             </span>
           </button>
           <div ref={setWorkspaceTabsTarget} id="workspace-tabs-slot" />
@@ -5523,6 +5534,7 @@ export function LatticeApp() {
 
             {(surface === "library" || surface === "queue") && (
               <div className="trusted-surface library-surface">
+                {libraryNavigation}
                 <header className="library-header">
                   <div>
                     <span className="eyebrow">
@@ -5742,6 +5754,7 @@ export function LatticeApp() {
 
             {surface === "pages" && (
               <CanvasWorkspace
+                navigation={libraryNavigation}
                 vault={vault}
                 pages={canvasPages}
                 referenceIndex={referenceIndex}
