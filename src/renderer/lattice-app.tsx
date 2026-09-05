@@ -3744,10 +3744,7 @@ export function LatticeApp() {
             }}
           >
             <span className="workspace-title">
-              <span className="eyebrow">Workspace</span>
-              <strong>
-                {activeProfile ? `${activeProfile.name} research` : "Personal research"}
-              </strong>
+              <strong>Coach Browser</strong>
             </span>
             <Icon name="chevron-down" />
           </button>
