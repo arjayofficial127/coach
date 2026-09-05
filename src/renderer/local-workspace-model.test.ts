@@ -14,6 +14,7 @@ import {
   renameWorkspaceTabs,
   resolveNoteReference,
   workspaceErrorMessage,
+  workspaceFolderCounts,
   workspaceTitle,
 } from "./local-workspace-model";
 
@@ -154,5 +155,77 @@ describe("workspace view model", () => {
     const controller = new AbortController();
     controller.abort();
     await expect(loadWorkspaceIndex(api, "other", controller.signal)).rejects.toThrow("cancelled");
+  });
+  it("reports direct and recursive file and folder counts independently", () => {
+    const folder = (relativePath: string): WorkspaceDirectoryEntry => ({
+      ...file(relativePath),
+      kind: "folder",
+      fileType: "other",
+      size: 0,
+    });
+    const inbox = folder("Inbox");
+    const project = folder("Inbox/Project");
+    const archive = folder("Inbox/Project/Archive");
+    const index = {
+      directories: {
+        "": {
+          desktopId: "research",
+          desktopName: "Research",
+          folderName: "Research",
+          relativePath: "",
+          breadcrumbs: [],
+          entries: [inbox],
+        },
+        Inbox: {
+          desktopId: "research",
+          desktopName: "Research",
+          folderName: "Research",
+          relativePath: "Inbox",
+          breadcrumbs: [],
+          entries: [file("Inbox/Direct.md"), file("Inbox/image.png"), project],
+        },
+        "Inbox/Project": {
+          desktopId: "research",
+          desktopName: "Research",
+          folderName: "Research",
+          relativePath: "Inbox/Project",
+          breadcrumbs: [],
+          entries: [file("Inbox/Project/Nested.text"), archive],
+        },
+        "Inbox/Project/Archive": {
+          desktopId: "research",
+          desktopName: "Research",
+          folderName: "Research",
+          relativePath: "Inbox/Project/Archive",
+          breadcrumbs: [],
+          entries: [file("Inbox/Project/Archive/Old.coach")],
+        },
+      },
+      entries: [
+        inbox,
+        file("Inbox/Direct.md"),
+        file("Inbox/image.png"),
+        project,
+        file("Inbox/Project/Nested.text"),
+        archive,
+        file("Inbox/Project/Archive/Old.coach"),
+      ],
+      documents: {},
+      partial: false,
+    };
+
+    expect(workspaceFolderCounts(index, "Inbox")).toEqual({
+      directFiles: 2,
+      totalFiles: 4,
+      directFolders: 1,
+      totalFolders: 2,
+      directComplete: true,
+      totalComplete: true,
+    });
+    const { "Inbox/Project/Archive": _missing, ...incompleteDirectories } = index.directories;
+    expect(
+      workspaceFolderCounts({ ...index, directories: incompleteDirectories }, "Inbox")
+        .totalComplete,
+    ).toBe(false);
   });
 });

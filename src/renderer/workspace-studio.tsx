@@ -18,7 +18,10 @@ import {
   type WorkspaceIndex,
   type WorkspaceTab,
   workspaceDisplayName,
+  workspaceDocumentTitle,
+  workspaceEntryTitle,
   workspaceErrorMessage,
+  workspaceFolderCounts,
   workspaceTitle,
 } from "./local-workspace-model";
 import { WorkspaceDocument } from "./workspace-document";
@@ -529,6 +532,7 @@ function WorkspaceSession({
     if (besidePath === relativePath) setBesidePath(null);
   };
   const startRename = (entry: WorkspaceDirectoryEntry) => {
+    if (entry.kind !== "folder") return;
     setRenameTarget(entry);
     setRenameTitle(workspaceTitle(entry.name, entry.kind));
     setRenameError("");
@@ -537,7 +541,6 @@ function WorkspaceSession({
   const renameEntryTo = async (
     source: WorkspaceDirectoryEntry,
     nextTitle: string,
-    announce: boolean,
   ): Promise<string | null> => {
     if (!nextTitle.trim() || pendingRenames.has(cacheKey)) return "Wait for the current rename.";
     const sessionSuffix = cacheKey.slice(cacheKey.indexOf(":"));
@@ -584,11 +587,7 @@ function WorkspaceSession({
         setExpanded((current) => new Set([...current].map(remap)));
         setRenameTarget(null);
         setReloadPath(null);
-        if (announce)
-          setMessage(
-            `Renamed to ${result.name}. Contents and drafts are unchanged. Links were not rewritten; review Connections if needed.`,
-          );
-        else setMessage("");
+        setMessage("");
         onRefresh();
       }
       return null;
@@ -606,7 +605,7 @@ function WorkspaceSession({
   const renameEntry = async () => {
     if (!renameTarget) return;
     setRenameError("");
-    const error = await renameEntryTo(renameTarget, renameTitle, true);
+    const error = await renameEntryTo(renameTarget, renameTitle);
     if (error && mounted.current) setRenameError(error);
   };
   const reload = async () => {
@@ -634,62 +633,89 @@ function WorkspaceSession({
   const tree = (relativePath: string, depth = 0): ReactNode =>
     depth > 24 ? null : (
       <ul className="ws-tree-list">
-        {index?.directories[relativePath]?.entries.map((entry) => (
-          <li key={entry.id}>
-            <div
-              className={`ws-tree-row ${activePath === entry.relativePath ? "is-active" : ""} ${folder === entry.relativePath ? "is-folder" : ""}`}
-            >
-              {entry.kind === "folder" ? (
+        {index?.directories[relativePath]?.entries.map((entry) => {
+          const counts =
+            entry.kind === "folder" ? workspaceFolderCounts(index, entry.relativePath) : null;
+          const displayCount = (value: number, complete: boolean) =>
+            `${value}${complete ? "" : "+"}`;
+          return (
+            <li key={entry.id}>
+              <div
+                className={`ws-tree-row ${activePath === entry.relativePath ? "is-active" : ""} ${folder === entry.relativePath ? "is-folder" : ""}`}
+              >
+                {entry.kind === "folder" ? (
+                  <button
+                    type="button"
+                    className="ws-tree-toggle"
+                    aria-label={`${expanded.has(entry.relativePath) ? "Collapse" : "Expand"} ${entry.name}`}
+                    aria-expanded={expanded.has(entry.relativePath)}
+                    onClick={() => {
+                      if (expanded.has(entry.relativePath))
+                        setExpanded(
+                          (current) =>
+                            new Set([...current].filter((value) => value !== entry.relativePath)),
+                        );
+                      else void openFolder(entry.relativePath, false);
+                    }}
+                  >
+                    <Icon
+                      name={expanded.has(entry.relativePath) ? "chevron-down" : "arrow-right"}
+                    />
+                  </button>
+                ) : (
+                  <span className="ws-tree-spacer" />
+                )}
                 <button
                   type="button"
-                  className="ws-tree-toggle"
-                  aria-label={`${expanded.has(entry.relativePath) ? "Collapse" : "Expand"} ${entry.name}`}
-                  aria-expanded={expanded.has(entry.relativePath)}
-                  onClick={() => {
-                    if (expanded.has(entry.relativePath))
-                      setExpanded(
-                        (current) =>
-                          new Set([...current].filter((value) => value !== entry.relativePath)),
-                      );
-                    else void openFolder(entry.relativePath, false);
-                  }}
+                  data-workspace-entry={entry.kind}
+                  onClick={() => void openEntry(entry)}
+                  aria-label={`Open ${workspaceEntryTitle(entry)}`}
+                  title={entry.name}
                 >
-                  <Icon name={expanded.has(entry.relativePath) ? "chevron-down" : "arrow-right"} />
+                  <Icon
+                    name={
+                      entry.kind === "folder"
+                        ? "folder"
+                        : entry.fileType === "coach"
+                          ? "grid"
+                          : "edit"
+                    }
+                  />
+                  <span className="ws-tree-entry-copy">
+                    <span className="ws-tree-entry-title">{workspaceEntryTitle(entry)}</span>
+                    {counts && (
+                      <small className="ws-tree-counts">
+                        <span>
+                          <Icon name="edit" /> Files{" "}
+                          {displayCount(counts.directFiles, counts.directComplete)} (
+                          {displayCount(counts.totalFiles, counts.totalComplete)})
+                        </span>
+                        <span>
+                          <Icon name="folder" /> Folders{" "}
+                          {displayCount(counts.directFolders, counts.directComplete)} (
+                          {displayCount(counts.totalFolders, counts.totalComplete)})
+                        </span>
+                      </small>
+                    )}
+                  </span>
                 </button>
-              ) : (
-                <span className="ws-tree-spacer" />
-              )}
-              <button
-                type="button"
-                data-workspace-entry={entry.kind}
-                onClick={() => void openEntry(entry)}
-                aria-label={`Open ${workspaceDisplayName(entry.name, entry.kind)}`}
-              >
-                <Icon
-                  name={
-                    entry.kind === "folder"
-                      ? "folder"
-                      : entry.fileType === "coach"
-                        ? "grid"
-                        : "edit"
-                  }
-                />
-                <span>{workspaceDisplayName(entry.name, entry.kind)}</span>
-              </button>
-              <button
-                type="button"
-                className="ws-rename-entry"
-                aria-label={`Rename ${entry.kind} ${workspaceDisplayName(entry.name, entry.kind)}`}
-                onClick={() => startRename(entry)}
-              >
-                <Icon name="edit" />
-              </button>
-            </div>
-            {entry.kind === "folder" &&
-              expanded.has(entry.relativePath) &&
-              tree(entry.relativePath, depth + 1)}
-          </li>
-        ))}
+                {entry.kind === "folder" && (
+                  <button
+                    type="button"
+                    className="ws-rename-entry"
+                    aria-label={`Rename folder ${workspaceDisplayName(entry.name, entry.kind)}`}
+                    onClick={() => startRename(entry)}
+                  >
+                    <Icon name="edit" />
+                  </button>
+                )}
+              </div>
+              {entry.kind === "folder" &&
+                expanded.has(entry.relativePath) &&
+                tree(entry.relativePath, depth + 1)}
+            </li>
+          );
+        })}
       </ul>
     );
   const contentReferences = (content: string, fileType: string) => {
@@ -789,14 +815,6 @@ function WorkspaceSession({
       onLink={(target) => handleLink(target, tab.document.relativePath)}
       onSplit={() => setChooseBeside(true)}
       onReload={() => setReloadPath(tab.document.relativePath)}
-      onRename={() =>
-        startRename({
-          ...tab.document,
-          id: tab.document.relativePath,
-          kind: "file",
-          size: tab.draft.length,
-        })
-      }
       onRenameTitle={(title) =>
         renameEntryTo(
           {
@@ -806,7 +824,6 @@ function WorkspaceSession({
             size: tab.draft.length,
           },
           title,
-          false,
         )
       }
     />
@@ -853,12 +870,12 @@ function WorkspaceSession({
             }}
           >
             <Icon name={tab.document.fileType === "coach" ? "grid" : "edit"} />
-            {workspaceDisplayName(tab.document.name)}
+            {workspaceDocumentTitle(tab.document, tab.draft)}
             {tab.draft !== tab.document.content && <b title="Unsaved changes">•</b>}
           </button>
           <button
             type="button"
-            aria-label={`Close ${workspaceDisplayName(tab.document.name)}`}
+            aria-label={`Close ${workspaceDocumentTitle(tab.document, tab.draft)}`}
             disabled={renaming}
             onClick={() => closeTab(tab.document.relativePath)}
           >
@@ -1379,7 +1396,7 @@ function WorkspaceSession({
                                 if (entry) void openEntry(entry);
                               }}
                             >
-                              {workspaceDisplayName(document.name)}
+                              {workspaceDocumentTitle(document)}
                             </button>
                           ))}
                           {!incoming.length && (
@@ -1461,7 +1478,7 @@ function WorkspaceSession({
                                 : "edit"
                           }
                         />
-                        <strong>{workspaceDisplayName(entry.name, entry.kind)}</strong>
+                        <strong>{workspaceEntryTitle(entry)}</strong>
                         <small>{entry.kind === "folder" ? "Folder" : entry.fileType}</small>
                       </button>
                     ))}

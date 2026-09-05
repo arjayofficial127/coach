@@ -5,6 +5,8 @@ import {
   resolveNoteReference,
   workspaceDisplayName,
   workspaceDisplayTitle,
+  workspaceDocumentTitle,
+  workspaceEntryTitle,
   workspaceTitle,
 } from "./local-workspace-model";
 import { WorkspaceDocument } from "./workspace-document";
@@ -69,6 +71,55 @@ describe("readable capture titles", () => {
     expect(JSON.stringify(entry)).toBe(original);
   });
 
+  it("uses the filename as the single title even when content starts differently", () => {
+    expect(workspaceEntryTitle(entry)).toBe("catch this bro");
+    expect(workspaceEntryTitle({ ...entry, kind: "folder", name: "Inbox" })).toBe("Inbox");
+    expect(workspaceDocumentTitle(document)).toBe("catch this bro");
+    expect(workspaceDocumentTitle(document, "Renamed in the note\n\nBody")).toBe("catch this bro");
+    expect(workspaceDocumentTitle({ ...document, content: "" })).toBe("catch this bro");
+  });
+
+  it("keeps the filename title in the list and editable title line", () => {
+    const html = renderToStaticMarkup(
+      <WorkspaceHome
+        files={[entry]}
+        folders={[]}
+        documents={{ [entry.relativePath]: document }}
+        capture=""
+        captureBusy={false}
+        onCaptureChange={noop}
+        onCapture={noop}
+        onOpen={noop}
+        onFolder={noop}
+        onNewFolder={noop}
+        onFocus={noop}
+        onInbox={noop}
+        onNew={noop}
+        onRecent={noop}
+      />,
+    );
+    expect(html).toContain("<strong>catch this bro</strong>");
+
+    const heading = renderToStaticMarkup(
+      <WorkspaceDocument
+        tab={{
+          document,
+          draft: '---\ncoach_type: "inbox-item"\n---\n\n# catch this bros\n\nMy thought.',
+          history: [],
+        }}
+        saving={false}
+        onChange={noop}
+        onSave={noop}
+        onLink={noop}
+        onSplit={noop}
+        onReload={noop}
+        onRename={noop}
+      />,
+    );
+    expect(heading).toContain('aria-label="Document title"');
+    expect(heading).toContain('value="2026-09-03 - catch this bro - fd1d6b08"');
+  });
+
   it("renders clean Home, recent and Inbox titles with a concise accessible action", () => {
     const html = renderToStaticMarkup(
       <WorkspaceHome
@@ -107,9 +158,8 @@ describe("readable capture titles", () => {
         onRename={noop}
       />,
     );
-    const heading = html.match(/<h2>[\s\S]*?<\/h2>/)?.[0];
-    expect(heading).toContain("catch this bro");
-    expect(heading).not.toContain("fd1d6b08");
+    expect(html).toContain('aria-label="Document title"');
+    expect(html).toContain('value="2026-09-03 - catch this bro - fd1d6b08"');
     expect(html).not.toContain('class="ws-file-details"');
     expect(html).toContain('aria-label="Note tools for catch this bro" aria-expanded="false"');
     expect(html).toContain("My thought.</textarea>");

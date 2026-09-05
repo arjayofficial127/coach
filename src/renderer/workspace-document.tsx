@@ -30,7 +30,6 @@ export function WorkspaceDocument({
   onLink,
   onSplit,
   onReload,
-  onRename,
   onRenameTitle,
   onEmbed,
   onResearch,
@@ -48,7 +47,7 @@ export function WorkspaceDocument({
   onLink: (target: string) => void;
   onSplit: () => void;
   onReload: () => void;
-  onRename: () => void;
+  onRename?: () => void;
   onRenameTitle?: (title: string) => Promise<string | null>;
   onEmbed?: (target: string) => ReactNode;
   onResearch?: () => void;
@@ -290,9 +289,6 @@ export function WorkspaceDocument({
                   Connections
                 </button>
               )}
-              <button type="button" onClick={() => action(onRename)}>
-                Rename file
-              </button>
               <button type="button" disabled={saving} onClick={() => action(onReload)}>
                 Reload saved file
               </button>

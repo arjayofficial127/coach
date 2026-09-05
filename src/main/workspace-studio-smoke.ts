@@ -161,7 +161,7 @@ export async function verifyWorkspaceStudio(
   await wait("Boolean(document.querySelector('.ws-board-table'))", "table view");
   await click(".ws-segmented", "Calendar");
   await wait("Boolean(document.querySelector('.ws-calendar-grid'))", "calendar view");
-  await click(".ws-tabs", "Workspace smoke note.md");
+  await click(".ws-tabs", "Workspace smoke note");
   await click(".ws-document-tools", "Open beside");
   await wait("Boolean(document.querySelector('.ws-split-picker'))", "split picker");
   await click(".ws-split-picker", "Workspace smoke board.coach");
@@ -205,7 +205,7 @@ export async function verifyWorkspaceStudio(
     "document.querySelector('.ws-preview-card[aria-label=\"Open Workspace studio Inbox smoke\"]').click()",
   );
   await wait(
-    "document.querySelector('.ws-panes > .ws-document h2')?.textContent.trim() === 'Workspace studio Inbox smoke' && [...document.querySelectorAll('.ws-tabs button')].some(item => item.textContent.trim() === 'Workspace studio Inbox smoke.md')",
+    "document.querySelector('.ws-panes > .ws-document [aria-label=\"Document title\"]')?.value === 'Workspace studio Inbox smoke' && [...document.querySelectorAll('.ws-tabs button')].some(item => item.textContent.trim() === 'Workspace studio Inbox smoke')",
     "capture editor and tab have human titles",
   );
   await wait(
@@ -218,12 +218,10 @@ export async function verifyWorkspaceStudio(
     "exact filename available on demand",
   );
   await capture("workspace-readable-title.png");
-  await click(".ws-panes > .ws-document .ws-document-header", "Workspace studio Inbox smoke");
   await wait(
-    `document.querySelector('[aria-label="New title"]')?.value === ${JSON.stringify(capturedNote.name.slice(0, -3))}`,
-    "explicit rename still shows the real filename stem",
+    `document.querySelector('[aria-label="Document title"]')?.value === ${JSON.stringify(capturedNote.name.slice(0, -3))} && !document.querySelector('.ws-rename-form')`,
+    "inline title shows the real filename stem without a rename form",
   );
-  await click(".ws-rename-form", "Cancel");
   const readableCaptureTitles = await evaluate<boolean>(`(async () => {
     const desktopId = document.querySelector('.ws-studio').dataset.desktopId;
     const saved = await window.lattice.localWorkspace.readFile({desktopId, relativePath: ${JSON.stringify(capturedNote.relativePath)}});
@@ -299,15 +297,15 @@ export async function verifyWorkspaceStudio(
   await click(".ws-tabs", "Workspace smoke note.md");
   await click(".ws-sidebar-nav", "Files & notes");
   await click(".ws-panes > .ws-document .ws-document-tools", "Write");
-  const renamedDraft = `${content}\nDraft retained across an explicit rename.\n`;
+  const renamedDraft = `${content}\nDraft retained across an inline title rename.\n`;
   await fill(".ws-panes > .ws-document .ws-source", renamedDraft);
-  await click(".ws-panes > .ws-document .ws-document-header", "Workspace smoke note");
-  await wait("Boolean(document.querySelector('.ws-rename-form'))", "file rename form");
-  await fill('[aria-label="New title"]', "Workspace renamed note");
-  await click(".ws-rename-form", "Rename");
+  await fill('[aria-label="Document title"]', "Workspace renamed note");
+  await evaluate(
+    "document.querySelector('[aria-label=\"Document title\"]').dispatchEvent(new KeyboardEvent('keydown', {key:'Enter',bubbles:true}))",
+  );
   await wait(
-    "Boolean(document.querySelector('[data-workspace-file=\"Workspace renamed note.md\"]')) && !document.querySelector('.ws-rename-form')",
-    "file renamed",
+    "Boolean(document.querySelector('[data-workspace-file=\"Workspace renamed note.md\"]')) && !document.querySelector('.ws-rename-form') && !document.querySelector('.ws-studio > .ws-notice')",
+    "inline title renamed the file without a form or success banner",
   );
   await click(".ws-panes > .ws-document .ws-document-tools", "Write");
   const renameDraftRetained = await evaluate<boolean>(

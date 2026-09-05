@@ -204,11 +204,37 @@
   text-align: left;
   padding-left: 2px;
   font-size: 12px;
+  align-items: flex-start;
 }
-.ws-tree-row > button[data-workspace-entry] span {
+.ws-tree-entry-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+.ws-tree-entry-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.ws-tree-counts {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 9px;
+  row-gap: 2px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+.ws-tree-counts > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.ws-tree-counts svg {
+  width: 10px;
+  height: 10px;
 }
 .ws-tree-toggle,
 .ws-tree-spacer {

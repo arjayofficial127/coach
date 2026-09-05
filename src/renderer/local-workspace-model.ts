@@ -13,6 +13,46 @@ export interface WorkspaceIndex {
   partial: boolean;
 }
 
+export interface WorkspaceFolderCounts {
+  directFiles: number;
+  totalFiles: number;
+  directFolders: number;
+  totalFolders: number;
+  directComplete: boolean;
+  totalComplete: boolean;
+}
+
+const MAX_DIRECTORY_ITEMS = 500;
+
+export function workspaceFolderCounts(
+  index: WorkspaceIndex,
+  relativePath: string,
+): WorkspaceFolderCounts {
+  const listing = index.directories[relativePath];
+  const directEntries = listing?.entries ?? [];
+  const prefix = relativePath ? `${relativePath}/` : "";
+  const descendants = index.entries.filter(
+    (entry) => !relativePath || entry.relativePath.startsWith(prefix),
+  );
+  const descendantFolders = descendants.filter((entry) => entry.kind === "folder");
+  const directComplete = Boolean(listing) && directEntries.length < MAX_DIRECTORY_ITEMS;
+  const totalComplete =
+    directComplete &&
+    descendantFolders.every((entry) => {
+      const childListing = index.directories[entry.relativePath];
+      return childListing ? childListing.entries.length < MAX_DIRECTORY_ITEMS : false;
+    });
+
+  return {
+    directFiles: directEntries.filter((entry) => entry.kind === "file").length,
+    totalFiles: descendants.filter((entry) => entry.kind === "file").length,
+    directFolders: directEntries.filter((entry) => entry.kind === "folder").length,
+    totalFolders: descendantFolders.length,
+    directComplete,
+    totalComplete,
+  };
+}
+
 // Only known product diagnostics may cross into the UI. Native filesystem errors can contain
 // absolute device paths, including failures before the file broker reaches its own catch block.
 const publicWorkspaceErrors = new Set([
