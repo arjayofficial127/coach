@@ -1,6 +1,6 @@
 /* The approved workspace direction. Scoped to local UI; websites keep their own styling. */
 .lattice-shell[data-surface="files"].navigation-expanded:not(.focus-mode) {
-  grid-template-columns: 0 316px minmax(0, 1fr);
+  grid-template-columns: 0 var(--coach-navigation-width, 288px) minmax(0, 1fr);
 }
 .lattice-shell[data-surface="files"] .surface-toolbar {
   display: none;

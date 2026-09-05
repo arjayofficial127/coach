@@ -81,7 +81,7 @@ svg {
 }
 
 .lattice-shell.navigation-expanded {
-  grid-template-columns: 0 316px minmax(0, 1fr);
+  grid-template-columns: 0 var(--coach-navigation-width, 288px) minmax(0, 1fr);
 }
 
 .lattice-shell.navigation-compact {
@@ -661,6 +661,7 @@ svg {
 }
 
 .workspace-panel {
+  position: relative;
   z-index: 4;
   display: flex;
   min-width: 0;
@@ -673,6 +674,49 @@ svg {
     opacity 180ms ease,
     transform 300ms cubic-bezier(0.22, 1, 0.36, 1),
     padding 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.navigation-resizer {
+  position: absolute;
+  z-index: 20;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  -webkit-app-region: no-drag;
+}
+
+.navigation-resizer::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  background: transparent;
+  content: "";
+  transition: background 120ms ease;
+}
+
+.navigation-resizer:hover::after,
+.navigation-resizer:focus-visible::after,
+.navigation-resizing .navigation-resizer::after {
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.navigation-resizer:focus-visible {
+  outline: none;
+}
+
+.navigation-resizing {
+  cursor: col-resize;
+  user-select: none;
+  transition: none;
+}
+
+.navigation-compact .navigation-resizer {
+  display: none;
 }
 
 .workspace-heading {
@@ -7999,7 +8043,7 @@ kbd {
 
 /* Temporary Council-scale invalidation. Remove this block and enable the TS flag to restore it. */
 .lattice-shell.new-tab-sizing-invalidated {
-  --coach-sidebar-width: 316px;
+  --coach-sidebar-width: var(--coach-navigation-width, 288px);
   --coach-chrome-height: 43px;
   --coach-bg: var(--bg);
   --coach-sidebar-bg: var(--panel);
@@ -8021,7 +8065,7 @@ kbd {
 }
 
 .lattice-shell.new-tab-sizing-invalidated.navigation-expanded:not(.focus-mode) {
-  grid-template-columns: 0 316px minmax(0, 1fr);
+  grid-template-columns: 0 var(--coach-navigation-width, 288px) minmax(0, 1fr);
 }
 
 .lattice-shell.new-tab-sizing-invalidated.navigation-compact:not(.focus-mode) {

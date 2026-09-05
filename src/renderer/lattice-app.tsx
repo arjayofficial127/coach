@@ -2,6 +2,7 @@ import {
   type CSSProperties,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -124,6 +125,14 @@ import {
   type WorkspacePreferences,
 } from "./workspace-model";
 import { WorkspaceStudio as LocalFilesSurface } from "./workspace-studio";
+import {
+  DEFAULT_NAVIGATION_WIDTH,
+  MAX_NAVIGATION_WIDTH,
+  MIN_NAVIGATION_WIDTH,
+  NAVIGATION_WIDTH_STORAGE_KEY,
+  navigationResizeResult,
+  normalizeNavigationWidth,
+} from "./navigation-width";
 
 const WORKSPACE_STORAGE_KEY = "lattice.workspace.v1";
 const SESSION_STORAGE_KEY = "lattice.session.v1";
@@ -514,6 +523,16 @@ export function LatticeApp() {
       return true;
     }
   });
+  const [navigationWidth, setNavigationWidth] = useState(() => {
+    try {
+      const storedWidth = localStorage.getItem(NAVIGATION_WIDTH_STORAGE_KEY);
+      return storedWidth === null
+        ? DEFAULT_NAVIGATION_WIDTH
+        : normalizeNavigationWidth(Number(storedWidth));
+    } catch {
+      return DEFAULT_NAVIGATION_WIDTH;
+    }
+  });
   const [filesSidebarActive, setFilesSidebarActive] = useState(true);
   const [dashboardCustomizing, setDashboardCustomizing] = useState(false);
   const [dashboardToolbarContentTarget, setDashboardToolbarContentTarget] =
@@ -605,6 +624,7 @@ export function LatticeApp() {
     "--custom-text": previewCustomTheme.text,
     "--custom-muted": previewCustomTheme.muted,
     "--custom-accent": previewCustomTheme.accent,
+    "--coach-navigation-width": `${navigationWidth}px`,
   } as CSSProperties;
   const titleBarAppearance = useMemo<ShellAppearance>(() => {
     if (settings.activeTheme === "paper-felt") {
@@ -740,6 +760,14 @@ export function LatticeApp() {
       // Navigation mode persistence is optional.
     }
   }, [navigationExpanded]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(NAVIGATION_WIDTH_STORAGE_KEY, String(navigationWidth));
+    } catch {
+      // Navigation width persistence is optional.
+    }
+  }, [navigationWidth]);
 
   const confirmCanvasLeave = () => {
     if (surface !== "pages" || !canvasDirtyRef.current) return true;
@@ -3244,6 +3272,49 @@ export function LatticeApp() {
     setStatus(expanded ? "Expanded navigation" : "Compact navigation");
   };
 
+  const startNavigationResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = navigationWidth;
+    const shell = event.currentTarget.closest(".lattice-shell");
+    shell?.classList.add("navigation-resizing");
+
+    const finish = () => {
+      shell?.classList.remove("navigation-resizing");
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+    };
+    const move = (pointerEvent: PointerEvent) => {
+      const result = navigationResizeResult(startWidth + pointerEvent.clientX - startX);
+      if (result.mode === "compact") {
+        setNavigationView(false);
+        finish();
+        return;
+      }
+      setNavigationWidth(result.width);
+    };
+
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
+  };
+
+  const resizeNavigationWithKeyboard = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    let requestedWidth: number;
+    if (event.key === "ArrowLeft") requestedWidth = navigationWidth - 8;
+    else if (event.key === "ArrowRight") requestedWidth = navigationWidth + 8;
+    else if (event.key === "Home") requestedWidth = DEFAULT_NAVIGATION_WIDTH;
+    else if (event.key === "End") requestedWidth = MAX_NAVIGATION_WIDTH;
+    else return;
+
+    event.preventDefault();
+    const result = navigationResizeResult(requestedWidth);
+    if (result.mode === "compact") setNavigationView(false);
+    else setNavigationWidth(result.width);
+  };
+
   commandHandlerRef.current = (command) => {
     if (command === "zoom-in" || command === "zoom-out" || command === "zoom-reset") {
       zoomHandlerRef.current(command);
@@ -4233,6 +4304,19 @@ export function LatticeApp() {
           )}
           {vault && <span className="vault-card-status" aria-hidden="true" />}
         </div>
+        <div
+          className="navigation-resizer"
+          role="separator"
+          aria-label="Resize navigation"
+          aria-orientation="vertical"
+          aria-valuemin={MIN_NAVIGATION_WIDTH}
+          aria-valuemax={MAX_NAVIGATION_WIDTH}
+          aria-valuenow={navigationWidth}
+          tabIndex={0}
+          onPointerDown={startNavigationResize}
+          onKeyDown={resizeNavigationWithKeyboard}
+          onDoubleClick={() => setNavigationWidth(DEFAULT_NAVIGATION_WIDTH)}
+        />
       </aside>
 
       <section
