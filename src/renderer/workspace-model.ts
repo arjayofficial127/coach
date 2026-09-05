@@ -1,7 +1,14 @@
+import {
+  DESKTOP_ICON_CATALOG,
+  type DesktopIconSelection,
+  normalizeDesktopIcon,
+} from "./desktop-icon-model";
+
 export interface DesktopDefinition {
   id: string;
   name: string;
   color: "violet" | "cyan" | "amber" | "rose" | "lime";
+  icon?: DesktopIconSelection;
 }
 
 export interface ArchivedDesktopDefinition extends DesktopDefinition {
@@ -87,7 +94,13 @@ export function parseWorkspacePreferences(serialized: string | null): WorkspaceP
           candidate.version === 1 && legacyDefaultNames[desktop.id] === name
             ? (genericNames[desktop.id] ?? name)
             : name;
-        return { ...desktop, name: migratedName };
+        const icon = normalizeDesktopIcon(desktop.icon);
+        return {
+          id: desktop.id,
+          name: migratedName,
+          color: desktop.color,
+          ...(icon ? { icon } : {}),
+        };
       });
     if (desktops.length === 0) return DEFAULT_WORKSPACE;
     const activeDesktopId = desktops.some((desktop) => desktop.id === candidate.activeDesktopId)
@@ -113,10 +126,12 @@ export function parseWorkspacePreferences(serialized: string | null): WorkspaceP
           return null;
         }
         archivedIds.add(id);
+        const icon = normalizeDesktopIcon(desktop.icon);
         return {
           id,
           name,
           color: color as DesktopDefinition["color"],
+          ...(icon ? { icon } : {}),
           archivedAt:
             typeof desktop.archivedAt === "string" && desktop.archivedAt
               ? desktop.archivedAt
@@ -140,6 +155,27 @@ export function createDesktop(name: string, index: number): DesktopDefinition {
     id: crypto.randomUUID(),
     name: name.trim().slice(0, 40),
     color: colors[index % colors.length] ?? "violet",
+    icon: {
+      type: "builtin",
+      id: DESKTOP_ICON_CATALOG[index % DESKTOP_ICON_CATALOG.length]?.id ?? "orbit-dot",
+    },
+  };
+}
+
+export function setDesktopIcon(
+  workspace: WorkspacePreferences,
+  desktopId: string,
+  icon: DesktopIconSelection,
+): WorkspacePreferences {
+  const normalized = normalizeDesktopIcon(icon);
+  if (!normalized || !workspace.desktops.some((desktop) => desktop.id === desktopId)) {
+    return workspace;
+  }
+  return {
+    ...workspace,
+    desktops: workspace.desktops.map((desktop) =>
+      desktop.id === desktopId ? { ...desktop, icon: normalized } : desktop,
+    ),
   };
 }
 
@@ -222,6 +258,7 @@ export function restoreArchivedDesktop(
     id: archived.id,
     name: archived.name,
     color: archived.color,
+    ...(archived.icon ? { icon: archived.icon } : {}),
   });
   return {
     restored: true,

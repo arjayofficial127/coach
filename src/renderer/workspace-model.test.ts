@@ -7,6 +7,7 @@ import {
   permanentlyDeleteArchivedDesktop,
   renameDesktop,
   restoreArchivedDesktop,
+  setDesktopIcon,
 } from "./workspace-model";
 
 describe("workspace preferences", () => {
@@ -36,6 +37,17 @@ describe("workspace preferences", () => {
     );
     expect(renameDesktop(DEFAULT_WORKSPACE, "build", "Desk 1")).toBe(DEFAULT_WORKSPACE);
     expect(renameDesktop(DEFAULT_WORKSPACE, "build", "   ")).toBe(DEFAULT_WORKSPACE);
+  });
+
+  it("stores a validated icon on the selected desktop", () => {
+    const updated = setDesktopIcon(DEFAULT_WORKSPACE, "build", {
+      type: "builtin",
+      id: "portal-crown",
+    });
+    expect(updated.desktops[1]?.icon).toEqual({ type: "builtin", id: "portal-crown" });
+    expect(setDesktopIcon(DEFAULT_WORKSPACE, "missing", { type: "builtin", id: "orbit-dot" })).toBe(
+      DEFAULT_WORKSPACE,
+    );
   });
 
   it("moves only known tab assignments to a known desktop", () => {

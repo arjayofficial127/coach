@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type {
   BrowserState,
@@ -7,6 +7,15 @@ import type {
   SavedLinkRecord,
 } from "../shared/contracts";
 import { actionHelpText } from "./action-help-text";
+import { DesktopIconGraphic } from "./desktop-icon";
+import {
+  DESKTOP_ICON_ACCEPT,
+  DESKTOP_ICON_CATALOG,
+  type DesktopIconSelection,
+  desktopIconFileIsSupported,
+  isDesktopIconDataUrl,
+  MAX_DESKTOP_ICON_FILE_BYTES,
+} from "./desktop-icon-model";
 import { Icon, type IconName } from "./icon";
 import { RUNNABLE_APP_CATALOG, type RunnableAppId } from "./runnable-apps-model";
 import {
@@ -249,6 +258,7 @@ interface DashboardSurfaceProps {
   showGreeting?: boolean;
   toolbarContentTarget?: HTMLDivElement | null;
   desktopName: string;
+  desktopIcon?: DesktopIconSelection;
   openTabs: BrowserState[];
   activeTabId: string;
   tabPreviews: Record<string, string>;
@@ -268,6 +278,7 @@ interface DashboardSurfaceProps {
   onOpenFiles: () => void;
   onSearchTabContents: (tabIds: string[], query: string) => Promise<string[]>;
   onRenameDesktop: (name: string) => boolean;
+  onDesktopIconChange: (icon: DesktopIconSelection) => void;
   customizing: boolean;
   onCustomizingChange: (open: boolean) => void;
 }
@@ -319,6 +330,7 @@ export function DashboardSurface({
   showGreeting = true,
   toolbarContentTarget = null,
   desktopName,
+  desktopIcon,
   openTabs,
   activeTabId,
   tabPreviews,
@@ -338,6 +350,7 @@ export function DashboardSurface({
   onOpenFiles,
   onSearchTabContents,
   onRenameDesktop,
+  onDesktopIconChange,
   customizing,
   onCustomizingChange,
 }: DashboardSurfaceProps) {
@@ -355,6 +368,7 @@ export function DashboardSurface({
   const [headline, setHeadline] = useState(initialPreferences.headline);
   const [message, setMessage] = useState(initialPreferences.message);
   const [desktopNameDraft, setDesktopNameDraft] = useState(desktopName);
+  const [desktopIconError, setDesktopIconError] = useState("");
   const [enabled, setEnabled] = useState(initialPreferences.enabled);
   const [order, setOrder] = useState(initialPreferences.order);
   const [sectionOrder, setSectionOrder] = useState(initialPreferences.sectionOrder);
@@ -371,6 +385,30 @@ export function DashboardSurface({
   useEffect(() => {
     setDesktopNameDraft(desktopName);
   }, [desktopName]);
+
+  const uploadDesktopIcon = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!desktopIconFileIsSupported(file)) {
+      setDesktopIconError(
+        `Choose an SVG, PNG, or JPG image up to ${MAX_DESKTOP_ICON_FILE_BYTES / 1024 / 1024} MB.`,
+      );
+      return;
+    }
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      const result = reader.result;
+      if (!isDesktopIconDataUrl(result)) {
+        setDesktopIconError("That image could not be used. Try another SVG, PNG, or JPG file.");
+        return;
+      }
+      setDesktopIconError("");
+      onDesktopIconChange({ type: "image", dataUrl: result });
+    });
+    reader.addEventListener("error", () => setDesktopIconError("That image could not be read."));
+    reader.readAsDataURL(file);
+  };
   useEffect(() => {
     const syncFavorites = () => {
       const preferences = readPreferences();
@@ -1331,6 +1369,53 @@ export function DashboardSurface({
                 }}
               />
             </label>
+            <section className="dashboard-desktop-icon-editor">
+              <div className="dashboard-desktop-icon-heading">
+                <span>
+                  <strong>Desktop icon</strong>
+                  <small>100 original line-art options</small>
+                </span>
+                <label className="dashboard-desktop-icon-upload">
+                  Upload image
+                  <input
+                    type="file"
+                    accept={DESKTOP_ICON_ACCEPT}
+                    onChange={uploadDesktopIcon}
+                    hidden
+                  />
+                </label>
+              </div>
+              {desktopIcon?.type === "image" && (
+                <div className="dashboard-desktop-icon-uploaded">
+                  <span aria-hidden="true">
+                    <DesktopIconGraphic icon={desktopIcon} />
+                  </span>
+                  <span>Custom image selected</span>
+                </div>
+              )}
+              {desktopIconError && (
+                <small className="dashboard-desktop-icon-error" role="alert">
+                  {desktopIconError}
+                </small>
+              )}
+              <div className="dashboard-desktop-icon-grid">
+                {DESKTOP_ICON_CATALOG.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-label={option.label}
+                    title={option.label}
+                    aria-pressed={desktopIcon?.type === "builtin" && desktopIcon.id === option.id}
+                    onClick={() => {
+                      setDesktopIconError("");
+                      onDesktopIconChange({ type: "builtin", id: option.id });
+                    }}
+                  >
+                    <DesktopIconGraphic icon={{ type: "builtin", id: option.id }} />
+                  </button>
+                ))}
+              </div>
+            </section>
             <label>
               Headline
               <input value={headline} onChange={(event) => setHeadline(event.target.value)} />

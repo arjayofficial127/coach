@@ -58,6 +58,8 @@ import {
   setDashboardUrlFavorite,
 } from "./dashboard-surface";
 import { removeDesktopRecords } from "./desktop-lifecycle";
+import { DesktopIconGraphic } from "./desktop-icon";
+import type { DesktopIconSelection } from "./desktop-icon-model";
 import {
   FOCUS_STORAGE_KEY,
   MAX_FOCUS_INTENTION_LENGTH,
@@ -122,6 +124,7 @@ import {
   permanentlyDeleteArchivedDesktop,
   renameDesktop,
   restoreArchivedDesktop,
+  setDesktopIcon,
   type WorkspacePreferences,
 } from "./workspace-model";
 import { WorkspaceStudio as LocalFilesSurface } from "./workspace-studio";
@@ -2139,6 +2142,10 @@ export function LatticeApp() {
     return true;
   };
 
+  const setActiveDesktopIcon = (icon: DesktopIconSelection) => {
+    setWorkspace((current) => setDesktopIcon(current, current.activeDesktopId, icon));
+  };
+
   const closeAllTabs = async () => {
     if (!confirmCanvasLeave()) return;
     try {
@@ -3484,7 +3491,7 @@ export function LatticeApp() {
           onClick={() => setNavigationView(true)}
         >
           <span className={`rail-desktop-glyph ${activeDesktop?.color ?? "violet"}`}>
-            <Icon name="desktop" />
+            <DesktopIconGraphic icon={activeDesktop?.icon} color={activeDesktop?.color} />
           </span>
           <Icon name="arrow-right" />
         </button>
@@ -3834,7 +3841,7 @@ export function LatticeApp() {
                 {workspace.archivedDesktops.map((desktop) => (
                   <div className="archived-desktop-item" key={desktop.id}>
                     <span className={`desktop-glyph ${desktop.color}`}>
-                      <Icon name="desktop" />
+                      <DesktopIconGraphic icon={desktop.icon} color={desktop.color} />
                     </span>
                     <span>
                       <strong>{desktop.name}</strong>
@@ -3901,7 +3908,7 @@ export function LatticeApp() {
                     onSubmit={submitDesktopRename}
                   >
                     <span className={`desktop-glyph ${desktop.color}`}>
-                      <Icon name="desktop" />
+                      <DesktopIconGraphic icon={desktop.icon} color={desktop.color} />
                     </span>
                     <input
                       ref={desktopRenameInputRef}
@@ -3958,7 +3965,7 @@ export function LatticeApp() {
                     }}
                   >
                     <span className={`desktop-glyph ${desktop.color}`}>
-                      <Icon name="desktop" />
+                      <DesktopIconGraphic icon={desktop.icon} color={desktop.color} />
                     </span>
                   </button>
                   <span className="desktop-copy">
@@ -3992,7 +3999,8 @@ export function LatticeApp() {
                     <button
                       type="button"
                       className="desktop-summary-button"
-                      aria-label={`Switch to ${desktop.name}`}
+                      aria-label={`${formatCount(tabCount, "tab")}, ${formatCount(linkCount, "saved link")} in ${desktop.name}`}
+                      title={`${formatCount(tabCount, "tab")} · ${formatCount(linkCount, "saved link")}`}
                       data-action-description={actionHelpText.desktop(desktop.name)}
                       onClick={(event) => {
                         event.stopPropagation();
@@ -4000,7 +4008,7 @@ export function LatticeApp() {
                       }}
                     >
                       <small>
-                        {formatCount(tabCount, "tab")} · {linkCount} saved
+                        {tabCount}
                       </small>
                     </button>
                   </span>
@@ -4327,7 +4335,7 @@ export function LatticeApp() {
             onClick={showDashboard}
           >
             <span className={`favicon desktop-tab-icon ${activeDesktop?.color ?? "violet"}`}>
-              <Icon name="desktop" />
+              <DesktopIconGraphic icon={activeDesktop?.icon} color={activeDesktop?.color} />
             </span>
             <span className="desktop-context-name">{activeDesktop?.name ?? "Desk 1"}</span>
             <span className="desktop-context-count" aria-hidden="true">
@@ -5223,9 +5231,11 @@ export function LatticeApp() {
                 showGreeting={false}
                 toolbarContentTarget={dashboardToolbarContentTarget}
                 desktopName={activeDesktop?.name ?? "Workspace"}
+                desktopIcon={activeDesktop?.icon}
                 customizing={dashboardCustomizing}
                 onCustomizingChange={setDashboardCustomizing}
                 onRenameDesktop={renameActiveDesktopFromDashboard}
+                onDesktopIconChange={setActiveDesktopIcon}
                 openTabs={desktopTabs}
                 activeTabId={snapshot.activeTabId}
                 tabPreviews={dashboardTabPreviews}
@@ -5897,7 +5907,7 @@ export function LatticeApp() {
                           return (
                             <article className="settings-archived-desktop" key={desktop.id}>
                               <span className={`desktop-glyph ${desktop.color}`}>
-                                <Icon name="desktop" />
+                                <DesktopIconGraphic icon={desktop.icon} color={desktop.color} />
                               </span>
                               <span>
                                 <strong>{desktop.name}</strong>

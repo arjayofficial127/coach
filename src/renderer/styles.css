@@ -1154,7 +1154,7 @@ kbd {
 
 .desktop-list {
   display: grid;
-  gap: 1px;
+  gap: 2px;
 }
 
 .desktop-section-label {
@@ -1168,14 +1168,14 @@ kbd {
 .desktop-item {
   position: relative;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 22px;
-  min-height: 46px;
+  grid-template-columns: 22px minmax(0, 1fr) 22px;
+  min-height: 38px;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
   border: 0;
   border-radius: 8px;
   background: transparent;
-  padding: 3px 7px 3px 5px;
+  padding: 0 7px;
   color: #a2a0ae;
   cursor: pointer;
   transition: 140ms ease;
@@ -1211,16 +1211,14 @@ kbd {
 }
 
 .desktop-item.active {
-  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
   background: var(--accent-soft);
-  box-shadow: inset 3px 0 0 var(--accent);
   color: var(--text);
 }
 
 .desktop-select {
   display: grid;
-  width: 34px;
-  height: 38px;
+  width: 22px;
+  height: 28px;
   place-items: center;
   border-radius: 9px;
   background: transparent;
@@ -1247,7 +1245,8 @@ kbd {
   display: inline-flex;
   min-width: 0;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  overflow: hidden;
 }
 
 .desktop-rename-button {
@@ -1258,7 +1257,13 @@ kbd {
   border-radius: 4px;
   background: transparent;
   color: var(--subtle);
-  opacity: 0.55;
+  flex: 0 0 auto;
+  opacity: 0;
+}
+
+.desktop-item:hover .desktop-rename-button,
+.desktop-rename-button:focus-visible {
+  opacity: 0.65;
 }
 
 .desktop-rename-button:hover,
@@ -1298,7 +1303,7 @@ kbd {
   overflow: hidden;
   background: transparent;
   color: inherit;
-  text-align: left;
+  text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1385,15 +1390,21 @@ kbd {
 
 .desktop-glyph {
   display: grid;
-  width: 29px;
-  height: 29px;
+  width: 22px;
+  height: 22px;
   place-items: center;
-  border-radius: 8px;
+  border-radius: 5px;
+  background: transparent;
 }
 
-.desktop-glyph svg {
-  width: 14px;
-  height: 14px;
+.desktop-glyph :is(svg, img) {
+  width: 18px;
+  height: 18px;
+}
+
+.desktop-glyph img {
+  border-radius: 4px;
+  object-fit: cover;
 }
 
 .desktop-glyph.violet,
@@ -1425,11 +1436,20 @@ kbd {
   color: #9ed06d;
 }
 
+.desktop-glyph.violet,
+.desktop-glyph.cyan,
+.desktop-glyph.amber,
+.desktop-glyph.rose,
+.desktop-glyph.lime {
+  background: transparent;
+}
+
 .desktop-copy {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   min-width: 0;
-  gap: 2px;
-  justify-items: start;
+  align-items: center;
+  gap: 6px;
 }
 
 .desktop-copy strong {
@@ -1443,6 +1463,10 @@ kbd {
 .desktop-copy small {
   color: #676674;
   font-size: 9px;
+}
+
+.desktop-item:hover .desktop-glyph :is(svg, img) {
+  animation: navigation-icon-tilt 4s ease-in-out infinite;
 }
 
 .desktop-archive-popover {
@@ -8112,7 +8136,8 @@ kbd {
   }
 
   .navigation-row:hover .navigation-row-icon svg,
-  .library-row:hover .navigation-row-icon svg {
+  .library-row:hover .navigation-row-icon svg,
+  .desktop-item:hover .desktop-glyph :is(svg, img) {
     animation: none;
   }
 }
@@ -8247,27 +8272,27 @@ kbd {
 }
 
 .lattice-shell.new-tab-sizing-invalidated .desktop-item:not(.desktop-rename-row) {
-  min-height: 48px;
-  grid-template-columns: 34px minmax(0, 1fr) 24px;
-  gap: 7px;
-  border-radius: 10px;
-  padding: 4px 7px 4px 5px;
+  min-height: 38px;
+  grid-template-columns: 22px minmax(0, 1fr) 22px;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 0 7px;
 }
 
 .lattice-shell.new-tab-sizing-invalidated .desktop-select,
 .lattice-shell.new-tab-sizing-invalidated .desktop-glyph {
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
 }
 
-.lattice-shell.new-tab-sizing-invalidated .desktop-glyph svg {
-  width: 14px;
-  height: 14px;
+.lattice-shell.new-tab-sizing-invalidated .desktop-glyph :is(svg, img) {
+  width: 18px;
+  height: 18px;
 }
 
 .lattice-shell.new-tab-sizing-invalidated .desktop-copy {
-  gap: 2px;
+  gap: 6px;
 }
 
 .lattice-shell.new-tab-sizing-invalidated .desktop-copy strong {
@@ -8869,9 +8894,9 @@ kbd {
 }
 
 .lattice-shell.theme-adaptive .desktop-item.active {
-  border-color: color-mix(in srgb, var(--accent) 36%, var(--line));
+  border-color: transparent;
   background: var(--accent-soft);
-  box-shadow: inset 3px 0 0 var(--accent);
+  box-shadow: none;
   color: var(--text);
 }
 
@@ -12023,7 +12048,7 @@ kbd {
   isolation: isolate;
   top: 66px;
   right: 18px;
-  width: min(340px, calc(100vw - 36px));
+  width: min(420px, calc(100vw - 36px));
   max-height: calc(100vh - 84px);
   overflow: auto;
   border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
@@ -12070,6 +12095,119 @@ kbd {
 .dashboard-customizer textarea {
   min-height: 70px;
   resize: vertical;
+}
+
+.dashboard-desktop-icon-editor {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+}
+
+.dashboard-desktop-icon-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dashboard-desktop-icon-heading > span {
+  display: grid;
+  gap: 2px;
+}
+
+.dashboard-desktop-icon-heading strong {
+  font-size: 11px;
+}
+
+.dashboard-desktop-icon-heading small,
+.dashboard-desktop-icon-uploaded,
+.dashboard-desktop-icon-error {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.dashboard-customizer .dashboard-desktop-icon-upload {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 9px;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.dashboard-customizer .dashboard-desktop-icon-upload:hover {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  color: var(--accent-strong);
+}
+
+.dashboard-desktop-icon-uploaded {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.dashboard-desktop-icon-uploaded > span:first-child {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+
+.dashboard-desktop-icon-uploaded :is(svg, img) {
+  width: 19px;
+  height: 19px;
+  object-fit: cover;
+}
+
+.dashboard-desktop-icon-error {
+  color: #c35a67;
+}
+
+.dashboard-desktop-icon-grid {
+  display: grid;
+  max-height: 246px;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 4px;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+
+.dashboard-desktop-icon-grid button {
+  display: grid;
+  aspect-ratio: 1;
+  min-width: 0;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.dashboard-desktop-icon-grid button:hover {
+  border-color: var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.dashboard-desktop-icon-grid button[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--accent) 44%, var(--line));
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.dashboard-desktop-icon-grid :is(svg, img) {
+  width: 20px;
+  height: 20px;
+  object-fit: cover;
 }
 
 .dashboard-group-editor {
