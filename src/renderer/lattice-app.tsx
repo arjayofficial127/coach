@@ -2579,6 +2579,7 @@ export function LatticeApp() {
 
   const showFiles = () => {
     if (!confirmCanvasLeave()) return;
+    setNavigationExpanded(true);
     setSurface("files");
     setCaptureOpen(false);
     setBrowserMenuOpen(false);

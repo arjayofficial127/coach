@@ -20,7 +20,12 @@
   padding: 16px 12px;
   gap: 10px;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
+}
+.lattice-shell[data-surface="files"]
+  .workspace-panel
+  > :not(.workspace-heading):not(#workspace-sidebar-slot) {
+  display: none;
 }
 .lattice-shell[data-surface="files"] .workspace-heading {
   margin-bottom: 5px;
@@ -92,6 +97,16 @@
 #workspace-sidebar-slot:empty {
   display: none;
 }
+#workspace-sidebar-slot {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+#workspace-sidebar-slot > .ws-portal {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
 #workspace-tabs-slot .ws-portal {
   display: flex;
   min-width: 0;
@@ -149,30 +164,41 @@
   color: var(--muted);
 }
 .ws-sidebar-surface {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   border: 0;
   padding: 0;
   margin: 0;
   min-width: 0;
+  min-height: 0;
 }
-.ws-sidebar-nav {
-  display: grid;
-  gap: 3px;
-  margin: 0 0 14px;
-  border-block: 1px solid var(--line);
-  padding: 12px 0;
+.ws-files-dashboard {
+  margin: 2px 0 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
 }
-.ws-sidebar-nav button {
+.ws-files-dashboard button {
   text-align: left;
   justify-content: flex-start;
   width: 100%;
 }
-.ws-sidebar-nav button[aria-current] {
+.ws-files-dashboard button[aria-current] {
   color: var(--accent-strong);
   background: var(--accent-soft);
-  font-weight: 600;
 }
-.ws-sidebar-nav small {
-  margin-left: auto;
+.ws-files-dashboard button > span {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+.ws-files-dashboard strong {
+  font-size: 12px;
+}
+.ws-files-dashboard small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ws-vision.ws-studio {
   background: var(--surface);
@@ -232,6 +258,10 @@
 }
 .ws-vision .ws-tree,
 .ws-portal .ws-tree {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
   border: 0;
   border-radius: 0;
   padding: 0;
@@ -239,6 +269,11 @@
 }
 .ws-portal .ws-tree > header {
   display: none;
+}
+.ws-portal .ws-tree > .ws-tree-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 .ws-portal .ws-folder-location {
   font-size: 10px;
@@ -249,7 +284,7 @@
   background: transparent;
 }
 .ws-portal .ws-tree footer {
-  margin-top: 18px;
+  margin-top: auto;
   padding: 14px 4px 4px;
   border-top: 1px solid var(--line);
   gap: 7px;

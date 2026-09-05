@@ -45,7 +45,7 @@ export async function verifyWorkspaceStudio(
     );
     if (
       isNote &&
-      (scope.includes(".ws-sidebar-nav") ||
+      (scope.includes(".ws-files-dashboard") ||
         scope.includes(".ws-tree") ||
         (scope === ".ws-header-actions" && label === "New"))
     ) {
@@ -123,9 +123,9 @@ export async function verifyWorkspaceStudio(
   const content =
     "# Living workspace\n\n- [ ] Review the board\n\n> Local and inspectable.\n\n[[Workspace smoke board.coach]]\n\n| Name | Status |\n| --- | --- |\n| Editor | Ready |\n";
   await fill(".ws-source", content);
-  await click(".ws-sidebar-nav", "Home");
+  await click(".ws-files-dashboard", "Files dashboard");
   await wait("Boolean(document.querySelector('[data-workspace-home]'))", "Home switch");
-  await click(".ws-sidebar-nav", "Files & notes");
+  await click(".ws-tree", "Workspace smoke note");
   await wait("Boolean(document.querySelector('.ws-document'))", "editor return");
   await click(".ws-document-tools", "Write");
   const draftRetained = await evaluate<boolean>(
@@ -171,7 +171,7 @@ export async function verifyWorkspaceStudio(
   );
   const editorScreenshotPath = await capture("workspace-studio-editor.png");
   console.log("[smoke] workspace editor captured");
-  await click(".ws-sidebar-nav", "Home");
+  await click(".ws-files-dashboard", "Files dashboard");
   await wait("Boolean(document.querySelector('[data-workspace-home]'))", "Home restored");
   await fill('[aria-label="Quick capture"]', "Workspace studio Inbox smoke");
   await click(".ws-capture", "Capture to Inbox");
@@ -295,7 +295,7 @@ export async function verifyWorkspaceStudio(
     "Escape closes tools and returns focus",
   );
   await click(".ws-tabs", "Workspace smoke note.md");
-  await click(".ws-sidebar-nav", "Files & notes");
+  await click(".ws-tree", "Workspace smoke note");
   await click(".ws-panes > .ws-document .ws-document-tools", "Write");
   const renamedDraft = `${content}\nDraft retained across an inline title rename.\n`;
   await fill(".ws-panes > .ws-document .ws-source", renamedDraft);
@@ -336,7 +336,7 @@ export async function verifyWorkspaceStudio(
     "Boolean(document.querySelector('.ws-tree [aria-label=\"More actions for folder Incoming\"]')) && !document.querySelector('.ws-rename-form')",
     "Inbox folder renamed",
   );
-  await click(".ws-sidebar-nav", "Home");
+  await click(".ws-files-dashboard", "Files dashboard");
   await fill('[aria-label="Quick capture"]', "Captured after renaming Inbox");
   await click(".ws-capture", "Capture to Inbox");
   await wait(

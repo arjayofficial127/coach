@@ -259,6 +259,15 @@ function WorkspaceSession({
     [index, tabs],
   );
 
+  const openFilesDashboard = () => {
+    setView("home");
+    setFolder("");
+    setActivePath(null);
+    setQuery("");
+    setFolderMenuPath(null);
+    setFolderDetailsPath(null);
+  };
+
   const openFolder = async (relativePath: string, navigate = true) => {
     if (navigate) {
       setFolder(relativePath);
@@ -1345,33 +1354,17 @@ function WorkspaceSession({
                 New
               </button>
             </div>
-            <nav className="ws-sidebar-nav" aria-label="Local workspace navigation">
+            <nav className="ws-files-dashboard" aria-label="Files dashboard">
               <button
                 type="button"
                 aria-current={view === "home" ? "page" : undefined}
-                onClick={() => setView("home")}
+                onClick={openFilesDashboard}
               >
                 <Icon name="home" />
-                Home
-              </button>
-              <button type="button" onClick={() => void openFolder(inboxFolder)}>
-                <Icon name="folder" />
-                Inbox{" "}
-                <small>
-                  {files.filter((entry) => entry.relativePath.startsWith(`${inboxFolder}/`)).length}
-                </small>
-              </button>
-              <button
-                type="button"
-                aria-current={view === "files" ? "page" : undefined}
-                onClick={() => setView("files")}
-              >
-                <Icon name="edit" />
-                Files &amp; notes
-              </button>
-              <button type="button" onClick={() => setView("recent")}>
-                <Icon name="timer" />
-                Recent files
+                <span>
+                  <strong>Files dashboard</strong>
+                  <small>Overview of this workspace</small>
+                </span>
               </button>
             </nav>
             <aside className="ws-tree" aria-label="Files and folders">
@@ -1398,7 +1391,7 @@ function WorkspaceSession({
                 </span>
                 <strong>{workspaceName}</strong>
                 <button type="button" className="ws-text-action" onClick={onSettings}>
-                  Manage in Settings
+                  Files settings
                 </button>
               </footer>
             </aside>

@@ -26,7 +26,7 @@ export async function verifyWorkspaceVision(
     );
     if (
       isNote &&
-      (scope.includes(".ws-sidebar-nav") ||
+      (scope.includes(".ws-files-dashboard") ||
         scope.includes(".ws-tree") ||
         (scope === ".ws-header-actions" && label === "New"))
     ) {
@@ -269,7 +269,7 @@ export async function verifyWorkspaceVision(
   }
   await wait(boundsMatch, "restored native bounds");
   const visionWorkbenchScreenshotPath = await screenshot("workspace-vision-workbench.png");
-  await click(".ws-sidebar-nav", "Home");
+  await click(".ws-files-dashboard", "Files dashboard");
   await wait(() => !runtime.isVisible(), "native source hidden outside workbench");
   return {
     unifiedNavigation: true,
