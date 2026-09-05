@@ -325,12 +325,15 @@ export async function verifyWorkspaceStudio(
     "renamed draft saved",
   );
   const renameScreenshotPath = await capture("workspace-title-editing.png");
-  await evaluate("document.querySelector('.ws-tree [aria-label=\"Rename folder Inbox\"]').click()");
+  await evaluate(
+    "document.querySelector('.ws-tree [aria-label=\"More actions for folder Inbox\"]').click()",
+  );
+  await click(".ws-folder-menu", "Rename");
   await wait("Boolean(document.querySelector('.ws-rename-form'))", "folder rename form");
   await fill('[aria-label="New title"]', "Incoming");
   await click(".ws-rename-form", "Rename");
   await wait(
-    "Boolean(document.querySelector('.ws-tree [aria-label=\"Rename folder Incoming\"]')) && !document.querySelector('.ws-rename-form')",
+    "Boolean(document.querySelector('.ws-tree [aria-label=\"More actions for folder Incoming\"]')) && !document.querySelector('.ws-rename-form')",
     "Inbox folder renamed",
   );
   await click(".ws-sidebar-nav", "Home");

@@ -1,4 +1,12 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { isCoachBoard, parseCoachObject, writeCoachObject } from "../shared/coach-board";
 import type {
   BrowserSourceCapture,
@@ -121,6 +129,8 @@ function WorkspaceSession({
   const [expanded, setExpanded] = useState<Set<string>>(new Set([""]));
   const [query, setQuery] = useState("");
   const [newMenu, setNewMenu] = useState(false);
+  const [folderMenuPath, setFolderMenuPath] = useState<string | null>(null);
+  const [folderDetailsPath, setFolderDetailsPath] = useState<string | null>(null);
   const [newKind, setNewKind] = useState<NewEntryKind | null>(null);
   const [newName, setNewName] = useState("");
   const [tabs, setTabs] = useState<WorkspaceTab[]>(() => sessions.get(cacheKey) ?? []);
@@ -154,6 +164,15 @@ function WorkspaceSession({
       renameInput.current?.scrollIntoView({ block: "nearest" });
     }
   }, [renameTarget]);
+  useEffect(() => {
+    const closeFolderPopovers = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setFolderMenuPath(null);
+      setFolderDetailsPath(null);
+    };
+    window.addEventListener("keydown", closeFolderPopovers);
+    return () => window.removeEventListener("keydown", closeFolderPopovers);
+  }, []);
 
   const updateTabs = useCallback(
     (update: (current: WorkspaceTab[]) => WorkspaceTab[]) => {
@@ -533,6 +552,8 @@ function WorkspaceSession({
   };
   const startRename = (entry: WorkspaceDirectoryEntry) => {
     if (entry.kind !== "folder") return;
+    setFolderMenuPath(null);
+    setFolderDetailsPath(null);
     setRenameTarget(entry);
     setRenameTitle(workspaceTitle(entry.name, entry.kind));
     setRenameError("");
@@ -630,6 +651,49 @@ function WorkspaceSession({
       if (mounted.current) setMessage("Could not reload. Your draft is unchanged.");
     }
   };
+  const handleTreeNavigation = (
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    entry: WorkspaceDirectoryEntry,
+    canExpand: boolean,
+  ) => {
+    const visibleEntries = [
+      ...document.querySelectorAll<HTMLButtonElement>(".ws-tree [data-workspace-entry]"),
+    ].filter((button) => button.getClientRects().length > 0);
+    const currentIndex = visibleEntries.indexOf(event.currentTarget);
+    const focusAt = (index: number) => visibleEntries.at(index)?.focus();
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      focusAt(Math.min(visibleEntries.length - 1, currentIndex + 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      focusAt(Math.max(0, currentIndex - 1));
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      focusAt(0);
+    } else if (event.key === "End") {
+      event.preventDefault();
+      focusAt(visibleEntries.length - 1);
+    } else if (event.key === "ArrowRight" && entry.kind === "folder" && canExpand) {
+      event.preventDefault();
+      if (expanded.has(entry.relativePath)) focusAt(currentIndex + 1);
+      else void openFolder(entry.relativePath, false);
+    } else if (event.key === "ArrowLeft") {
+      const isExpanded = entry.kind === "folder" && expanded.has(entry.relativePath);
+      const parentPath = entry.relativePath.split("/").slice(0, -1).join("/");
+      const parent = parentPath
+        ? document.querySelector<HTMLButtonElement>(
+            `.ws-tree [data-workspace-path="${CSS.escape(parentPath)}"]`,
+          )
+        : null;
+      if (!isExpanded && !parent) return;
+      event.preventDefault();
+      if (isExpanded)
+        setExpanded(
+          (current) => new Set([...current].filter((value) => value !== entry.relativePath)),
+        );
+      else parent?.focus();
+    }
+  };
   const tree = (relativePath: string, depth = 0): ReactNode =>
     depth > 24 ? null : (
       <ul className="ws-tree-list">
@@ -638,15 +702,36 @@ function WorkspaceSession({
             entry.kind === "folder" ? workspaceFolderCounts(index, entry.relativePath) : null;
           const displayCount = (value: number, complete: boolean) =>
             `${value}${complete ? "" : "+"}`;
+          const hasKnownChildren = Boolean(counts && counts.directFiles + counts.directFolders > 0);
+          const canExpand = Boolean(counts && (!counts.directComplete || hasKnownChildren));
+          const summary = counts
+            ? [
+                counts.directFiles
+                  ? `${displayCount(counts.directFiles, counts.directComplete)} ${counts.directFiles === 1 ? "file" : "files"}`
+                  : "",
+                counts.directFolders
+                  ? `${displayCount(counts.directFolders, counts.directComplete)} ${counts.directFolders === 1 ? "folder" : "folders"}`
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : "";
           return (
-            <li key={entry.id}>
+            <li
+              key={entry.id}
+              className="ws-tree-item"
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) setFolderMenuPath(null);
+              }}
+            >
               <div
                 className={`ws-tree-row ${activePath === entry.relativePath ? "is-active" : ""} ${folder === entry.relativePath ? "is-folder" : ""}`}
               >
-                {entry.kind === "folder" ? (
+                {entry.kind === "folder" && canExpand ? (
                   <button
                     type="button"
                     className="ws-tree-toggle"
+                    tabIndex={-1}
                     aria-label={`${expanded.has(entry.relativePath) ? "Collapse" : "Expand"} ${entry.name}`}
                     aria-expanded={expanded.has(entry.relativePath)}
                     onClick={() => {
@@ -665,46 +750,139 @@ function WorkspaceSession({
                 ) : (
                   <span className="ws-tree-spacer" />
                 )}
-                <button
-                  type="button"
-                  data-workspace-entry={entry.kind}
-                  onClick={() => void openEntry(entry)}
-                  aria-label={`Open ${workspaceEntryTitle(entry)}`}
-                  title={entry.name}
-                >
-                  <Icon name={entry.kind === "folder" ? "folder" : "file"} />
-                  <span className="ws-tree-entry-copy">
+                <span className="ws-tree-entry-block">
+                  <button
+                    type="button"
+                    data-workspace-entry={entry.kind}
+                    data-workspace-path={entry.relativePath}
+                    onClick={() => void openEntry(entry)}
+                    onKeyDown={(event) => handleTreeNavigation(event, entry, canExpand)}
+                    aria-label={`Open ${workspaceEntryTitle(entry)}`}
+                    aria-expanded={
+                      entry.kind === "folder" && canExpand
+                        ? expanded.has(entry.relativePath)
+                        : undefined
+                    }
+                    title={entry.name}
+                  >
+                    <Icon name={entry.kind === "folder" ? "folder" : "file"} />
                     <span className="ws-tree-entry-title">{workspaceEntryTitle(entry)}</span>
-                    {counts && (
-                      <small className="ws-tree-counts">
-                        <span>
-                          <Icon name="file" />
-                          <span className="sr-only">Files: </span>
-                          {displayCount(counts.directFiles, counts.directComplete)}(
-                          {displayCount(counts.totalFiles, counts.totalComplete)})
-                        </span>
-                        <span>
-                          <Icon name="folder" />
-                          <span className="sr-only">Folders: </span>
-                          {displayCount(counts.directFolders, counts.directComplete)}(
-                          {displayCount(counts.totalFolders, counts.totalComplete)})
-                        </span>
-                      </small>
-                    )}
-                  </span>
-                </button>
+                  </button>
+                  {counts && summary && (
+                    <button
+                      type="button"
+                      className="ws-tree-summary"
+                      aria-label={`Show contents details for ${workspaceEntryTitle(entry)}: ${summary} directly inside`}
+                      aria-expanded={folderDetailsPath === entry.relativePath}
+                      onClick={() => {
+                        setFolderMenuPath(null);
+                        setFolderDetailsPath(
+                          folderDetailsPath === entry.relativePath ? null : entry.relativePath,
+                        );
+                      }}
+                    >
+                      {summary}
+                    </button>
+                  )}
+                </span>
                 {entry.kind === "folder" && (
                   <button
                     type="button"
-                    className="ws-rename-entry"
-                    aria-label={`Rename folder ${workspaceDisplayName(entry.name, entry.kind)}`}
-                    onClick={() => startRename(entry)}
+                    className="ws-folder-more"
+                    aria-label={`More actions for folder ${workspaceDisplayName(entry.name, entry.kind)}`}
+                    aria-expanded={folderMenuPath === entry.relativePath}
+                    onClick={() => {
+                      setFolderDetailsPath(null);
+                      setFolderMenuPath(
+                        folderMenuPath === entry.relativePath ? null : entry.relativePath,
+                      );
+                    }}
                   >
-                    <Icon name="edit" />
+                    <Icon name="more" />
                   </button>
                 )}
               </div>
+              {entry.kind === "folder" && folderMenuPath === entry.relativePath && (
+                <fieldset className="ws-folder-menu">
+                  <legend className="sr-only">Actions for {entry.name}</legend>
+                  <button type="button" onClick={() => startRename(entry)}>
+                    Rename
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFolderMenuPath(null);
+                      setFolderDetailsPath(entry.relativePath);
+                    }}
+                  >
+                    Folder details
+                  </button>
+                </fieldset>
+              )}
+              {entry.kind === "folder" && counts && folderDetailsPath === entry.relativePath && (
+                <section className="ws-folder-details" aria-label={`${entry.name} contents`}>
+                  <header>
+                    <strong>{workspaceEntryTitle(entry)} — Contents</strong>
+                    <button
+                      type="button"
+                      aria-label="Close folder details"
+                      onClick={() => setFolderDetailsPath(null)}
+                    >
+                      <Icon name="close" />
+                    </button>
+                  </header>
+                  {counts.totalComplete && counts.totalFiles + counts.totalFolders === 0 ? (
+                    <p>Empty</p>
+                  ) : (
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Location</th>
+                          <th>Files</th>
+                          <th>Folders</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Directly inside</td>
+                          <td>{displayCount(counts.directFiles, counts.directComplete)}</td>
+                          <td>{displayCount(counts.directFolders, counts.directComplete)}</td>
+                        </tr>
+                        <tr>
+                          <td>Deeper in subfolders</td>
+                          <td>
+                            {displayCount(
+                              Math.max(0, counts.totalFiles - counts.directFiles),
+                              counts.totalComplete,
+                            )}
+                          </td>
+                          <td>
+                            {displayCount(
+                              Math.max(0, counts.totalFolders - counts.directFolders),
+                              counts.totalComplete,
+                            )}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <strong>Total</strong>
+                          </td>
+                          <td>
+                            <strong>{displayCount(counts.totalFiles, counts.totalComplete)}</strong>
+                          </td>
+                          <td>
+                            <strong>
+                              {displayCount(counts.totalFolders, counts.totalComplete)}
+                            </strong>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                </section>
+              )}
               {entry.kind === "folder" &&
+                canExpand &&
                 expanded.has(entry.relativePath) &&
                 tree(entry.relativePath, depth + 1)}
             </li>

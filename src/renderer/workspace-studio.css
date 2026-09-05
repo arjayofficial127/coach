@@ -185,7 +185,7 @@
 }
 .ws-tree-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   border-radius: 6px;
   margin-bottom: 3px;
   border: 1px solid transparent;
@@ -198,20 +198,19 @@
 .ws-tree-row.is-folder:not(.is-active) {
   background: var(--surface-2);
 }
-.ws-tree-row > button[data-workspace-entry] {
+.ws-tree-entry-block {
+  display: grid;
   min-width: 0;
   flex: 1;
+}
+.ws-tree-entry-block > button[data-workspace-entry] {
+  min-width: 0;
+  width: 100%;
   text-align: left;
   padding-left: 2px;
   font-size: 12px;
-  align-items: flex-start;
-}
-.ws-tree-entry-copy {
   display: flex;
   align-items: center;
-  min-width: 0;
-  flex: 1;
-  gap: 7px;
 }
 .ws-tree-entry-title {
   min-width: 0;
@@ -220,25 +219,21 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ws-tree-counts {
-  display: flex;
-  flex: none;
-  flex-wrap: nowrap;
-  gap: 6px;
+.ws-tree-summary {
+  width: fit-content;
+  max-width: 100%;
+  padding: 0 4px 5px 25px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 400;
-  line-height: 1;
-}
-.ws-tree-counts > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
+  line-height: 1.3;
+  text-align: left;
   white-space: nowrap;
 }
-.ws-tree-counts svg {
-  width: 10px;
-  height: 10px;
+.ws-tree-summary:hover,
+.ws-tree-summary:focus-visible {
+  color: var(--text);
+  text-decoration: underline;
 }
 .ws-tree-toggle,
 .ws-tree-spacer {
@@ -752,15 +747,88 @@
   width: 14px;
   color: var(--accent);
 }
-.ws-tree-row .ws-rename-entry {
+.ws-tree-row .ws-folder-more {
   flex: 0 0 26px;
   padding: 5px;
   color: var(--muted);
+  opacity: 0;
 }
-.ws-tree-row .ws-rename-entry:hover,
-.ws-tree-row .ws-rename-entry:focus-visible {
+.ws-tree-row:hover .ws-folder-more,
+.ws-tree-row:focus-within .ws-folder-more,
+.ws-tree-row.is-active .ws-folder-more,
+.ws-tree-row.is-folder .ws-folder-more,
+.ws-tree-row .ws-folder-more[aria-expanded="true"] {
+  opacity: 1;
+}
+.ws-tree-row .ws-folder-more:hover,
+.ws-tree-row .ws-folder-more:focus-visible {
   color: var(--accent);
   background: var(--accent-soft);
+}
+.ws-tree-item {
+  position: relative;
+}
+.ws-folder-menu,
+.ws-folder-details {
+  position: absolute;
+  z-index: 8;
+  right: 4px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--text) 12%, transparent);
+}
+.ws-folder-menu {
+  top: 29px;
+  display: grid;
+  min-width: 130px;
+  padding: 5px;
+}
+.ws-folder-menu button {
+  justify-content: flex-start;
+  padding: 7px 9px;
+  font-size: 11px;
+}
+.ws-folder-details {
+  top: 44px;
+  width: min(230px, calc(100vw - 28px));
+  padding: 12px;
+  color: var(--text);
+}
+.ws-folder-details header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.ws-folder-details header button {
+  padding: 2px;
+}
+.ws-folder-details table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+.ws-folder-details th,
+.ws-folder-details td {
+  padding: 6px 5px;
+  border-top: 1px solid var(--line);
+  text-align: right;
+}
+.ws-folder-details th:first-child,
+.ws-folder-details td:first-child {
+  text-align: left;
+}
+.ws-folder-details p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+@media (hover: none) {
+  .ws-tree-row .ws-folder-more {
+    opacity: 1;
+  }
 }
 .ws-rename-form {
   display: grid;
