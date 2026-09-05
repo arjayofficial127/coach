@@ -11,14 +11,21 @@ Home shows your latest files, an Inbox with quick capture, and board cards dated
 Nothing appears until it exists in your local workspace; there are no sample tasks to clean up.
 
 Expand folder arrows to browse the tree. Click a folder name to enter it, then choose **New** to
-create a folder, Markdown note, text file, Coach document, or Coach board there. Files can sit at
-the desktop root or inside nested folders. The creation menu states the destination explicitly.
+create a folder, Markdown note, text file, Coach document, or Coach board there. A Markdown note
+opens immediately as the first available **Untitled**, **Untitled 1**, **Untitled 2**, and so on;
+gaps are reused. Files can sit at the desktop root or inside nested folders. The creation menu
+states the destination explicitly.
 **Recent** and **Find a file** search the indexed filenames and relative paths.
 
 ## Edit file and folder titles
 
-Click the pencil beside a file or folder in the tree, or click an open file's heading. Enter its
-new name and choose **Rename**; **Cancel** leaves it unchanged. File extensions stay fixed.
+The large editable line above a note is its filename without the extension. Moving upward from the
+body's first line enters the title; moving downward returns to the body. Leaving the title renames
+the physical file. A title already used in the same folder is rejected and the previous title is
+restored. File extensions stay fixed.
+
+Click the pencil beside a file or folder in the tree for the explicit rename form. Enter its new
+name and choose **Rename**; **Cancel** leaves it unchanged.
 Renaming preserves file contents, open drafts, and the files inside renamed folders. The editor
 shows a readable title without repeating the filename as a subtitle; tabs retain the full filename.
 
@@ -26,16 +33,16 @@ Inbox, Notes, Files, and Planner folders can be renamed too. Their roles are sto
 metadata, so quick captures continue into the renamed Inbox. The desktop's display name still uses
 the sidebar pencil.
 
-File names and titles inside a note or Coach object are independent. Edit Markdown headings in
-**Write**, or use the document/board title fields, and **Save** those content changes separately.
-Renames do not rewrite links: review **Connections** and update affected source links manually.
+Markdown filenames and displayed note titles are one-to-one; a heading inside the Markdown body is
+ordinary content. Coach object title fields remain object content. Renames do not rewrite links:
+review **Connections** and update affected source links manually.
 Occupied names and stale file revisions are rejected instead of replacing existing work.
 
 ## Notes and split view
 
-Markdown opens in **Preview** with headings, checklists, tables, callouts, and links. Checkboxes
-update the draft; click **Save** to write it. **Write** exposes the original Markdown text, with
-**Insert block** (Ctrl+/) for common structures. Ctrl+S saves the file pane you are working in.
+Markdown opens in its calm editor with headings, checklists, tables, callouts, and links. Changes
+save automatically after a short pause; Ctrl+S flushes the file pane immediately. **Markdown
+source** exposes the original source, with **Insert block** (Ctrl+/) for common structures.
 
 Use `[[Notes/Research.md]]` or `[Research](Notes/Research.md)` to connect files. **Connections**
 shows incoming and outgoing links from the indexed files. Missing or ambiguous targets need an
@@ -54,12 +61,12 @@ kinds use the JSON editor. Files never execute code.
 
 ## Save and recovery boundaries
 
-**Saved locally** and **Unsaved changes** distinguish disk state from a draft. A file changed outside
+**Saved locally**, **Saving**, and **Unsaved changes** distinguish disk state from a draft. A file changed outside
 Coach cannot be overwritten using an old revision. **Reload saved file** asks before discarding your
 draft. Copy important draft text elsewhere first if you need to merge competing edits.
 
-**Session history** restores one of the last five saved versions as a draft, without writing it until
-you click Save. These copies last only while Coach stays open. They are not permanent version history
+**Session history** restores one of the last five saved versions and autosaves it after the normal
+short pause. These copies last only while Coach stays open. They are not permanent version history
 or crash recovery. Back up the connected folder independently.
 
 Refresh after editing files outside Coach. Large workspaces show a partial-index notice when the

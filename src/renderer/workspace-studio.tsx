@@ -417,11 +417,29 @@ function WorkspaceSession({
     window.addEventListener("keydown", shortcut);
     return () => window.removeEventListener("keydown", shortcut);
   }, [activePath, save]);
-  const createEntry = async () => {
-    if (!newKind || !newName.trim() || creating || pendingRenames.has(cacheKey)) return;
+  useEffect(() => {
+    if (renaming) return;
+    const timers = tabs
+      .filter(
+        (tab) =>
+          tab.draft !== tab.document.content && !savingRef.current.has(tab.document.relativePath),
+      )
+      .map((tab) => window.setTimeout(() => void save(tab.document.relativePath), 600));
+    return () =>
+      timers.forEach((timer) => {
+        window.clearTimeout(timer);
+      });
+  }, [tabs, renaming, save]);
+  const createEntry = async (
+    requestedKind: NewEntryKind | null = newKind,
+    requestedName = newName,
+    allocateAvailableName = false,
+  ) => {
+    if (!requestedKind || !requestedName.trim() || creating || pendingRenames.has(cacheKey)) return;
     setCreating(true);
-    const name = newName.trim();
-    const kind = newKind;
+    const name = requestedName.trim();
+    const kind = requestedKind;
+    const existingIds = new Set(index?.directories[folder]?.entries.map((entry) => entry.id) ?? []);
     try {
       const result = await window.lattice.localWorkspace.createEntry({
         desktopId,
@@ -431,6 +449,7 @@ function WorkspaceSession({
         fileType:
           kind === "folder" ? undefined : kind === "board" || kind === "planner" ? "coach" : kind,
         coachKind: kind === "board" || kind === "planner" ? kind : undefined,
+        allocateAvailableName,
       });
       if (!mounted.current) return;
       const extension =
@@ -441,9 +460,9 @@ function WorkspaceSession({
             : ".text";
       const exact =
         kind === "folder" || name.toLowerCase().endsWith(extension) ? name : name + extension;
-      const created = result.entries.find(
-        (entry) => entry.name.toLowerCase() === exact.toLowerCase(),
-      );
+      const created = allocateAvailableName
+        ? result.entries.find((entry) => !existingIds.has(entry.id))
+        : result.entries.find((entry) => entry.name.toLowerCase() === exact.toLowerCase());
       setNewKind(null);
       setNewName("");
       onRefresh();
@@ -498,7 +517,10 @@ function WorkspaceSession({
   const closeTab = (relativePath: string) => {
     const tab = tabsRef.current.find((item) => item.document.relativePath === relativePath);
     if (tab && (tab.draft !== tab.document.content || savingRef.current.has(relativePath))) {
-      setMessage("Save before closing, or use Reload saved file to explicitly discard this draft.");
+      if (tab.draft !== tab.document.content) void save(relativePath);
+      setMessage(
+        "Saving this note before it closes. Try closing it again when Saved locally appears.",
+      );
       return;
     }
     updateTabs((current) => current.filter((item) => item.document.relativePath !== relativePath));
@@ -512,8 +534,12 @@ function WorkspaceSession({
     setRenameError("");
     setNewMenu(false);
   };
-  const renameEntry = async () => {
-    if (!renameTarget || !renameTitle.trim() || pendingRenames.has(cacheKey)) return;
+  const renameEntryTo = async (
+    source: WorkspaceDirectoryEntry,
+    nextTitle: string,
+    announce: boolean,
+  ): Promise<string | null> => {
+    if (!nextTitle.trim() || pendingRenames.has(cacheKey)) return "Wait for the current rename.";
     const sessionSuffix = cacheKey.slice(cacheKey.indexOf(":"));
     const related = [...new Set([cacheKey, ...sessions.keys()])].filter((key) =>
       key.endsWith(sessionSuffix),
@@ -524,10 +550,8 @@ function WorkspaceSession({
       openingRef.current.size ||
       related.some((key) => pendingSaves.get(key)?.size)
     ) {
-      setRenameError("Wait for the current file operation to finish, then rename.");
-      return;
+      return "Wait for the current file operation to finish, then rename.";
     }
-    const source = renameTarget;
     const suffix =
       source.kind === "file" ? source.name.slice(workspaceTitle(source.name).length) : "";
     for (const key of related) pendingRenames.add(key);
@@ -538,7 +562,7 @@ function WorkspaceSession({
         desktopId,
         relativePath: source.relativePath,
         kind: source.kind,
-        newName: renameTitle.trim() + suffix,
+        newName: nextTitle.trim() + suffix,
         expectedUpdatedAt:
           source.kind === "file"
             ? (tabsRef.current.find((tab) => tab.document.relativePath === source.relativePath)
@@ -560,24 +584,30 @@ function WorkspaceSession({
         setExpanded((current) => new Set([...current].map(remap)));
         setRenameTarget(null);
         setReloadPath(null);
-        setMessage(
-          `Renamed to ${result.name}. Contents and drafts are unchanged. Links were not rewritten; review Connections if needed.`,
-        );
+        if (announce)
+          setMessage(
+            `Renamed to ${result.name}. Contents and drafts are unchanged. Links were not rewritten; review Connections if needed.`,
+          );
+        else setMessage("");
         onRefresh();
       }
+      return null;
     } catch (error) {
-      if (mounted.current)
-        setRenameError(
-          workspaceErrorMessage(
-            error,
-            "Could not rename this item. Refresh and check the folder connection. Your draft is still retained.",
-          ),
-        );
+      return workspaceErrorMessage(
+        error,
+        "Could not rename this item. Refresh and check the folder connection. Your draft is still retained.",
+      );
     } finally {
       for (const key of related) pendingRenames.delete(key);
       for (const listener of sessionListeners) listener();
       if (mounted.current) setRenaming(false);
     }
+  };
+  const renameEntry = async () => {
+    if (!renameTarget) return;
+    setRenameError("");
+    const error = await renameEntryTo(renameTarget, renameTitle, true);
+    if (error && mounted.current) setRenameError(error);
   };
   const reload = async () => {
     if (!reloadPath) return;
@@ -756,7 +786,6 @@ function WorkspaceSession({
           ),
         )
       }
-      onSave={() => void save(tab.document.relativePath)}
       onLink={(target) => handleLink(target, tab.document.relativePath)}
       onSplit={() => setChooseBeside(true)}
       onReload={() => setReloadPath(tab.document.relativePath)}
@@ -767,6 +796,18 @@ function WorkspaceSession({
           kind: "file",
           size: tab.draft.length,
         })
+      }
+      onRenameTitle={(title) =>
+        renameEntryTo(
+          {
+            ...tab.document,
+            id: tab.document.relativePath,
+            kind: "file",
+            size: tab.draft.length,
+          },
+          title,
+          false,
+        )
       }
     />
   );
@@ -974,6 +1015,11 @@ function WorkspaceSession({
               type="button"
               key={kind}
               onClick={() => {
+                if (kind === "markdown") {
+                  setNewMenu(false);
+                  void createEntry("markdown", "Untitled", true);
+                  return;
+                }
                 setNewKind(kind);
                 setNewName("");
                 setNewMenu(false);

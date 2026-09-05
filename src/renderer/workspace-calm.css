@@ -91,6 +91,15 @@
   letter-spacing: -0.8px;
   margin: 0;
 }
+.ws-vision .ws-inline-title {
+  font-size: clamp(27px, 3vw, 38px);
+  line-height: 1.3;
+  font-weight: 650;
+  letter-spacing: -0.8px;
+}
+.ws-vision .ws-inline-title-wrap [role="alert"] {
+  display: block;
+}
 .ws-document-header .ws-title-button svg {
   opacity: 0;
 }

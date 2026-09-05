@@ -139,6 +139,7 @@ const workspaceCreateEntrySchema = z
     kind: z.enum(["folder", "file"]),
     fileType: z.enum(["markdown", "text", "coach"]).optional(),
     coachKind: z.enum(["document", "board", "planner"]).optional(),
+    allocateAvailableName: z.boolean().optional(),
   })
   .strict()
   .refine((input) => input.kind === "folder" || Boolean(input.fileType), {

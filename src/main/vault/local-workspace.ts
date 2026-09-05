@@ -277,7 +277,7 @@ function initialFileContent(
   coachKind?: "document" | "board" | "planner",
 ): string {
   const title = name.slice(0, -EDITABLE_EXTENSIONS[fileType].length);
-  if (fileType === "markdown") return `# ${title}\n\n`;
+  if (fileType === "markdown") return "";
   if (fileType === "text") return "";
   if (coachKind === "board") return `${JSON.stringify(newCoachBoard(title), null, 2)}\n`;
   if (coachKind === "planner") return `${JSON.stringify(newCoachPlanner(title), null, 2)}\n`;
@@ -604,29 +604,46 @@ async function createWorkspaceEntryUnlocked(
     "folder",
   );
   if (input.kind === "file" && !input.fileType) throw new Error("Choose a Coach file type.");
-  const name =
+  const requestedName =
     input.kind === "folder"
       ? validateEntryName(input.name)
       : ensureFileName(input.name, input.fileType as WorkspaceEditableFileType);
-  const target = path.join(parent.target, name);
-  assertPathWithinRoot(parent.desktopRoot, target);
   try {
     if (input.kind === "folder") {
+      const target = path.join(parent.target, requestedName);
+      assertPathWithinRoot(parent.desktopRoot, target);
       await mkdir(target);
     } else {
       const fileType = input.fileType;
       if (!fileType) throw new Error("Choose a Coach file type.");
-      const handle = await open(
-        target,
-        fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_WRONLY,
-        0o600,
-      );
-      try {
-        await handle.writeFile(initialFileContent(name, fileType, input.coachKind), "utf8");
-        await handle.sync();
-      } finally {
-        await handle.close();
+      const extension = EDITABLE_EXTENSIONS[fileType];
+      const stem = requestedName.slice(0, -extension.length);
+      const attempts = input.allocateAvailableName ? 200 : 1;
+      let created = false;
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        const name = `${stem}${attempt === 0 ? "" : ` ${attempt}`}${extension}`;
+        const target = path.join(parent.target, name);
+        assertPathWithinRoot(parent.desktopRoot, target);
+        let handle: Awaited<ReturnType<typeof open>> | undefined;
+        try {
+          handle = await open(
+            target,
+            fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_WRONLY,
+            0o600,
+          );
+          await handle.writeFile(initialFileContent(name, fileType, input.coachKind), "utf8");
+          await handle.sync();
+          created = true;
+          break;
+        } catch (error) {
+          if (!input.allocateAvailableName || (error as NodeJS.ErrnoException).code !== "EEXIST") {
+            throw error;
+          }
+        } finally {
+          await handle?.close().catch(() => undefined);
+        }
       }
+      if (!created) throw new Error("Too many files already use that title.");
     }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "EEXIST") {

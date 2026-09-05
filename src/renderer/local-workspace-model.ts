@@ -249,6 +249,14 @@ export function workspaceDisplayTitle(name: string, kind: "file" | "folder" = "f
   return workspaceTitle(workspaceDisplayName(name, kind), kind);
 }
 
+export function workspaceEntryTitle(entry: Pick<WorkspaceDirectoryEntry, "name" | "kind">): string {
+  return workspaceDisplayTitle(entry.name, entry.kind);
+}
+
+export function workspaceDocumentTitle(document: WorkspaceFileDocument, _draft?: string): string {
+  return workspaceDisplayTitle(document.name, "file");
+}
+
 export function renamedWorkspacePath(value: string, fromPath: string, toPath: string): string {
   return value === fromPath
     ? toPath

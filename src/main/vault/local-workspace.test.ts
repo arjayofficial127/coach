@@ -177,6 +177,43 @@ describe("Coach local workspace", () => {
     expect(JSON.stringify(refreshed)).not.toContain(root);
   });
 
+  it("creates empty Untitled notes with the smallest available numeric suffix", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "coach-untitled-notes-"));
+    roots.push(root);
+    await syncLocalWorkspace(root, [{ id: "work", name: "Work" }]);
+    const createUntitled = () =>
+      createWorkspaceEntry(root, {
+        desktopId: "work",
+        parentPath: "Notes",
+        name: "Untitled",
+        kind: "file",
+        fileType: "markdown",
+        allocateAvailableName: true,
+      });
+
+    await createUntitled();
+    await createUntitled();
+    await createUntitled();
+    const notes = path.join(root, "Desktops", "Work-work", "Notes");
+    expect((await readdir(notes)).sort()).toEqual([
+      "Untitled 1.md",
+      "Untitled 2.md",
+      "Untitled.md",
+    ]);
+    await rm(path.join(notes, "Untitled 1.md"));
+    await createUntitled();
+    expect((await readdir(notes)).sort()).toEqual([
+      "Untitled 1.md",
+      "Untitled 2.md",
+      "Untitled.md",
+    ]);
+    expect(
+      await Promise.all(
+        (await readdir(notes)).map((name) => readFile(path.join(notes, name), "utf8")),
+      ),
+    ).toEqual(["", "", ""]);
+  });
+
   it("navigates nested folders and atomically edits supported Coach files", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "coach-local-workspace-"));
     roots.push(root);

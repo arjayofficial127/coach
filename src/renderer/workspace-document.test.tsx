@@ -38,11 +38,10 @@ describe("workspace title controls", () => {
     expect(html).not.toContain("Session history");
     expect(html).not.toContain("characters");
   });
-  it("only exposes Save for dirty or in-flight drafts", () => {
-    expect(render("saved", "changed")).toContain('class="primary-action">Save</button>');
-    expect(render("saved", "changed", true)).toContain(
-      'class="primary-action" disabled="">Saving…</button>',
-    );
+  it("reports autosave state without requiring a Save button", () => {
+    expect(render("saved", "changed")).toContain("Unsaved changes");
+    expect(render("saved", "changed")).not.toContain('class="primary-action"');
+    expect(render("saved", "changed", true)).toContain("Saving…");
     expect(render("saved", "changed", true)).not.toContain("Saved locally");
   });
   it("does not print a generated capture title repeatedly on the page", () => {
@@ -80,7 +79,8 @@ describe("workspace title controls", () => {
         onRename={() => {}}
       />,
     );
-    expect(html).toContain('aria-label="Rename file Brief.text"');
+    expect(html).toContain('aria-label="Document title"');
+    expect(html).toContain('value="Brief"');
     expect(html).not.toContain("<small>Brief.text</small>");
     expect(html).toContain("Unsaved changes");
     expect(html).not.toContain('disabled=""');

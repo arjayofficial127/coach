@@ -5,7 +5,8 @@ import {
   insertMarkdown,
   type WorkspaceTab,
   workspaceDisplayName,
-  workspaceDisplayTitle,
+  workspaceDocumentTitle,
+  workspaceTitle,
 } from "./local-workspace-model";
 import { WorkspaceBoard } from "./workspace-board";
 import { WorkspaceMarkdown } from "./workspace-markdown";
@@ -26,11 +27,11 @@ export function WorkspaceDocument({
   tab,
   saving,
   onChange,
-  onSave,
   onLink,
   onSplit,
   onReload,
   onRename,
+  onRenameTitle,
   onEmbed,
   onResearch,
   toolbarTarget = null,
@@ -43,11 +44,12 @@ export function WorkspaceDocument({
   tab: WorkspaceTab;
   saving: boolean;
   onChange: (value: string) => void;
-  onSave: () => void;
+  onSave?: () => void;
   onLink: (target: string) => void;
   onSplit: () => void;
   onReload: () => void;
   onRename: () => void;
+  onRenameTitle?: (title: string) => Promise<string | null>;
   onEmbed?: (target: string) => ReactNode;
   onResearch?: () => void;
   toolbarTarget?: HTMLElement | null;
@@ -66,15 +68,38 @@ export function WorkspaceDocument({
   const menu = useRef<HTMLFieldSetElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const titleInput = useRef<HTMLInputElement>(null);
+  const cancelTitleCommit = useRef(false);
   const coach = tab.document.fileType === "coach" ? parseCoachObject(tab.draft) : null;
   const dirty = tab.draft !== tab.document.content;
   const displayName = workspaceDisplayName(tab.document.name);
-  const displayTitle = workspaceDisplayTitle(tab.document.name);
+  const displayTitle = workspaceDocumentTitle(tab.document, tab.draft);
+  const savedTitle = workspaceTitle(tab.document.name);
+  const [titleDraft, setTitleDraft] = useState(savedTitle);
+  const [titleError, setTitleError] = useState("");
   const [pagePrefix, setPagePrefix] = useState(() => notePage(tab.draft, displayTitle).prefix);
   const page = tab.draft.startsWith(pagePrefix)
     ? { prefix: pagePrefix, body: tab.draft.slice(pagePrefix.length) }
     : notePage(tab.draft, displayTitle);
   const isPage = tab.document.fileType === "markdown" && mode === "page";
+  useEffect(() => {
+    setTitleDraft(savedTitle);
+    setTitleError("");
+  }, [savedTitle]);
+  const commitTitle = async () => {
+    const next = titleDraft.trim();
+    if (!next || next === savedTitle || !onRenameTitle) {
+      setTitleDraft(savedTitle);
+      return;
+    }
+    const error = await onRenameTitle(next);
+    if (error) {
+      setTitleDraft(savedTitle);
+      setTitleError(error);
+    } else {
+      setTitleError("");
+    }
+  };
   const changeText = (value: string) => {
     if (!isPage) return onChange(value);
     const source = writeNotePage(page, value);
@@ -147,6 +172,26 @@ export function WorkspaceDocument({
       spellCheck={tab.document.fileType !== "coach"}
       onKeyDown={(event) => {
         if (
+          event.key === "ArrowUp" &&
+          !event.altKey &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.shiftKey &&
+          event.currentTarget.selectionStart === event.currentTarget.selectionEnd &&
+          event.currentTarget.selectionStart <=
+            (() => {
+              const firstBreak = event.currentTarget.value.search(/\r?\n/);
+              return firstBreak < 0 ? event.currentTarget.value.length : firstBreak;
+            })()
+        ) {
+          event.preventDefault();
+          const column = event.currentTarget.selectionStart;
+          titleInput.current?.focus();
+          const titleColumn = Math.min(column, titleDraft.length);
+          titleInput.current?.setSelectionRange(titleColumn, titleColumn);
+          return;
+        }
+        if (
           tab.document.fileType === "markdown" &&
           event.key === "/" &&
           (event.ctrlKey || event.metaKey)
@@ -173,11 +218,6 @@ export function WorkspaceDocument({
             <Icon name={dirty ? "edit" : "check"} />
             {saving ? "Saving…" : dirty ? "Unsaved changes" : "Saved locally"}
           </span>
-          {(dirty || saving) && (
-            <button type="button" className="primary-action" disabled={saving} onClick={onSave}>
-              {saving ? "Saving…" : "Save"}
-            </button>
-          )}
           <button
             ref={menuButton}
             type="button"
@@ -271,17 +311,54 @@ export function WorkspaceDocument({
         </fieldset>
       </WorkspacePortal>
       <header className="ws-document-header">
-        <div>
-          <h2>
-            <button
-              type="button"
-              className="ws-title-button"
-              aria-label={`Rename file ${displayName}`}
-              onClick={onRename}
-            >
-              {displayTitle} <Icon name="edit" />
-            </button>
-          </h2>
+        <div className="ws-inline-title-wrap">
+          <input
+            ref={titleInput}
+            className="ws-inline-title"
+            aria-label="Document title"
+            value={titleDraft}
+            maxLength={120}
+            disabled={disabled}
+            spellCheck
+            onChange={(event) => {
+              setTitleDraft(event.target.value);
+              setTitleError("");
+            }}
+            onBlur={() => {
+              if (cancelTitleCommit.current) {
+                cancelTitleCommit.current = false;
+                return;
+              }
+              void commitTitle();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                cancelTitleCommit.current = true;
+                setTitleDraft(savedTitle);
+                setTitleError("");
+                input.current?.focus();
+              } else if (event.key === "Enter") {
+                event.preventDefault();
+                event.currentTarget.blur();
+                input.current?.focus();
+              } else if (
+                event.key === "ArrowDown" &&
+                !event.altKey &&
+                !event.ctrlKey &&
+                !event.metaKey &&
+                !event.shiftKey &&
+                event.currentTarget.selectionStart === event.currentTarget.selectionEnd
+              ) {
+                event.preventDefault();
+                const column = event.currentTarget.selectionStart ?? 0;
+                event.currentTarget.blur();
+                input.current?.focus();
+                const bodyColumn = Math.min(column, input.current?.value.length ?? 0);
+                input.current?.setSelectionRange(bodyColumn, bodyColumn);
+              }
+            }}
+          />
+          {titleError && <small role="alert">{titleError}</small>}
         </div>
       </header>
       {detailsOpen && (
@@ -327,8 +404,8 @@ export function WorkspaceDocument({
             Close history
           </button>
           <p>
-            Restore creates a draft; Save is still required. These copies do not survive closing
-            Coach.
+            Restoring a version saves it automatically after a short pause. These copies do not
+            survive closing Coach.
           </p>
           {tab.history.length ? (
             tab.history.map((revision) => (
@@ -432,7 +509,7 @@ export function WorkspaceDocument({
             Edit note
           </button>
         ) : (
-          "Ctrl+S to save"
+          "Saved automatically"
         )}
         {tab.document.fileType === "markdown" && mode !== "preview" && " · Ctrl+/ for blocks"}
       </footer>
