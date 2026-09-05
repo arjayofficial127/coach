@@ -16,6 +16,9 @@
   background: var(--surface);
   background-image: none;
 }
+.lattice-shell[data-surface="files"] .workspace-panel {
+  overflow-y: auto;
+}
 .lattice-shell[data-surface="files"][data-files-navigation="contextual"] .workspace-panel {
   padding: 16px 12px;
   gap: 10px;
@@ -42,6 +45,22 @@
   display: none;
 }
 #workspace-sidebar-slot {
+  min-height: 0;
+}
+.focus-navigation #workspace-sidebar-slot {
+  height: min(46vh, 480px);
+  margin: 3px 0 8px 10px;
+  overflow: hidden;
+  border-left: 1px solid color-mix(in srgb, var(--accent) 20%, var(--line));
+  padding-left: 8px;
+}
+.focus-navigation #workspace-sidebar-slot:has(.ws-sidebar-surface[hidden]) {
+  display: none;
+}
+.focus-navigation #workspace-sidebar-slot > .ws-portal,
+.focus-navigation #workspace-sidebar-slot .ws-sidebar-surface {
+  display: flex;
+  height: 100%;
   min-height: 0;
 }
 .lattice-shell[data-surface="files"][data-files-navigation="contextual"] #workspace-sidebar-slot {

@@ -3472,7 +3472,6 @@ export function LatticeApp() {
       }`}
       data-theme={settings.activeTheme}
       data-surface={surface}
-      data-files-navigation={filesSidebarActive ? "contextual" : "global"}
       data-theme-name={
         settings.activeTheme === "custom"
           ? previewCustomTheme.name
@@ -4144,7 +4143,6 @@ export function LatticeApp() {
           </form>
         )}
 
-        <div ref={setWorkspaceSidebarTarget} id="workspace-sidebar-slot" />
         <div className="section-label navigation-label">
           <span>Navigate</span>
         </div>
@@ -4183,7 +4181,14 @@ export function LatticeApp() {
                 ? `Files and Inbox, ${activeDesktopFiles?.fileCount ?? 0} files, ${activeDesktopFiles?.inboxCount ?? 0} in Inbox`
                 : "Files and Inbox, connect a local folder"
             }
-            onClick={showFiles}
+            aria-expanded={surface === "files" && filesSidebarActive}
+            onClick={() => {
+              if (surface === "files") {
+                setFilesSidebarActive((active) => !active);
+                return;
+              }
+              showFiles();
+            }}
           >
             <span className="navigation-row-icon files">
               <Icon name="folder" />
@@ -4191,6 +4196,7 @@ export function LatticeApp() {
             <strong>Files &amp; Inbox</strong>
             <b aria-hidden="true">{activeDesktopFiles?.fileCount ?? 0}</b>
           </button>
+          <div ref={setWorkspaceSidebarTarget} id="workspace-sidebar-slot" />
           <button
             type="button"
             className={surface === "apps" ? "navigation-row active" : "navigation-row"}
@@ -5288,7 +5294,6 @@ export function LatticeApp() {
                 sidebarTarget={navigationExpanded && !focusMode ? workspaceSidebarTarget : null}
                 sidebarVisible={filesSidebarActive}
                 onShowSidebar={() => setFilesSidebarActive(true)}
-                onExitSidebar={() => setFilesSidebarActive(false)}
                 tabsTarget={!focusMode ? workspaceTabsTarget : null}
                 browserTabs={desktopTabs}
                 sourceTab={contextualTab}
