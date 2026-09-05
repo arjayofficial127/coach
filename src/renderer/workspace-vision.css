@@ -22,7 +22,7 @@
   min-height: 0;
   overflow: hidden;
 }
-.lattice-shell[data-surface="files"]
+.lattice-shell[data-surface="files"][data-files-navigation="contextual"]
   .workspace-panel
   > :not(.workspace-heading):not(#workspace-sidebar-slot) {
   display: none;
@@ -98,11 +98,15 @@
   display: none;
 }
 #workspace-sidebar-slot {
-  display: flex;
-  flex: 1;
   min-height: 0;
 }
-#workspace-sidebar-slot > .ws-portal {
+.lattice-shell[data-surface="files"][data-files-navigation="contextual"] #workspace-sidebar-slot {
+  display: flex;
+  flex: 1;
+}
+.lattice-shell[data-surface="files"][data-files-navigation="contextual"]
+  #workspace-sidebar-slot
+  > .ws-portal {
   display: flex;
   flex: 1;
   min-height: 0;
@@ -172,6 +176,28 @@
   margin: 0;
   min-width: 0;
   min-height: 0;
+}
+.ws-files-context {
+  padding-bottom: 8px;
+}
+.ws-files-context-back {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+.ws-files-context-back > span {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+.ws-files-context-back strong,
+.ws-files-context-back small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-files-context-back strong {
+  font-size: 12px;
 }
 .ws-files-dashboard {
   margin: 2px 0 8px;

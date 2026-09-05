@@ -514,6 +514,7 @@ export function LatticeApp() {
       return true;
     }
   });
+  const [filesSidebarActive, setFilesSidebarActive] = useState(true);
   const [dashboardCustomizing, setDashboardCustomizing] = useState(false);
   const [dashboardToolbarContentTarget, setDashboardToolbarContentTarget] =
     useState<HTMLDivElement | null>(null);
@@ -2580,6 +2581,7 @@ export function LatticeApp() {
   const showFiles = () => {
     if (!confirmCanvasLeave()) return;
     setNavigationExpanded(true);
+    setFilesSidebarActive(true);
     setSurface("files");
     setCaptureOpen(false);
     setBrowserMenuOpen(false);
@@ -3367,6 +3369,7 @@ export function LatticeApp() {
       }`}
       data-theme={settings.activeTheme}
       data-surface={surface}
+      data-files-navigation={filesSidebarActive ? "contextual" : "global"}
       data-theme-name={
         settings.activeTheme === "custom"
           ? previewCustomTheme.name
@@ -5193,6 +5196,9 @@ export function LatticeApp() {
             {surface === "files" && (
               <LocalFilesSurface
                 sidebarTarget={navigationExpanded && !focusMode ? workspaceSidebarTarget : null}
+                sidebarVisible={filesSidebarActive}
+                onShowSidebar={() => setFilesSidebarActive(true)}
+                onExitSidebar={() => setFilesSidebarActive(false)}
                 tabsTarget={!focusMode ? workspaceTabsTarget : null}
                 browserTabs={desktopTabs}
                 sourceTab={contextualTab}

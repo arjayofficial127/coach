@@ -60,6 +60,9 @@ if (import.meta.hot)
   import.meta.hot.dispose(() => window.removeEventListener("beforeunload", protectSessionDrafts));
 interface Props {
   sidebarTarget?: HTMLElement | null;
+  sidebarVisible?: boolean;
+  onShowSidebar?: () => void;
+  onExitSidebar?: () => void;
   tabsTarget?: HTMLElement | null;
   browserTabs?: BrowserState[];
   sourceTab?: BrowserState | null;
@@ -97,6 +100,9 @@ function WorkspaceSession({
   onSettings,
   onOpenUrl,
   sidebarTarget = null,
+  sidebarVisible = true,
+  onShowSidebar,
+  onExitSidebar,
   tabsTarget = null,
   browserTabs = [],
   sourceTab = null,
@@ -1094,8 +1100,15 @@ function WorkspaceSession({
             <button
               type="button"
               aria-label="Toggle folders and search"
-              aria-expanded={foldersOpen}
-              onClick={() => setFoldersOpen(!foldersOpen)}
+              aria-expanded={sidebarVisible && foldersOpen}
+              onClick={() => {
+                if (!sidebarVisible) {
+                  setFoldersOpen(true);
+                  onShowSidebar?.();
+                  return;
+                }
+                setFoldersOpen(!foldersOpen);
+              }}
             >
               <Icon name="folder" />
             </button>
@@ -1327,8 +1340,24 @@ function WorkspaceSession({
           <fieldset
             className="ws-sidebar-surface"
             disabled={renaming}
-            hidden={calmNote && !foldersOpen}
+            hidden={!sidebarVisible || (calmNote && !foldersOpen)}
           >
+            {onExitSidebar && (
+              <div className="ws-files-context">
+                <button
+                  type="button"
+                  className="ws-files-context-back"
+                  aria-label="Back to main navigation"
+                  onClick={onExitSidebar}
+                >
+                  <Icon name="arrow-left" />
+                  <span>
+                    <strong>Files &amp; Inbox</strong>
+                    <small>{desktopName}</small>
+                  </span>
+                </button>
+              </div>
+            )}
             <div className="ws-folder-tools">
               <label className="ws-search">
                 <Icon name="search" />
@@ -1360,7 +1389,7 @@ function WorkspaceSession({
                 aria-current={view === "home" ? "page" : undefined}
                 onClick={openFilesDashboard}
               >
-                <Icon name="home" />
+                <Icon name="sparkle" />
                 <span>
                   <strong>Files dashboard</strong>
                   <small>Overview of this workspace</small>

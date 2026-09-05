@@ -1,6 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { type BrowserWindow, WebContentsView } from "electron";
+import { IPC } from "../shared/contracts";
 import type { ProfileRuntime } from "./profiles/profile-runtime";
 
 /** Disposable smoke profile only. No new testing capability is exposed to a renderer. */
@@ -77,6 +78,20 @@ export async function verifyWorkspaceVision(
   await dom(
     "Boolean(document.querySelector('#workspace-sidebar-slot .ws-tree')) && Boolean(document.querySelector('#workspace-tabs-slot .ws-tabs'))",
     "one shared sidebar and tab strip",
+  );
+  await dom(
+    "document.querySelector('.ws-files-context-back')?.textContent.includes('Files & Inbox')",
+    "Files sidebar preserves its parent context",
+  );
+  await evaluate("document.querySelector('.ws-files-context-back').click()");
+  await dom(
+    "!document.querySelector('.ws-sidebar-surface')?.getClientRects().length && document.querySelector('.focus-navigation')?.getClientRects().length > 0",
+    "Files sidebar returns to the main navigation",
+  );
+  window.webContents.send(IPC.shellCommand, "show-files");
+  await dom(
+    "document.querySelector('.ws-sidebar-surface')?.getClientRects().length > 0",
+    "Files navigation can be reopened without leaving Files",
   );
   const visionHomeScreenshotPath = await screenshot("workspace-vision-home.png");
   console.log("[smoke] workspace vision Home");
