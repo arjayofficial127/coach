@@ -85,7 +85,7 @@ export async function verifyWorkspaceVision(
   );
   await evaluate("document.querySelector('.ws-files-context-back').click()");
   await dom(
-    "!document.querySelector('.ws-sidebar-surface')?.getClientRects().length && document.querySelector('.focus-navigation')?.getClientRects().length > 0",
+    "!document.querySelector('.ws-sidebar-surface')?.getClientRects().length && document.querySelector('.focus-navigation')?.getClientRects().length > 0 && [...document.querySelectorAll('.focus-navigation small')].some(item => item.getClientRects().length > 0)",
     "Files sidebar returns to the main navigation",
   );
   window.webContents.send(IPC.shellCommand, "show-files");
