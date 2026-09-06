@@ -8,6 +8,10 @@ import {
 } from "./navigation-width";
 
 describe("navigation width", () => {
+  it("uses the gutter-free compact rail width", () => {
+    expect(COMPACT_NAVIGATION_WIDTH).toBe(68);
+  });
+
   it("uses the default width when a stored value is invalid", () => {
     expect(normalizeNavigationWidth(Number.NaN)).toBe(DEFAULT_NAVIGATION_WIDTH);
   });

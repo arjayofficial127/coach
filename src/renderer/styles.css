@@ -86,7 +86,7 @@ svg {
 }
 
 .lattice-shell.navigation-compact {
-  grid-template-columns: 0 84px minmax(0, 1fr);
+  grid-template-columns: 0 68px minmax(0, 1fr);
 }
 
 .lattice-shell.focus-mode,
@@ -745,10 +745,9 @@ svg {
   z-index: 1;
   align-self: stretch;
   display: grid;
-  width: 28px;
+  width: 43px;
   height: auto;
-  margin-inline: 0;
-  padding-inline: 0;
+  margin: 0 5px 0 0;
   border: 0;
   border-right: 1px solid var(--line);
   border-radius: 0;
@@ -1878,7 +1877,7 @@ kbd {
 .navigation-compact > .workspace-panel {
   overflow: visible;
   background: var(--rail);
-  padding: 20px 8px 10px;
+  padding: 20px 0 10px;
 }
 
 .navigation-compact .workspace-heading {
