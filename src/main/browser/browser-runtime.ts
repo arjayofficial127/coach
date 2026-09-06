@@ -61,6 +61,7 @@ interface TabRecord {
   previewDataUrl: string | null;
   previewCapture: Promise<string | null> | null;
   pendingNavigation: { url: string; promise: Promise<void> } | null;
+  deferredUrl: string | null;
   faviconPageUrl: string | null;
   faviconCandidates: string[];
   faviconCaptureVersion: number;
@@ -83,6 +84,8 @@ export class BrowserRuntime {
   >();
   private popupHandlerTriggered = false;
   private permissionCheckHandlerTriggered = false;
+  private htmlFullscreenTabId: string | null = null;
+  private htmlFullscreenOwnsWindow = false;
 
   constructor(
     private readonly window: BrowserWindow,
@@ -100,6 +103,7 @@ export class BrowserRuntime {
     this.remoteSession = initialTab.contents.session;
     this.configureSessionPolicy();
     this.configureTab(initialTab);
+    this.window.on("resize", this.onWindowResize);
   }
 
   async navigate(input: string): Promise<void> {
@@ -127,18 +131,12 @@ export class BrowserRuntime {
   async createTab(input?: string | BrowserCreateTabInput): Promise<BrowserSnapshot> {
     const url = typeof input === "string" ? input : input?.url;
     const activate = typeof input === "string" ? true : (input?.activate ?? true);
+    const deferredUrl = url && url !== "about:blank" ? normalizeHttpUrl(url) : null;
     const tab = this.createTabRecord();
     this.tabs.set(tab.id, tab);
     this.configureTab(tab);
+    if (deferredUrl) this.deferNavigation(tab, deferredUrl);
     if (activate) this.activate(tab.id);
-    if (url && url !== "about:blank") {
-      void this.navigateTab(tab, url).catch((error) => {
-        if (tab.contents.isDestroyed()) return;
-        tab.state.loading = false;
-        tab.state.error = error instanceof Error ? error.message : String(error);
-        this.emitState(tab);
-      });
-    }
     return this.snapshot();
   }
 
@@ -187,7 +185,8 @@ export class BrowserRuntime {
 
   async captureTabPreview(tabId: string): Promise<string | null> {
     const tab = this.tabs.get(tabId);
-    if (!tab || tab.contents.isDestroyed() || tab.state.url === "about:blank") return null;
+    if (!tab || tab.contents.isDestroyed() || tab.state.url === "about:blank" || tab.deferredUrl)
+      return null;
     if (tab.previewDataUrl) return tab.previewDataUrl;
     if (tab.previewCapture) return tab.previewCapture;
     // An inactive WebContentsView can finish navigation a little after the
@@ -400,6 +399,11 @@ export class BrowserRuntime {
       height: height ?? 1,
     });
     const tab = this.activeTab();
+    if (this.htmlFullscreenTabId === tab.id) {
+      tab.view.setBounds(this.fullscreenBounds());
+      tab.view.setVisible(true);
+      return;
+    }
     // Dashboard owns the bounds of every live preview. The browser viewport
     // continues observing layout while hidden, so it must not move or hide the
     // active preview with its full-page bounds.
@@ -409,7 +413,11 @@ export class BrowserRuntime {
   }
 
   setLivePreviews(previews: LiveTabPreviewBounds[]): void {
-    const requested = new Map(previews.map((preview) => [preview.tabId, preview.bounds]));
+    const requested = new Map(
+      previews
+        .filter((preview) => !this.tabs.get(preview.tabId)?.deferredUrl)
+        .map((preview) => [preview.tabId, preview.bounds]),
+    );
     for (const [id, tab] of this.tabs) {
       const bounds = requested.get(id);
       if (!bounds) {
@@ -466,7 +474,11 @@ export class BrowserRuntime {
       if (visible) {
         tab.contents.setZoomFactor(1);
         tab.view.setBorderRadius(0);
-        if (this.lastBounds) tab.view.setBounds(this.lastBounds);
+        if (this.htmlFullscreenTabId === tab.id) {
+          tab.view.setBounds(this.fullscreenBounds());
+        } else if (this.lastBounds) {
+          tab.view.setBounds(this.lastBounds);
+        }
       }
       tab.view.setVisible(
         shouldShowTabView({
@@ -495,6 +507,8 @@ export class BrowserRuntime {
   close(): void {
     if (this.closed) return;
     this.closed = true;
+    this.window.removeListener("resize", this.onWindowResize);
+    this.leaveHtmlFullscreen();
     this.remoteSession.removeListener("will-download", this.onWillDownload);
     app.removeListener("select-client-certificate", this.onSelectClientCertificate);
     for (const tab of this.tabs.values()) this.disposeTab(tab);
@@ -713,6 +727,7 @@ export class BrowserRuntime {
       previewDataUrl: null,
       previewCapture: null,
       pendingNavigation: null,
+      deferredUrl: null,
       faviconPageUrl: null,
       faviconCandidates: [],
       faviconCaptureVersion: 0,
@@ -737,6 +752,23 @@ export class BrowserRuntime {
   }
 
   private configureTab(tab: TabRecord): void {
+    tab.contents.on("enter-html-full-screen", () => {
+      if (tab.id !== this.activeTabId || tab.contents.isDestroyed()) return;
+      this.htmlFullscreenTabId = tab.id;
+      this.htmlFullscreenOwnsWindow = !this.window.isFullScreen();
+      if (this.htmlFullscreenOwnsWindow) this.window.setFullScreen(true);
+      tab.contents.setZoomFactor(1);
+      tab.view.setBorderRadius(0);
+      tab.view.setBounds(this.fullscreenBounds());
+      tab.view.setVisible(true);
+    });
+    tab.contents.on("leave-html-full-screen", () => {
+      if (this.htmlFullscreenTabId !== tab.id) return;
+      this.leaveHtmlFullscreen();
+      if (tab.id !== this.activeTabId || tab.contents.isDestroyed()) return;
+      if (this.lastBounds) tab.view.setBounds(this.lastBounds);
+      tab.view.setVisible(this.visible);
+    });
     tab.contents.on("context-menu", (_event, params) => {
       const url = params.linkURL;
       if (!url || !isAllowedRemoteNavigation(url) || url === "about:blank") return;
@@ -938,6 +970,7 @@ export class BrowserRuntime {
     const url = normalizeHttpUrl(input);
     if (tab.pendingNavigation?.url === url) return tab.pendingNavigation.promise;
     if (tab.pendingNavigation) tab.contents.stop();
+    tab.deferredUrl = null;
     tab.state.url = url;
     tab.state.title = url;
     tab.state.loading = true;
@@ -997,7 +1030,11 @@ export class BrowserRuntime {
     }
     this.activeTabId = tabId;
     const tab = this.activeTab();
-    if (this.lastBounds && !this.livePreviewIds.has(tab.id)) tab.view.setBounds(this.lastBounds);
+    if (this.htmlFullscreenTabId === tab.id) {
+      tab.view.setBounds(this.fullscreenBounds());
+    } else if (this.lastBounds && !this.livePreviewIds.has(tab.id)) {
+      tab.view.setBounds(this.lastBounds);
+    }
     tab.view.setVisible(
       shouldShowTabView({
         browserVisible: this.visible,
@@ -1005,7 +1042,43 @@ export class BrowserRuntime {
         isLivePreview: this.livePreviewIds.has(tab.id),
       }),
     );
+    if (tab.deferredUrl) {
+      const deferredUrl = tab.deferredUrl;
+      void this.navigateTab(tab, deferredUrl).catch((error) => {
+        if (tab.contents.isDestroyed()) return;
+        tab.state.loading = false;
+        tab.state.error = error instanceof Error ? error.message : String(error);
+        this.emitState(tab);
+      });
+    }
     this.emitState(tab);
+  }
+
+  private deferNavigation(tab: TabRecord, input: string): void {
+    tab.deferredUrl = input;
+    tab.state.url = input;
+    tab.state.title = input;
+    tab.state.loading = false;
+    tab.state.error = null;
+    tab.state.siteIconDataUrl = null;
+  }
+
+  private fullscreenBounds(): BrowserBounds {
+    const [width, height] = this.window.getContentSize();
+    return {
+      x: 0,
+      y: 0,
+      width: Math.max(1, width ?? 1),
+      height: Math.max(1, height ?? 1),
+    };
+  }
+
+  private leaveHtmlFullscreen(): void {
+    this.htmlFullscreenTabId = null;
+    if (this.htmlFullscreenOwnsWindow && !this.window.isDestroyed() && this.window.isFullScreen()) {
+      this.window.setFullScreen(false);
+    }
+    this.htmlFullscreenOwnsWindow = false;
   }
 
   private activeTab(): TabRecord {
@@ -1022,6 +1095,8 @@ export class BrowserRuntime {
     this.livePreviewIds.delete(tab.id);
     this.livePreviewLayouts.delete(tab.id);
     tab.pendingNavigation = null;
+    tab.deferredUrl = null;
+    if (this.htmlFullscreenTabId === tab.id) this.leaveHtmlFullscreen();
     if (!this.window.isDestroyed()) this.window.contentView.removeChildView(tab.view);
     if (!tab.contents.isDestroyed()) tab.contents.close();
   }
@@ -1044,6 +1119,13 @@ export class BrowserRuntime {
       tab.state.error = "Downloads are intentionally blocked in this phase.";
       this.emitState(tab);
     }
+  };
+
+  private readonly onWindowResize = (): void => {
+    if (!this.htmlFullscreenTabId || this.closed) return;
+    const tab = this.tabs.get(this.htmlFullscreenTabId);
+    if (!tab || tab.contents.isDestroyed()) return;
+    tab.view.setBounds(this.fullscreenBounds());
   };
 
   private readonly onSelectClientCertificate = (

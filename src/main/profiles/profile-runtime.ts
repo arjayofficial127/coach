@@ -3,6 +3,7 @@ import type { BrowserWindow } from "electron";
 import { dialog, nativeImage } from "electron";
 import type {
   BrowserBounds,
+  BrowserCreateTabInput,
   BrowserPrivacySummary,
   BrowserSnapshot,
   LiveTabPreviewBounds,
@@ -119,7 +120,7 @@ export class ProfileRuntime {
     return this.activeRuntime().loadSiteIcons(urls);
   }
 
-  createTab(input?: string): Promise<BrowserSnapshot> {
+  createTab(input?: string | BrowserCreateTabInput): Promise<BrowserSnapshot> {
     return this.activeRuntime().createTab(input);
   }
 

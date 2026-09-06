@@ -415,15 +415,19 @@ async function restoreProfileBrowser(
   const restored: Array<{ nativeId: string; saved: RestorableTab }> = [];
   let next = initial;
   for (const savedTab of saved.tabs) {
-    next = await window.lattice.browser.createTab(
-      savedTab.url === "about:blank" ? undefined : savedTab.url,
-    );
-    assignments[next.activeTabId] = savedTab.desktopId;
-    restored.push({ nativeId: next.activeTabId, saved: savedTab });
+    const previousIds = new Set(next.tabs.map((tab) => tab.id));
+    next = await window.lattice.browser.createTab({
+      url: savedTab.url === "about:blank" ? undefined : savedTab.url,
+      activate: false,
+    });
+    const created = next.tabs.find((tab) => !previousIds.has(tab.id));
+    if (!created) continue;
+    assignments[created.id] = savedTab.desktopId;
+    restored.push({ nativeId: created.id, saved: savedTab });
   }
-  next = await window.lattice.browser.closeTab(initial.activeTabId);
   const target = restored.find((entry) => entry.saved.active) ?? restored[0];
   if (target) next = await window.lattice.browser.switchTab(target.nativeId);
+  next = await window.lattice.browser.closeTab(initial.activeTabId);
   return {
     snapshot: next,
     assignments,
@@ -2016,20 +2020,24 @@ export function LatticeApp() {
     const restoredAssignments: Record<string, string> = {};
     const restoredIds = new Map<string, string>();
     for (const entry of closed) {
-      next = await window.lattice.browser.createTab(
-        entry.tab.url === "about:blank" ? undefined : entry.tab.url,
-      );
-      restoredAssignments[next.activeTabId] = entry.desktopId;
-      restoredIds.set(entry.tab.id, next.activeTabId);
+      const previousIds = new Set(next.tabs.map((tab) => tab.id));
+      next = await window.lattice.browser.createTab({
+        url: entry.tab.url === "about:blank" ? undefined : entry.tab.url,
+        activate: false,
+      });
+      const created = next.tabs.find((tab) => !previousIds.has(tab.id));
+      if (!created) continue;
+      restoredAssignments[created.id] = entry.desktopId;
+      restoredIds.set(entry.tab.id, created.id);
     }
+    const restoredActiveId = restoredIds.get(activeClosedId) ?? restoredIds.values().next().value;
+    if (restoredActiveId) next = await window.lattice.browser.switchTab(restoredActiveId);
     const placeholder = placeholderId
       ? next.tabs.find((candidate) => candidate.id === placeholderId)
       : null;
     if (placeholder?.url === "about:blank" && next.tabs.length > closed.length) {
       next = await window.lattice.browser.closeTab(placeholder.id);
     }
-    const restoredActiveId = restoredIds.get(activeClosedId) ?? restoredIds.values().next().value;
-    if (restoredActiveId) next = await window.lattice.browser.switchTab(restoredActiveId);
     const activeEntry = closed.find((entry) => entry.tab.id === activeClosedId) ?? closed[0];
     setSnapshot(next);
     setTabDesktops((current) => {

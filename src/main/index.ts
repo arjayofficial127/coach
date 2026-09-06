@@ -11,6 +11,7 @@ import { VaultService } from "./vault/vault-service";
 registerLatticeScheme();
 app.setName("Coach Browser");
 app.enableSandbox();
+app.commandLine.appendSwitch("autoplay-policy", "user-gesture-required");
 if (process.platform === "win32") {
   app.setAppUserModelId("app.lattice.browser");
 }
