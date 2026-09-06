@@ -764,17 +764,18 @@ svg {
 }
 
 .workspace-brand-mark {
+  anchor-name: --expanded-coach-logo;
   align-self: center;
 }
 
 .navigation-collapse-button {
   display: grid;
-  width: 78px;
-  height: 38px;
+  width: 44px;
+  height: 40px;
   flex: 0 0 auto;
   place-items: center;
   border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--line));
-  border-radius: 999px;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--surface) 94%, transparent);
   box-shadow: 0 8px 22px color-mix(in srgb, var(--text) 14%, transparent);
   color: var(--muted);
@@ -794,15 +795,18 @@ svg {
   height: 13px;
 }
 
+.activity-rail > .brand-mark {
+  anchor-name: --compact-coach-logo;
+}
+
 .navigation-mode-toggle {
   position: absolute;
   z-index: 22;
-  top: 50%;
-  left: var(--coach-navigation-width, 288px);
+  top: anchor(--expanded-coach-logo center);
+  left: calc(var(--coach-navigation-width, 288px) + 8px);
   display: grid;
-  grid-template-columns: 14px 18px 14px;
-  gap: 7px;
-  transform: translate(-50%, -50%);
+  transform: translateY(-50%);
+  -webkit-app-region: no-drag;
   transition:
     left 300ms cubic-bezier(0.22, 1, 0.36, 1),
     border-color 160ms ease,
@@ -811,7 +815,29 @@ svg {
 }
 
 .navigation-compact .navigation-mode-toggle {
-  left: 68px;
+  top: calc(anchor(--compact-coach-logo bottom) + 18px);
+  left: 14px;
+  width: 40px;
+  height: 40px;
+  border-color: transparent;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.navigation-compact .navigation-mode-toggle:hover,
+.navigation-compact .navigation-mode-toggle:focus-visible {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--text);
+}
+
+/* The expanded toggle sits in the page chrome; the compact toggle stays inside the rail. */
+.lattice-shell.navigation-expanded:not(.focus-mode)
+  > .content-shell
+  > :is(.tab-strip, .browser-toolbar, .surface-toolbar),
+.lattice-shell.navigation-expanded[data-surface="files"]:not(.focus-mode) .ws-vision > .ws-header {
+  margin-left: 60px;
 }
 
 .navigation-mode-toggle > svg {

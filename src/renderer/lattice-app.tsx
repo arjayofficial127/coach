@@ -4420,13 +4420,11 @@ export function LatticeApp() {
           }
           onClick={() => setNavigationView(!navigationExpanded)}
         >
-          <Icon name="arrow-left" />
           <span className="navigation-menu-glyph" aria-hidden="true">
             <i />
             <i />
             <i />
           </span>
-          <Icon name="arrow-right" />
         </button>
       )}
 
