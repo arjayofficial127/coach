@@ -120,6 +120,11 @@ import {
   type ThemeId,
 } from "./settings-model";
 import {
+  parseShellLocation,
+  SHELL_LOCATION_STORAGE_KEY,
+  type ShellLocation,
+} from "./shell-location-model";
+import {
   readSiteIcons,
   SITE_ICONS_UPDATED_EVENT,
   saveSiteIcons,
@@ -187,6 +192,7 @@ interface RestoredBrowserState {
 
 interface ProfileShellState {
   workspace: WorkspacePreferences;
+  location: ShellLocation | null;
   settings: SettingsPreferences;
   focusIntention: string;
   runnableApps: RunnableAppsState;
@@ -324,12 +330,17 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 function loadProfileShellState(state: ProfileState, profileId: string): ProfileShellState {
+  const workspace = parseWorkspacePreferences(
+    readProfileStorage(localStorage, WORKSPACE_STORAGE_KEY, state, profileId),
+  );
   const storedSettings =
     readProfileStorage(localStorage, SETTINGS_STORAGE_KEY, state, profileId) ??
     readProfileStorage(localStorage, LEGACY_SETTINGS_STORAGE_KEY, state, profileId);
   return {
-    workspace: parseWorkspacePreferences(
-      readProfileStorage(localStorage, WORKSPACE_STORAGE_KEY, state, profileId),
+    workspace,
+    location: parseShellLocation(
+      readProfileStorage(localStorage, SHELL_LOCATION_STORAGE_KEY, state, profileId),
+      new Set(workspace.desktops.map((desktop) => desktop.id)),
     ),
     settings: parseSettingsPreferences(storedSettings),
     focusIntention: parseFocusPreferences(
@@ -511,7 +522,7 @@ export function LatticeApp() {
     placement: TabDropPlacement;
   } | null>(null);
   const desktopLocationsRef = useRef<
-    Record<string, { kind: "dashboard" } | { kind: "tab"; tabId: string }>
+    Record<string, { kind: "surface"; surface: Surface } | { kind: "tab"; tabId: string }>
   >({});
   const [surface, setSurface] = useState<Surface>("home");
   const researchScope = `${profileState?.activeProfileId}:${workspace.activeDesktopId}:${profileBusy}:${surface}`;
@@ -1378,6 +1389,18 @@ export function LatticeApp() {
 
   useEffect(() => {
     if (!profileState || !canPersistProfileShell(sessionReady, profileShellHydrated)) return;
+    localStorage.setItem(
+      profileStorageKey(SHELL_LOCATION_STORAGE_KEY, profileState.activeProfileId),
+      JSON.stringify({
+        version: 1,
+        desktopId: workspace.activeDesktopId,
+        surface,
+      } satisfies ShellLocation),
+    );
+  }, [profileShellHydrated, profileState, sessionReady, surface, workspace.activeDesktopId]);
+
+  useEffect(() => {
+    if (!profileState || !canPersistProfileShell(sessionReady, profileShellHydrated)) return;
     const profileId = profileState.activeProfileId;
     localStorage.setItem(
       profileStorageKey(SETTINGS_STORAGE_KEY, profileId),
@@ -1620,13 +1643,23 @@ export function LatticeApp() {
         if (cancelled) return;
         setProfileState(profiles);
         setProfileLoadError(null);
-        setWorkspace(
-          restored.restoredActive
-            ? { ...shell.workspace, activeDesktopId: restored.restoredActive.desktopId }
-            : shell.workspace,
+        const activeDesktopId = shell.location?.desktopId ?? shell.workspace.activeDesktopId;
+        const restoredSurface =
+          shell.location?.surface ??
+          (restored.restoredActive?.desktopId === activeDesktopId
+            ? restored.restoredActive.url === "about:blank"
+              ? "home"
+              : "browser"
+            : "blank");
+        setWorkspace({ ...shell.workspace, activeDesktopId });
+        const defaultSurfaceTabs = createDefaultSurfaceTabs(
+          shell.workspace.desktops.map((desktop) => desktop.id),
         );
+        const restoredSurfaceTab = surfaceTabForSurface(restoredSurface);
         setSurfaceTabsByDesktop(
-          createDefaultSurfaceTabs(shell.workspace.desktops.map((desktop) => desktop.id)),
+          restoredSurfaceTab
+            ? openSurfaceTabInModel(defaultSurfaceTabs, activeDesktopId, restoredSurfaceTab)
+            : defaultSurfaceTabs,
         );
         setSettings(shell.settings);
         setFocusIntention(shell.focusIntention);
@@ -1644,10 +1677,7 @@ export function LatticeApp() {
         setProfileShellHydrated(true);
         setSnapshot(restored.snapshot);
         setTabDesktops(restored.assignments);
-        const restoredActive = restored.restoredActive;
-        if (restoredActive) {
-          setSurface(restoredActive.url === "about:blank" ? "home" : "browser");
-        }
+        setSurface(restoredSurface);
         setSessionReady(true);
         if (restoreError) {
           setStatus(`Session restore skipped: ${restoreError}`);
@@ -2066,20 +2096,24 @@ export function LatticeApp() {
 
   const selectDesktop = async (desktopId: string) => {
     if (!confirmCanvasLeave()) return;
-    if (surface === "dashboard") {
-      desktopLocationsRef.current[workspace.activeDesktopId] = { kind: "dashboard" };
-    } else if ((surface === "browser" || surface === "home") && contextualTab) {
+    if ((surface === "browser" || surface === "home") && contextualTab) {
       desktopLocationsRef.current[workspace.activeDesktopId] = {
         kind: "tab",
         tabId: contextualTab.id,
       };
+    } else {
+      desktopLocationsRef.current[workspace.activeDesktopId] = { kind: "surface", surface };
     }
     setWorkspace((current) => ({ ...current, activeDesktopId: desktopId }));
     const rememberedLocation = desktopLocationsRef.current[desktopId];
-    if (rememberedLocation?.kind === "dashboard") {
+    if (rememberedLocation?.kind === "surface") {
       setAddress("");
+      const rememberedSurfaceTab = surfaceTabForSurface(rememberedLocation.surface);
       setSurface(
-        (surfaceTabsByDesktop[desktopId] ?? []).includes("dashboard") ? "dashboard" : "blank",
+        !rememberedSurfaceTab ||
+          (surfaceTabsByDesktop[desktopId] ?? []).includes(rememberedSurfaceTab)
+          ? rememberedLocation.surface
+          : "blank",
       );
       setCaptureOpen(false);
       return;
@@ -2558,7 +2592,13 @@ export function LatticeApp() {
       closeSurfaceTabInModel(current, workspace.activeDesktopId, tabId),
     );
     if (activeSurfaceTab === tabId) {
-      if (tabId === "dashboard") delete desktopLocationsRef.current[workspace.activeDesktopId];
+      const rememberedLocation = desktopLocationsRef.current[workspace.activeDesktopId];
+      if (
+        rememberedLocation?.kind === "surface" &&
+        surfaceTabForSurface(rememberedLocation.surface) === tabId
+      ) {
+        delete desktopLocationsRef.current[workspace.activeDesktopId];
+      }
       setSurface("blank");
       setCaptureOpen(false);
       setBrowserMenuOpen(false);
@@ -2642,7 +2682,10 @@ export function LatticeApp() {
   const showDashboard = () => {
     if (!confirmCanvasLeave()) return;
     openSurfaceSelector("dashboard");
-    desktopLocationsRef.current[workspace.activeDesktopId] = { kind: "dashboard" };
+    desktopLocationsRef.current[workspace.activeDesktopId] = {
+      kind: "surface",
+      surface: "dashboard",
+    };
     setSurface("dashboard");
     setCaptureOpen(false);
     setBrowserMenuOpen(false);
@@ -2958,6 +3001,14 @@ export function LatticeApp() {
       JSON.stringify(workspace),
     );
     localStorage.setItem(
+      profileStorageKey(SHELL_LOCATION_STORAGE_KEY, profileId),
+      JSON.stringify({
+        version: 1,
+        desktopId: workspace.activeDesktopId,
+        surface,
+      } satisfies ShellLocation),
+    );
+    localStorage.setItem(
       profileStorageKey(SETTINGS_STORAGE_KEY, profileId),
       JSON.stringify(settings),
     );
@@ -2996,13 +3047,23 @@ export function LatticeApp() {
     );
     const selected = result.state.profiles.find((profile) => profile.id === profileId);
     setProfileState(result.state);
-    setWorkspace(
-      restored.restoredActive
-        ? { ...shell.workspace, activeDesktopId: restored.restoredActive.desktopId }
-        : shell.workspace,
+    const activeDesktopId = shell.location?.desktopId ?? shell.workspace.activeDesktopId;
+    const restoredSurface =
+      shell.location?.surface ??
+      (restored.restoredActive?.desktopId === activeDesktopId
+        ? restored.restoredActive.url === "about:blank"
+          ? "home"
+          : "browser"
+        : "blank");
+    setWorkspace({ ...shell.workspace, activeDesktopId });
+    const defaultSurfaceTabs = createDefaultSurfaceTabs(
+      shell.workspace.desktops.map((desktop) => desktop.id),
     );
+    const restoredSurfaceTab = surfaceTabForSurface(restoredSurface);
     setSurfaceTabsByDesktop(
-      createDefaultSurfaceTabs(shell.workspace.desktops.map((desktop) => desktop.id)),
+      restoredSurfaceTab
+        ? openSurfaceTabInModel(defaultSurfaceTabs, activeDesktopId, restoredSurfaceTab)
+        : defaultSurfaceTabs,
     );
     setSettings(shell.settings);
     setFocusIntention(shell.focusIntention);
@@ -3014,15 +3075,7 @@ export function LatticeApp() {
     );
     setSnapshot(restored.snapshot);
     setTabDesktops(restored.assignments);
-    const restoredActiveTab = restored.snapshot.tabs.find(
-      (tab) =>
-        tab.id === restored.snapshot.activeTabId &&
-        restored.assignments[tab.id] ===
-          (restored.restoredActive?.desktopId ?? shell.workspace.activeDesktopId),
-    );
-    setSurface(
-      restoredActiveTab ? (restoredActiveTab.url === "about:blank" ? "home" : "browser") : "blank",
-    );
+    setSurface(restoredSurface);
     setAddress("");
     setFocusMode(false);
     setCaptureOpen(false);
