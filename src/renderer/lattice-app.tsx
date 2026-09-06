@@ -4351,35 +4351,6 @@ export function LatticeApp() {
           )}
           {vault && <span className="vault-card-status" aria-hidden="true" />}
         </div>
-        {!focusMode && (
-          <button
-            type="button"
-            className={`navigation-collapse-button navigation-mode-toggle ${
-              navigationExpanded ? "expanded" : "compact"
-            }`}
-            aria-label={navigationExpanded ? "Use compact navigation" : "Expand navigation"}
-            title={navigationExpanded ? "Use compact navigation" : "Expand navigation"}
-            data-action-description={
-              navigationExpanded
-                ? actionHelpText.compactNavigation
-                : "Show navigation labels and details"
-            }
-            onClick={() => {
-              if (navigationExpanded) {
-                setWorkspaceMenuOpen(false);
-                setAddingDesktop(false);
-                setArchivedDesktopsOpen(false);
-              }
-              setNavigationView(!navigationExpanded);
-            }}
-          >
-            <span className="navigation-menu-glyph" aria-hidden="true">
-              <i />
-              <i />
-              <i />
-            </span>
-          </button>
-        )}
         <hr
           className="navigation-resizer"
           aria-label="Resize navigation"
@@ -4407,6 +4378,35 @@ export function LatticeApp() {
           .join(" ")}
       >
         <header className="tab-strip">
+          {!focusMode && (
+            <button
+              type="button"
+              className={`navigation-collapse-button navigation-mode-toggle ${
+                navigationExpanded ? "expanded" : "compact"
+              }`}
+              aria-label={navigationExpanded ? "Use compact navigation" : "Expand navigation"}
+              title={navigationExpanded ? "Use compact navigation" : "Expand navigation"}
+              data-action-description={
+                navigationExpanded
+                  ? actionHelpText.compactNavigation
+                  : "Show navigation labels and details"
+              }
+              onClick={() => {
+                if (navigationExpanded) {
+                  setWorkspaceMenuOpen(false);
+                  setAddingDesktop(false);
+                  setArchivedDesktopsOpen(false);
+                }
+                setNavigationView(!navigationExpanded);
+              }}
+            >
+              <span className="navigation-menu-glyph" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </span>
+            </button>
+          )}
           {activeSurfaceTabs.map((tabId) => {
             const definition = surfaceTabDefinitions[tabId];
             const active = surfaceTabForSurface(surface) === tabId;
