@@ -35,6 +35,7 @@ const api: LatticeApi = {
     createTab: (input) => ipcRenderer.invoke(IPC.browserCreateTab, input),
     switchTab: (tabId) => ipcRenderer.invoke(IPC.browserSwitchTab, tabId),
     closeTab: (tabId) => ipcRenderer.invoke(IPC.browserCloseTab, tabId),
+    reorderTabs: (tabIds) => ipcRenderer.invoke(IPC.browserReorderTabs, [...tabIds]),
     setVisible: (visible) => ipcRenderer.invoke(IPC.browserSetVisible, visible),
     privacySummary: () => ipcRenderer.invoke(IPC.browserPrivacySummary),
     clearWebsiteData: () => ipcRenderer.invoke(IPC.browserClearWebsiteData),

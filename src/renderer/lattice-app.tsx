@@ -1,6 +1,7 @@
 import {
   type CSSProperties,
   type FormEvent,
+  type DragEvent as ReactDragEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   useCallback,
@@ -34,6 +35,7 @@ import {
   TRUSTED_SITES,
   type TrustedSite,
 } from "../shared/lattice-search";
+import { moveTabInOrder, type TabDropPlacement } from "../shared/tab-order";
 import {
   clampZoomPercent,
   DEFAULT_ZOOM_PERCENT,
@@ -57,9 +59,9 @@ import {
   DashboardSurface,
   setDashboardUrlFavorite,
 } from "./dashboard-surface";
-import { removeDesktopRecords } from "./desktop-lifecycle";
 import { DesktopIconGraphic } from "./desktop-icon";
 import type { DesktopIconSelection } from "./desktop-icon-model";
+import { removeDesktopRecords } from "./desktop-lifecycle";
 import {
   FOCUS_STORAGE_KEY,
   MAX_FOCUS_INTENTION_LENGTH,
@@ -79,6 +81,14 @@ import {
   rankLatticeDocuments,
   serializeStoredHistory,
 } from "./lattice-search-model";
+import {
+  DEFAULT_NAVIGATION_WIDTH,
+  MAX_NAVIGATION_WIDTH,
+  MIN_NAVIGATION_WIDTH,
+  NAVIGATION_WIDTH_STORAGE_KEY,
+  navigationResizeResult,
+  normalizeNavigationWidth,
+} from "./navigation-width";
 import {
   canPersistProfileShell,
   profileStorageKey,
@@ -128,14 +138,6 @@ import {
   type WorkspacePreferences,
 } from "./workspace-model";
 import { WorkspaceStudio as LocalFilesSurface } from "./workspace-studio";
-import {
-  DEFAULT_NAVIGATION_WIDTH,
-  MAX_NAVIGATION_WIDTH,
-  MIN_NAVIGATION_WIDTH,
-  NAVIGATION_WIDTH_STORAGE_KEY,
-  navigationResizeResult,
-  normalizeNavigationWidth,
-} from "./navigation-width";
 
 const WORKSPACE_STORAGE_KEY = "lattice.workspace.v1";
 const SESSION_STORAGE_KEY = "lattice.session.v1";
@@ -536,6 +538,11 @@ export function LatticeApp() {
   const siteIconRetryTimers = useRef(new Set<number>());
   const [siteIconRetryGeneration, setSiteIconRetryGeneration] = useState(0);
   const [tabDesktops, setTabDesktops] = useState<Record<string, string>>({});
+  const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
+  const [tabDropTarget, setTabDropTarget] = useState<{
+    tabId: string;
+    placement: TabDropPlacement;
+  } | null>(null);
   const desktopLocationsRef = useRef<
     Record<string, { kind: "dashboard" } | { kind: "tab"; tabId: string }>
   >({});
@@ -620,7 +627,7 @@ export function LatticeApp() {
   } as CSSProperties;
   const titleBarAppearance = useMemo<ShellAppearance>(() => {
     if (settings.activeTheme === "paper-felt") {
-      return { backgroundColor: "#f3f3f0", symbolColor: "#2b2d31" };
+      return { backgroundColor: "#e9e9e5", symbolColor: "#2b2d31" };
     }
     if (settings.activeTheme === "custom") {
       return {
@@ -813,7 +820,11 @@ export function LatticeApp() {
     let resizeObserver: ResizeObserver;
     const updateLivePreviews = () => {
       frame = 0;
-      if (document.querySelector(".dashboard-customizer, .dashboard-search-settings")) {
+      if (
+        document.querySelector(
+          ".dashboard-customizer, .dashboard-search-settings, .dashboard-tab-menu[open]",
+        )
+      ) {
         void window.lattice.browser.setLivePreviews([]);
         return;
       }
@@ -865,7 +876,12 @@ export function LatticeApp() {
     };
     resizeObserver = new ResizeObserver(schedule);
     const observer = new MutationObserver(schedule);
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, {
+      attributeFilter: ["open"],
+      attributes: true,
+      childList: true,
+      subtree: true,
+    });
     window.addEventListener("resize", schedule);
     window.addEventListener("scroll", schedule, true);
     schedule();
@@ -1951,6 +1967,44 @@ export function LatticeApp() {
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     }
+  };
+
+  const clearTabDrag = () => {
+    setDraggedTabId(null);
+    setTabDropTarget(null);
+  };
+
+  const dropTabPlacement = (event: ReactDragEvent<HTMLElement>): TabDropPlacement => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    return event.clientX < bounds.left + bounds.width / 2 ? "before" : "after";
+  };
+
+  const commitTabOrder = async (
+    movedTabId: string,
+    targetTabId: string,
+    placement: TabDropPlacement,
+  ) => {
+    const currentOrder = desktopTabs.map((tab) => tab.id);
+    const nextOrder = moveTabInOrder(currentOrder, movedTabId, targetTabId, placement);
+    if (nextOrder.every((tabId, index) => tabId === currentOrder[index])) return;
+    try {
+      setSnapshot(await window.lattice.browser.reorderTabs(nextOrder));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const dropTab = async (targetTabId: string, placement: TabDropPlacement) => {
+    const movedTabId = draggedTabId;
+    clearTabDrag();
+    if (movedTabId) await commitTabOrder(movedTabId, targetTabId, placement);
+  };
+
+  const moveTabByStep = async (tabId: string, direction: -1 | 1) => {
+    const order = desktopTabs.map((tab) => tab.id);
+    const neighbourId = order[order.indexOf(tabId) + direction];
+    if (!order.includes(tabId) || !neighbourId) return;
+    await commitTabOrder(tabId, neighbourId, direction < 0 ? "before" : "after");
   };
 
   const restoreClosedTabs = async (
@@ -4447,10 +4501,41 @@ export function LatticeApp() {
             </span>
           </button>
           <div ref={setWorkspaceTabsTarget} id="workspace-tabs-slot" />
-          <div className="tabs-viewport">
+          <ul className="tabs-viewport" aria-label="Open tabs">
             {desktopTabs.map((tab) => (
-              <div
+              <li
                 key={tab.id}
+                draggable
+                data-dragging={draggedTabId === tab.id ? "true" : undefined}
+                data-drop-placement={
+                  tabDropTarget?.tabId === tab.id && draggedTabId && draggedTabId !== tab.id
+                    ? tabDropTarget.placement
+                    : undefined
+                }
+                onDragStart={(event) => {
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("text/plain", displayTitle(tab));
+                  setDraggedTabId(tab.id);
+                }}
+                onDragOver={(event) => {
+                  if (!draggedTabId) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  const placement = dropTabPlacement(event);
+                  setTabDropTarget((current) =>
+                    current?.tabId === tab.id && current.placement === placement
+                      ? current
+                      : { tabId: tab.id, placement },
+                  );
+                }}
+                onDragLeave={() =>
+                  setTabDropTarget((current) => (current?.tabId === tab.id ? null : current))
+                }
+                onDrop={(event) => {
+                  event.preventDefault();
+                  void dropTab(tab.id, dropTabPlacement(event));
+                }}
+                onDragEnd={clearTabDrag}
                 className={
                   tab.id === snapshot.activeTabId &&
                   surface !== "dashboard" &&
@@ -4464,7 +4549,18 @@ export function LatticeApp() {
                     : "browser-tab"
                 }
               >
-                <button className="tab-select" type="button" onClick={() => void switchTab(tab)}>
+                <button
+                  className="tab-select"
+                  type="button"
+                  aria-keyshortcuts="Control+Shift+ArrowLeft Control+Shift+ArrowRight"
+                  onClick={() => void switchTab(tab)}
+                  onKeyDown={(event) => {
+                    if (!event.ctrlKey || !event.shiftKey) return;
+                    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                    event.preventDefault();
+                    void moveTabByStep(tab.id, event.key === "ArrowLeft" ? -1 : 1);
+                  }}
+                >
                   <span className="favicon">
                     {tab.siteIconDataUrl || siteIcons[siteIconDomainKey(tab.url)] ? (
                       <img
@@ -4491,9 +4587,9 @@ export function LatticeApp() {
                     <Icon name="close" />
                   </button>
                 )}
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
           <button
             className="new-tab-button"
             type="button"

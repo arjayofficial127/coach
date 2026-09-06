@@ -64,6 +64,57 @@ describe("restorable browser sessions", () => {
     });
   });
 
+  it("keeps loopback development tabs that navigation allows", () => {
+    const parsed = parseRestorableSession(
+      JSON.stringify({
+        version: 1,
+        tabs: [
+          { url: "http://localhost:3000/", desktopId: "research", active: true },
+          { url: "http://127.0.0.1:5173/app", desktopId: "build", active: false },
+          { url: "http://insecure.example", desktopId: "research", active: false },
+        ],
+      }),
+      desktopIds,
+    );
+
+    expect(parsed.tabs).toEqual([
+      { url: "http://localhost:3000/", desktopId: "research", active: true },
+      { url: "http://127.0.0.1:5173/app", desktopId: "build", active: false },
+    ]);
+
+    const session = buildRestorableSession(
+      {
+        activeTabId: "tab-1",
+        tabs: [
+          {
+            id: "tab-1",
+            url: "http://localhost:3000/",
+            title: "Local app",
+            loading: false,
+            canGoBack: false,
+            canGoForward: false,
+            error: null,
+          },
+          {
+            id: "tab-2",
+            url: "http://192.168.1.10/",
+            title: "Local app",
+            loading: false,
+            canGoBack: false,
+            canGoForward: false,
+            error: null,
+          },
+        ],
+      },
+      { "tab-1": "research", "tab-2": "research" },
+      "research",
+    );
+
+    expect(session.tabs).toEqual([
+      { url: "http://localhost:3000/", desktopId: "research", active: true },
+    ]);
+  });
+
   it("falls back cleanly for malformed state", () => {
     expect(parseRestorableSession("not-json", desktopIds)).toEqual({ version: 1, tabs: [] });
   });

@@ -66,6 +66,7 @@ const savedLinkMetadataSchema = z.object({
 });
 
 const tabIdSchema = z.string().uuid();
+const tabOrderSchema = z.array(tabIdSchema).max(100);
 const browserTabUrlSchema = z
   .string()
   .trim()
@@ -198,6 +199,7 @@ export interface BrowserController {
   createTab(input?: string | BrowserCreateTabInput): Promise<BrowserSnapshot>;
   switchTab(tabId: string): BrowserSnapshot;
   closeTab(tabId: string): BrowserSnapshot;
+  reorderTabs(tabIds: readonly string[]): BrowserSnapshot;
   setVisible(visible: boolean): void;
   privacySummary(): Promise<BrowserPrivacySummary>;
   clearWebsiteData(): Promise<BrowserPrivacySummary>;
@@ -278,6 +280,9 @@ export function registerIpc(
   );
   handle(IPC.browserSwitchTab, (_event, payload) => browser.switchTab(tabIdSchema.parse(payload)));
   handle(IPC.browserCloseTab, (_event, payload) => browser.closeTab(tabIdSchema.parse(payload)));
+  handle(IPC.browserReorderTabs, (_event, payload) =>
+    browser.reorderTabs(tabOrderSchema.parse(payload)),
+  );
   handle(IPC.browserSetVisible, (_event, payload) =>
     browser.setVisible(z.boolean().parse(payload)),
   );

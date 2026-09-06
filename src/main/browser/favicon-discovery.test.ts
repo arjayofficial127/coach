@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { discoverFaviconCandidates, rankFaviconUrls } from "./favicon-discovery";
+import { discoverFaviconCandidates, mergeFaviconUrls, rankFaviconUrls } from "./favicon-discovery";
 
 describe("favicon discovery", () => {
   it("prefers a declared 32px PNG over an ICO fallback", () => {
@@ -35,5 +35,13 @@ describe("favicon discovery", () => {
         "https://example.com/favicon_32.png",
       ]).map((candidate) => candidate.url),
     ).toEqual(["https://example.com/favicon_32.png", "https://example.com/favicon.ico"]);
+  });
+
+  it("keeps one deterministic candidate order as favicon events add alternatives", () => {
+    const microsoft = "https://example.com/microsoft.png";
+    const azure = "https://example.com/azure.png";
+
+    expect(mergeFaviconUrls([microsoft], [azure, microsoft])).toEqual([microsoft, azure]);
+    expect(mergeFaviconUrls([microsoft, azure], [azure])).toEqual([microsoft, azure]);
   });
 });

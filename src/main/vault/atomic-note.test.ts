@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   assertPathWithinRoot,
   publishNewFileAtomically,
+  publishNewFileWithAvailableName,
   renderProbeMarkdown,
   replaceFileAtomically,
   sanitizeFileComponent,
@@ -82,6 +83,35 @@ describe("atomic Obsidian note writer", () => {
     expect(result.queuedAt).toBe(result.savedAt);
     expect(markdown).toContain('reading_status: "queued"');
     expect(markdown).toContain(`queued_at: "${result.savedAt}"`);
+  });
+
+  it("keeps a plain filename and numbers only the later duplicates", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "lattice-name-test-"));
+    temporaryRoots.push(directory);
+    const publish = async (content: string) => {
+      const temporary = path.join(directory, `.capture.${content}.tmp`);
+      await writeFile(temporary, content, "utf8");
+      return publishNewFileWithAvailableName(temporary, directory, "catch this bros", ".md");
+    };
+
+    expect(await publish("first")).toBe("catch this bros.md");
+    expect(await publish("second")).toBe("catch this bros (2).md");
+    expect(await publish("third")).toBe("catch this bros (3).md");
+
+    expect(await readFile(path.join(directory, "catch this bros.md"), "utf8")).toBe("first");
+    expect((await readdir(directory)).filter((name) => !name.startsWith("."))).toHaveLength(3);
+  });
+
+  it("gives up instead of numbering forever", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "lattice-name-limit-"));
+    temporaryRoots.push(directory);
+    await writeFile(path.join(directory, "note.md"), "taken", "utf8");
+    const temporary = path.join(directory, ".note.tmp");
+    await writeFile(temporary, "new", "utf8");
+
+    await expect(
+      publishNewFileWithAvailableName(temporary, directory, "note", ".md", 1),
+    ).rejects.toThrow(/Rename one/);
   });
 
   it("uses a safe fallback for Windows device names", () => {

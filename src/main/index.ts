@@ -33,7 +33,7 @@ async function createMainWindow(): Promise<void> {
     title: "Coach Browser",
     titleBarStyle: "hidden",
     titleBarOverlay: {
-      color: "#f3f3f0",
+      color: "#e9e9e5",
       symbolColor: "#2b2d31",
       height: 43,
     },
@@ -90,6 +90,9 @@ async function createMainWindow(): Promise<void> {
     console.error(`[startup] renderer process gone: ${details.reason}`),
   );
   mainWindow.on("close", () => {
+    // Shell storage holds the restorable session. Chromium batches those writes, so force them
+    // to disk before the window tears down instead of losing the last minutes of tab state.
+    mainWindow?.webContents.session.flushStorageData();
     browserRuntime?.close();
   });
   mainWindow.on("closed", () => {

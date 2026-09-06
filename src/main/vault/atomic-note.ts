@@ -79,6 +79,31 @@ export async function publishNewFileAtomically(
   await unlink(temporaryPath);
 }
 
+/**
+ * Publishes a new file under `baseName`, falling back to "baseName (2)", "(3)", … when that name
+ * is already used. link() is atomic, so a concurrent capture takes the next number rather than
+ * overwriting a note. Returns the filename that was actually created.
+ */
+export async function publishNewFileWithAvailableName(
+  temporaryPath: string,
+  directory: string,
+  baseName: string,
+  extension: string,
+  maxAttempts = 200,
+): Promise<string> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const filename = `${baseName}${attempt === 1 ? "" : ` (${attempt})`}${extension}`;
+    try {
+      await link(temporaryPath, path.join(directory, filename));
+      await unlink(temporaryPath);
+      return filename;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    }
+  }
+  throw new Error("Too many notes already use that name. Rename one, then capture again.");
+}
+
 export async function replaceFileAtomically(
   temporaryPath: string,
   finalPath: string,

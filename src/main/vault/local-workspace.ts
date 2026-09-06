@@ -34,7 +34,7 @@ import type {
 } from "../../shared/contracts";
 import {
   assertPathWithinRoot,
-  publishNewFileAtomically,
+  publishNewFileWithAvailableName,
   replaceFileAtomically,
   sanitizeFileComponent,
 } from "./atomic-note";
@@ -475,9 +475,8 @@ async function captureLocalInboxNoteUnlocked(
   assertPathWithinRoot(root, inbox);
   const id = randomUUID();
   const createdAt = new Date().toISOString();
-  const filename = `${createdAt.slice(0, 10)} - ${sanitizeFileComponent(input.title)} - ${id.slice(0, 8)}.md`;
-  const target = path.join(inbox, filename);
-  const temporary = path.join(inbox, `.${filename}.${randomUUID()}.tmp`);
+  const baseName = sanitizeFileComponent(input.title);
+  const temporary = path.join(inbox, `.${baseName}.${randomUUID()}.tmp`);
   const markdown = [
     "---",
     'coach_type: "inbox-item"',
@@ -503,7 +502,7 @@ async function captureLocalInboxNoteUnlocked(
     await handle.sync();
     await handle.close();
     handle = undefined;
-    await publishNewFileAtomically(temporary, target);
+    await publishNewFileWithAvailableName(temporary, inbox, baseName, ".md");
   } catch (error) {
     await handle?.close().catch(() => undefined);
     await rm(temporary, { force: true }).catch(() => undefined);
@@ -529,12 +528,13 @@ export async function listWorkspaceDirectory(
       const relativePath = context.relativePath
         ? `${context.relativePath}/${entry.name}`
         : entry.name;
+      const fileType = entryStats.isFile() ? editableFileType(entry.name) : "other";
       entries.push({
         id: workspaceEntryId(input.desktopId, relativePath),
         name: entry.name,
         relativePath,
         kind: entryStats.isDirectory() ? "folder" : "file",
-        fileType: entryStats.isFile() ? editableFileType(entry.name) : "other",
+        fileType,
         size: entryStats.isFile() ? entryStats.size : 0,
         updatedAt: entryStats.mtime.toISOString(),
       });

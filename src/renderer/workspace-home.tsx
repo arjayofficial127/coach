@@ -1,7 +1,7 @@
 import { isCoachBoard, parseCoachObject } from "../shared/coach-board";
 import type { WorkspaceDirectoryEntry, WorkspaceFileDocument } from "../shared/contracts";
 import { Icon } from "./icon";
-import { notePreview, workspaceDisplayTitle } from "./local-workspace-model";
+import { notePreview, workspaceEntryTitle } from "./local-workspace-model";
 
 export function WorkspaceFileRows({
   entries,
@@ -16,12 +16,12 @@ export function WorkspaceFileRows({
         <button
           type="button"
           key={entry.id}
-          aria-label={`Open ${workspaceDisplayTitle(entry.name, entry.kind)}`}
+          aria-label={`Open ${workspaceEntryTitle(entry)}`}
           onClick={() => onOpen(entry)}
         >
           <Icon name={entry.fileType === "coach" ? "grid" : "edit"} />
           <span>
-            <strong>{workspaceDisplayTitle(entry.name, entry.kind)}</strong>
+            <strong>{workspaceEntryTitle(entry)}</strong>
             <small>
               {entry.relativePath.split("/").slice(0, -1).join(" / ") || "Desktop root"}
             </small>
@@ -120,7 +120,7 @@ export function WorkspaceHome({
               {previews.map((entry) => {
                 const document = documents[entry.relativePath];
                 const object = parseCoachObject(document?.content ?? "");
-                const title = workspaceDisplayTitle(entry.name);
+                const title = workspaceEntryTitle(entry);
                 const preview = document
                   ? notePreview(
                       entry.fileType === "coach"
@@ -260,7 +260,7 @@ export function WorkspaceHome({
                   <span>
                     <strong>{card.title}</strong>
                     <small>
-                      {workspaceDisplayTitle(entry.name)} · {column}
+                      {workspaceEntryTitle(entry)} · {column}
                     </small>
                   </span>
                 </button>

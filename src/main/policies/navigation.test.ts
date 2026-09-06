@@ -18,6 +18,14 @@ describe("navigation policy", () => {
     expect(isAllowedRemoteNavigation("about:blank")).toBe(true);
   });
 
+  it("allows HTTP only for loopback development hosts", () => {
+    expect(normalizeHttpUrl("localhost:3000")).toBe("http://localhost:3000/");
+    expect(isAllowedRemoteNavigation("http://localhost:3000/app")).toBe(true);
+    expect(isAllowedRemoteNavigation("http://127.0.0.1:5173/")).toBe(true);
+    expect(isAllowedRemoteNavigation("http://[::1]:3000/")).toBe(true);
+    expect(isAllowedRemoteNavigation("http://localhost.evil.example:3000/")).toBe(false);
+  });
+
   it.each([
     "http://example.com",
     "file:///C:/secret.txt",

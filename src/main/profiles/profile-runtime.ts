@@ -131,6 +131,10 @@ export class ProfileRuntime {
     return this.activeRuntime().closeTab(tabId);
   }
 
+  reorderTabs(tabIds: readonly string[]): BrowserSnapshot {
+    return this.activeRuntime().reorderTabs(tabIds);
+  }
+
   setBounds(bounds: BrowserBounds): void {
     this.bounds = bounds;
     this.activeRuntime().setBounds(bounds);

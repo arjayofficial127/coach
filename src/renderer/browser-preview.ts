@@ -13,6 +13,7 @@ import type {
   WorkspaceDirectoryListing,
   WorkspaceFileDocument,
 } from "../shared/contracts";
+import { applyRequestedTabOrder } from "../shared/tab-order";
 import { clampZoomPercent } from "../shared/zoom";
 
 type PreviewTrashEntry =
@@ -267,6 +268,14 @@ export function installBrowserPreviewBridge(): void {
       },
       switchTab: async (tabId) => {
         if (tabs.some((tab) => tab.id === tabId)) activeTabId = tabId;
+        return snapshot();
+      },
+      reorderTabs: async (tabIds) => {
+        const order = applyRequestedTabOrder(
+          tabs.map((tab) => tab.id),
+          tabIds,
+        );
+        tabs = order.flatMap((tabId) => tabs.filter((tab) => tab.id === tabId));
         return snapshot();
       },
       closeTab: async (tabId) => {

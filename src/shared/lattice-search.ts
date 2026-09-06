@@ -698,27 +698,49 @@ function fillQuery(template: string, query: string): string {
   return template.replace("{query}", encodeURIComponent(query.trim()));
 }
 
+export function isLoopbackHostname(hostname: string): boolean {
+  const normalized = hostname
+    .trim()
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "");
+  if (normalized === "localhost" || normalized.endsWith(".localhost") || normalized === "::1") {
+    return true;
+  }
+  return /^127(?:\.\d{1,3}){3}$/.test(normalized);
+}
+
 export function webSearchUrl(query: string, providerId: SearchProviderId = "google"): string {
   return fillQuery(providerById(providerId).searchUrl, query);
 }
 
 function secureAddress(input: string): string | null {
   const trimmed = input.trim();
+  if (!/\s/.test(trimmed)) {
+    const addressLike =
+      /^(?:[a-z\d](?:[a-z\d-]{0,61}[a-z\d])?\.)+[a-z]{2,63}(?::\d{1,5})?(?:[/?#].*)?$/i.test(
+        trimmed,
+      ) ||
+      /^(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?(?:[/?#].*)?$/.test(trimmed) ||
+      /^(?:localhost|(?:127(?:\.\d{1,3}){3}))(?::\d{1,5})?(?:[/?#].*)?$/i.test(trimmed) ||
+      /^\[::1\](?::\d{1,5})?(?:[/?#].*)?$/i.test(trimmed);
+    if (addressLike) {
+      const hostname = new URL(`http://${trimmed}`).hostname;
+      const protocol = isLoopbackHostname(hostname) ? "http" : "https";
+      return new URL(`${protocol}://${trimmed}`).toString();
+    }
+  }
+
   const hasScheme = /^[a-z][a-z\d+.-]*:/i.test(trimmed);
   if (hasScheme) {
     const url = new URL(trimmed);
-    if (url.protocol !== "https:") throw new Error("Only HTTPS addresses are allowed.");
+    const localHttp = url.protocol === "http:" && isLoopbackHostname(url.hostname);
+    if (url.protocol !== "https:" && !localHttp) {
+      throw new Error("Only HTTPS addresses are allowed, except local development addresses.");
+    }
     if (!url.hostname) throw new Error("The address must include a hostname.");
     return url.toString();
   }
-  if (/\s/.test(trimmed)) return null;
-  const addressLike =
-    /^(?:[a-z\d](?:[a-z\d-]{0,61}[a-z\d])?\.)+[a-z]{2,63}(?::\d{1,5})?(?:[/?#].*)?$/i.test(
-      trimmed,
-    ) ||
-    /^(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?(?:[/?#].*)?$/.test(trimmed) ||
-    /^localhost(?::\d{1,5})?(?:[/?#].*)?$/i.test(trimmed);
-  return addressLike ? new URL(`https://${trimmed}`).toString() : null;
+  return null;
 }
 
 function matchingSite(

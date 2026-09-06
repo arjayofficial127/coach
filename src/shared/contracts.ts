@@ -16,6 +16,7 @@ export const IPC = {
   browserCreateTab: "browser:create-tab",
   browserSwitchTab: "browser:switch-tab",
   browserCloseTab: "browser:close-tab",
+  browserReorderTabs: "browser:reorder-tabs",
   browserSetVisible: "browser:set-visible",
   browserPrivacySummary: "browser:privacy-summary",
   browserClearWebsiteData: "browser:clear-website-data",
@@ -481,6 +482,7 @@ export interface LatticeApi {
     createTab(input?: string | BrowserCreateTabInput): Promise<BrowserSnapshot>;
     switchTab(tabId: string): Promise<BrowserSnapshot>;
     closeTab(tabId: string): Promise<BrowserSnapshot>;
+    reorderTabs(tabIds: readonly string[]): Promise<BrowserSnapshot>;
     setVisible(visible: boolean): Promise<void>;
     privacySummary(): Promise<BrowserPrivacySummary>;
     clearWebsiteData(): Promise<BrowserPrivacySummary>;

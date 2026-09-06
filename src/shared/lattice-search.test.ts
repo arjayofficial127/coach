@@ -61,10 +61,22 @@ describe("Lattice search intent", () => {
     });
   });
 
+  it("opens loopback development addresses over HTTP", () => {
+    expect(resolveSearchIntent("localhost:3000")).toMatchObject({
+      kind: "url",
+      url: "http://localhost:3000/",
+    });
+    expect(resolveNavigationInput("http://127.0.0.1:5173/app")).toBe("http://127.0.0.1:5173/app");
+    expect(resolveNavigationInput("[::1]:3000")).toBe("http://[::1]:3000/");
+  });
+
   it("gives the browser runtime a Google fallback without weakening HTTPS policy", () => {
     expect(resolveNavigationInput("test")).toBe("https://www.google.com/search?q=test");
     expect(resolveNavigationInput("example.com")).toBe("https://example.com/");
     expect(() => resolveNavigationInput("http://example.com")).toThrow("Only HTTPS");
+    expect(() => resolveNavigationInput("http://localhost.evil.example:3000")).toThrow(
+      "Only HTTPS",
+    );
     expect(() => resolveNavigationInput("javascript:alert(1)")).toThrow("Only HTTPS");
   });
 });

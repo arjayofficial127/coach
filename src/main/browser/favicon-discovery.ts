@@ -78,6 +78,10 @@ export function rankFaviconUrls(urls: string[]): FaviconCandidate[] {
     .sort((left, right) => left.score - right.score);
 }
 
+export function mergeFaviconUrls(current: string[], incoming: string[]): string[] {
+  return rankFaviconUrls([...new Set([...current, ...incoming])]).map((candidate) => candidate.url);
+}
+
 export function discoverFaviconCandidates(html: string, pageUrl: string): FaviconCandidate[] {
   const baseTag = html.match(/<base\b[^>]*>/i)?.[0];
   const baseHref = baseTag ? attributes(baseTag).get("href") : undefined;

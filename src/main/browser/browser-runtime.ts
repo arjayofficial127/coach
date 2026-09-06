@@ -24,10 +24,12 @@ import type {
 } from "../../shared/contracts";
 import { IPC } from "../../shared/contracts";
 import { sourceCapture } from "../../shared/source-capture";
+import { applyRequestedTabOrder } from "../../shared/tab-order";
 import { zoomCommandForShortcut } from "../../shared/zoom";
 import { constrainBrowserBounds } from "../policies/bounds";
 import { isAllowedRemoteNavigation, normalizeHttpUrl } from "../policies/navigation";
-import { discoverFaviconCandidates, rankFaviconUrls } from "./favicon-discovery";
+import { discoverFaviconCandidates, mergeFaviconUrls } from "./favicon-discovery";
+import { previewInteractionScript, shouldShowTabView } from "./preview-interaction";
 
 const REMOTE_SECURITY_PREFERENCES = {
   sandbox: true,
@@ -59,6 +61,9 @@ interface TabRecord {
   previewDataUrl: string | null;
   previewCapture: Promise<string | null> | null;
   pendingNavigation: { url: string; promise: Promise<void> } | null;
+  faviconPageUrl: string | null;
+  faviconCandidates: string[];
+  faviconCaptureVersion: number;
 }
 
 export class BrowserRuntime {
@@ -162,6 +167,14 @@ export class BrowserRuntime {
       if (nextId) this.activeTabId = nextId;
     }
     this.activate(this.activeTabId);
+    return this.snapshot();
+  }
+
+  reorderTabs(requestedOrder: readonly string[]): BrowserSnapshot {
+    const nextOrder = applyRequestedTabOrder([...this.tabs.keys()], requestedOrder);
+    const records = nextOrder.map((id) => [id, this.requireTab(id)] as const);
+    this.tabs.clear();
+    for (const [id, record] of records) this.tabs.set(id, record);
     return this.snapshot();
   }
 
@@ -387,6 +400,10 @@ export class BrowserRuntime {
       height: height ?? 1,
     });
     const tab = this.activeTab();
+    // Dashboard owns the bounds of every live preview. The browser viewport
+    // continues observing layout while hidden, so it must not move or hide the
+    // active preview with its full-page bounds.
+    if (this.livePreviewIds.has(tab.id)) return;
     tab.view.setBounds(this.lastBounds);
     tab.view.setVisible(this.visible);
   }
@@ -397,7 +414,8 @@ export class BrowserRuntime {
       const bounds = requested.get(id);
       if (!bounds) {
         if (this.livePreviewIds.has(id)) {
-          this.setPreviewScrollLock(tab, false);
+          this.setPreviewInteraction(tab, false);
+          tab.view.setBorderRadius(0);
           tab.view.setVisible(false);
           this.livePreviewLayouts.delete(id);
         }
@@ -428,9 +446,12 @@ export class BrowserRuntime {
         tab.view.setBounds(nextBounds);
       }
       if (!this.livePreviewIds.has(id)) {
-        this.setPreviewScrollLock(tab, true);
-        tab.view.setVisible(true);
+        this.setPreviewInteraction(tab, true);
       }
+      tab.view.setBorderRadius(14);
+      // Reassert visibility even when another surface effect touched the view
+      // after it first entered the live-preview set.
+      tab.view.setVisible(true);
       this.livePreviewLayouts.set(id, { bounds: nextBounds, zoomFactor });
     }
     this.livePreviewIds.clear();
@@ -441,8 +462,19 @@ export class BrowserRuntime {
     this.visible = visible;
     if (visible && this.livePreviewIds.size > 0) this.setLivePreviews([]);
     if (!this.closed) {
-      if (visible) this.activeTab().contents.setZoomFactor(1);
-      this.activeTab().view.setVisible(visible);
+      const tab = this.activeTab();
+      if (visible) {
+        tab.contents.setZoomFactor(1);
+        tab.view.setBorderRadius(0);
+        if (this.lastBounds) tab.view.setBounds(this.lastBounds);
+      }
+      tab.view.setVisible(
+        shouldShowTabView({
+          browserVisible: visible,
+          isActive: true,
+          isLivePreview: this.livePreviewIds.has(tab.id),
+        }),
+      );
     }
   }
 
@@ -681,6 +713,9 @@ export class BrowserRuntime {
       previewDataUrl: null,
       previewCapture: null,
       pendingNavigation: null,
+      faviconPageUrl: null,
+      faviconCandidates: [],
+      faviconCaptureVersion: 0,
     };
     this.allContents.push(contents);
     this.window.contentView.addChildView(view);
@@ -850,10 +885,17 @@ export class BrowserRuntime {
       tab.state.loading = true;
       this.emitState(tab);
     });
+    tab.contents.on("did-start-navigation", (_event, url, isInPlace, isMainFrame) => {
+      if (!isMainFrame || isInPlace) return;
+      tab.faviconCaptureVersion += 1;
+      tab.faviconPageUrl = url;
+      tab.faviconCandidates = [];
+      tab.state.siteIconDataUrl = null;
+    });
     tab.contents.on("did-stop-loading", () => {
       tab.state.loading = false;
       syncNavigationState();
-      if (this.livePreviewIds.has(tab.id)) this.setPreviewScrollLock(tab, true);
+      if (this.livePreviewIds.has(tab.id)) this.setPreviewInteraction(tab, true);
     });
     tab.contents.on("did-navigate", syncNavigationState);
     tab.contents.on("did-navigate-in-page", syncNavigationState);
@@ -862,9 +904,21 @@ export class BrowserRuntime {
       this.emitState(tab);
     });
     tab.contents.on("page-favicon-updated", (_event, favicons) => {
-      const candidates = rankFaviconUrls(favicons).map((candidate) => candidate.url);
+      const pageUrl = tab.contents.getURL();
+      if (tab.faviconPageUrl !== pageUrl) {
+        tab.faviconCaptureVersion += 1;
+        tab.faviconPageUrl = pageUrl;
+        tab.faviconCandidates = [];
+      }
+      const candidates = mergeFaviconUrls(tab.faviconCandidates, favicons);
       if (candidates.length === 0) return;
-      void this.captureSiteIcon(tab, candidates, tab.contents.getURL());
+      const unchanged = candidates.every(
+        (candidate, index) => candidate === tab.faviconCandidates[index],
+      );
+      if (unchanged && candidates.length === tab.faviconCandidates.length) return;
+      tab.faviconCandidates = candidates;
+      const captureVersion = ++tab.faviconCaptureVersion;
+      void this.captureSiteIcon(tab, candidates, pageUrl, captureVersion);
     });
     tab.contents.on("did-fail-load", (_event, code, description, url, isMainFrame) => {
       if (isMainFrame && code !== -3) {
@@ -889,6 +943,9 @@ export class BrowserRuntime {
     tab.state.loading = true;
     tab.state.error = null;
     tab.state.siteIconDataUrl = null;
+    tab.faviconCaptureVersion += 1;
+    tab.faviconPageUrl = url;
+    tab.faviconCandidates = [];
     tab.previewDataUrl = null;
     tab.previewCapture = null;
     this.emitState(tab);
@@ -904,11 +961,18 @@ export class BrowserRuntime {
     tab: TabRecord,
     faviconUrls: string[],
     pageUrl: string,
+    captureVersion: number,
   ): Promise<void> {
     for (const faviconUrl of faviconUrls) {
       try {
         const image = await this.fetchFaviconImage(faviconUrl);
-        if (tab.contents.isDestroyed() || tab.contents.getURL() !== pageUrl) return;
+        if (
+          tab.contents.isDestroyed() ||
+          tab.contents.getURL() !== pageUrl ||
+          tab.faviconCaptureVersion !== captureVersion
+        ) {
+          return;
+        }
         if (image.isEmpty()) continue;
         tab.state.siteIconDataUrl = image
           .resize({ width: 32, height: 32, quality: "good" })
@@ -922,11 +986,25 @@ export class BrowserRuntime {
   }
 
   private activate(tabId: string): void {
-    for (const [id, tab] of this.tabs) tab.view.setVisible(id === tabId && this.visible);
+    for (const [id, tab] of this.tabs) {
+      tab.view.setVisible(
+        shouldShowTabView({
+          browserVisible: this.visible,
+          isActive: id === tabId,
+          isLivePreview: this.livePreviewIds.has(id),
+        }),
+      );
+    }
     this.activeTabId = tabId;
     const tab = this.activeTab();
-    if (this.lastBounds) tab.view.setBounds(this.lastBounds);
-    tab.view.setVisible(this.visible);
+    if (this.lastBounds && !this.livePreviewIds.has(tab.id)) tab.view.setBounds(this.lastBounds);
+    tab.view.setVisible(
+      shouldShowTabView({
+        browserVisible: this.visible,
+        isActive: true,
+        isLivePreview: this.livePreviewIds.has(tab.id),
+      }),
+    );
     this.emitState(tab);
   }
 
@@ -948,46 +1026,9 @@ export class BrowserRuntime {
     if (!tab.contents.isDestroyed()) tab.contents.close();
   }
 
-  private setPreviewScrollLock(tab: TabRecord, locked: boolean): void {
+  private setPreviewInteraction(tab: TabRecord, enabled: boolean): void {
     if (tab.contents.isDestroyed() || tab.state.url === "about:blank") return;
-    const script = locked
-      ? `(() => {
-          const key = "__latticePreviewScrollLock";
-          const styleId = "__latticePreviewScrollbarStyle";
-          const previous = window[key];
-          if (previous) {
-            window.removeEventListener("wheel", previous.block, true);
-            window.removeEventListener("touchmove", previous.block, true);
-            window.removeEventListener("scroll", previous.reset, true);
-          }
-          const block = (event) => { if (event.cancelable) event.preventDefault(); };
-          const reset = () => {
-            if (window.scrollX !== 0 || window.scrollY !== 0) window.scrollTo(0, 0);
-          };
-          window[key] = { block, reset };
-          let style = document.getElementById(styleId);
-          if (!style) {
-            style = document.createElement("style");
-            style.id = styleId;
-            style.textContent = "html, body { scrollbar-width: none !important; } ::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }";
-            (document.head || document.documentElement).appendChild(style);
-          }
-          window.addEventListener("wheel", block, { capture: true, passive: false });
-          window.addEventListener("touchmove", block, { capture: true, passive: false });
-          window.addEventListener("scroll", reset, true);
-          window.scrollTo(0, 0);
-        })()`
-      : `(() => {
-          const key = "__latticePreviewScrollLock";
-          const styleId = "__latticePreviewScrollbarStyle";
-          const current = window[key];
-          if (!current) return;
-          window.removeEventListener("wheel", current.block, true);
-          window.removeEventListener("touchmove", current.block, true);
-          window.removeEventListener("scroll", current.reset, true);
-          document.getElementById(styleId)?.remove();
-          delete window[key];
-        })()`;
+    const script = previewInteractionScript(enabled);
     void tab.contents.executeJavaScript(script, true).catch(() => undefined);
   }
 

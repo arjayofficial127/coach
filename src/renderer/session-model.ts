@@ -1,4 +1,5 @@
 import type { BrowserSnapshot } from "../shared/contracts";
+import { isLoopbackHostname } from "../shared/lattice-search";
 
 export interface RestorableTab {
   url: string;
@@ -45,7 +46,11 @@ function isRestorableUrl(value: unknown): value is string {
   if (value === "about:blank") return true;
   if (typeof value !== "string" || value.length > 2_048) return false;
   try {
-    return new URL(value).protocol === "https:";
+    // Mirror isAllowedRemoteNavigation: a tab Coach agreed to open is a tab it can reopen.
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" || (url.protocol === "http:" && isLoopbackHostname(url.hostname))
+    );
   } catch {
     return false;
   }

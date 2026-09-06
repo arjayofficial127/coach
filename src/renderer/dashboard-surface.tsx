@@ -19,6 +19,7 @@ import {
 import { Icon, type IconName } from "./icon";
 import { RUNNABLE_APP_CATALOG, type RunnableAppId } from "./runnable-apps-model";
 import {
+  mergeSiteIcons,
   readSiteIcons,
   SITE_ICONS_UPDATED_EVENT,
   saveSiteIcons,
@@ -530,13 +531,22 @@ export function DashboardSurface({
   }, [onSearchTabContents, openTabs, searchOpenTabContents, searchQuery]);
 
   useEffect(() => {
-    const discovered = [...openTabs, ...recentlyClosed.map((item) => item.tab), ...history]
+    // Resolve duplicate hostnames from oldest fallback data to newest/current data.
+    // Object.fromEntries keeps the last value, so live open tabs have final say when
+    // filling a missing cache entry. The app shell owns replacements from live tabs;
+    // this fallback must not race it with an older history icon.
+    const discovered = [
+      ...[...history].reverse(),
+      ...[...recentlyClosed].reverse().map((item) => item.tab),
+      ...openTabs,
+    ]
       .map((item) => [siteIconDomainKey(item.url), item.siteIconDataUrl] as const)
       .filter((entry): entry is readonly [string, string] => Boolean(entry[0] && entry[1]));
     if (discovered.length === 0) return;
     setSiteIcons((current) => {
-      const next = { ...current, ...Object.fromEntries(discovered) };
-      return saveSiteIcons(next);
+      const missing = Object.fromEntries(discovered.filter(([hostname]) => !current[hostname]));
+      const next = mergeSiteIcons(current, missing);
+      return next === current ? current : saveSiteIcons(next);
     });
   }, [history, openTabs, recentlyClosed]);
 
@@ -1135,149 +1145,121 @@ export function DashboardSurface({
           </header>
           <div className={tabViewMode === "grid" ? "dashboard-tab-strip" : "dashboard-tab-list"}>
             {displayedOpenTabs.map((tab) => (
-              <button
+              <article
                 className={`dashboard-tab-card ${tab.id === selectedTab?.id ? "selected" : ""}`}
                 key={tab.id}
-                type="button"
                 draggable
-                aria-label={actionHelpText.openDashboardTab(tab.title || "New tab")}
                 data-action-description={actionHelpText.openDashboardTab(tab.title || "New tab")}
                 onDragStart={() => setDraggedTabId(tab.id)}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={() => moveTab(tab.id)}
-                onClick={() => {
-                  setSelectedTabId(tab.id);
-                  void onOpenTab(tab);
-                }}
               >
-                <span className="dashboard-tab-preview" data-live-tab-preview={tab.id}>
-                  {tabPreviews[tab.id] ? (
-                    <img src={tabPreviews[tab.id]} alt="" />
-                  ) : tabPreviewStatuses[tab.id] === "loading" ? (
-                    <span className="dashboard-preview-state loading">Loading preview…</span>
-                  ) : tabPreviewStatuses[tab.id] === "failed" ? (
-                    <span className="dashboard-preview-state failed">Preview unavailable</span>
-                  ) : (
-                    <Icon name={tab.url === "about:blank" ? "sparkle" : "globe"} />
-                  )}
-                </span>
-                <strong className="dashboard-tab-name">
+                <button
+                  className="dashboard-tab-preview"
+                  type="button"
+                  aria-label={actionHelpText.openDashboardTab(tab.title || "New tab")}
+                  onClick={() => {
+                    setSelectedTabId(tab.id);
+                    void onOpenTab(tab);
+                  }}
+                >
+                  <span className="dashboard-tab-screen" data-live-tab-preview={tab.id}>
+                    {tabPreviews[tab.id] ? (
+                      <img src={tabPreviews[tab.id]} alt="" />
+                    ) : tabPreviewStatuses[tab.id] === "loading" ? (
+                      <span className="dashboard-preview-state loading">Loading preview…</span>
+                    ) : tabPreviewStatuses[tab.id] === "failed" ? (
+                      <span className="dashboard-preview-state failed">Preview unavailable</span>
+                    ) : (
+                      <Icon name={tab.url === "about:blank" ? "sparkle" : "globe"} />
+                    )}
+                  </span>
+                </button>
+                <div className="dashboard-tab-meta">
                   <SiteIcon
                     url={tab.url}
                     title={tab.title || "New tab"}
                     icons={siteIcons}
                     explicitIcon={tab.siteIconDataUrl}
                   />
-                  <span>{tab.title || "New tab"}</span>
-                </strong>
-                <small>
-                  {tab.url === "about:blank" ? "Ready to browse" : displayHost(tab.url)}
-                </small>
-                <span className="dashboard-tab-actions">
-                  {/* biome-ignore lint/a11y/useSemanticElements: a real button cannot be nested inside the tab-card button */}
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    className="dashboard-tab-action"
-                    aria-label={pinnedTabIds.includes(tab.id) ? "Unpin tab" : "Pin tab"}
-                    data-action-description={actionHelpText.pinDashboardTab(
-                      tab.title || "New tab",
-                      pinnedTabIds.includes(tab.id),
-                    )}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      togglePinned(tab.id);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter" && event.key !== " ") return;
-                      event.preventDefault();
-                      event.stopPropagation();
-                      togglePinned(tab.id);
-                    }}
-                  >
-                    <Icon name="bookmark" />
-                  </span>
-                  {/* biome-ignore lint/a11y/useSemanticElements: a real button cannot be nested inside the tab-card button */}
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    className="dashboard-tab-action"
-                    aria-label={
-                      highlightedUrls.includes(tab.url) ? "Remove favorite" : "Add favorite"
-                    }
-                    data-action-description={actionHelpText.favoriteDashboardTab(
-                      tab.title || "New tab",
-                      highlightedUrls.includes(tab.url),
-                    )}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      toggleHighlight(tab.url, tab.title || displayHost(tab.url));
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter" && event.key !== " ") return;
-                      event.preventDefault();
-                      event.stopPropagation();
-                      toggleHighlight(tab.url, tab.title || displayHost(tab.url));
-                    }}
-                  >
-                    {highlightedUrls.includes(tab.url) ? "★" : "☆"}
-                  </span>
-                  <span
-                    className="dashboard-tab-drag"
-                    role="img"
-                    aria-label="Drag to reorder"
-                    data-action-description={actionHelpText.moveDashboardTab(
-                      tab.title || "New tab",
-                    )}
-                  >
-                    <Icon name="move" />
-                  </span>
-                  {/* biome-ignore lint/a11y/useSemanticElements: a real button cannot be nested inside the tab-card button */}
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    className="dashboard-tab-action"
-                    aria-label="Open tab"
-                    data-action-description={actionHelpText.openDashboardTab(
-                      tab.title || "New tab",
-                    )}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onOpenTab(tab);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter" && event.key !== " ") return;
-                      event.preventDefault();
-                      event.stopPropagation();
-                      onOpenTab(tab);
-                    }}
-                  >
-                    <Icon name="arrow-right" />
-                  </span>
-                  {/* biome-ignore lint/a11y/useSemanticElements: a real button cannot be nested inside the tab-card button */}
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    className="dashboard-tab-action"
-                    aria-label="Close tab"
-                    data-action-description={actionHelpText.closeDashboardTab(
-                      tab.title || "New tab",
-                    )}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onCloseTab(tab);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter" && event.key !== " ") return;
-                      event.preventDefault();
-                      event.stopPropagation();
-                      onCloseTab(tab);
-                    }}
-                  >
-                    <Icon name="close" />
-                  </span>
-                </span>
-              </button>
+                  <div className="dashboard-tab-copy">
+                    <button
+                      className="dashboard-tab-title"
+                      type="button"
+                      onClick={() => {
+                        setSelectedTabId(tab.id);
+                        void onOpenTab(tab);
+                      }}
+                    >
+                      {tab.title || "New tab"}
+                    </button>
+                    <small>
+                      {tab.url === "about:blank" ? "Ready to browse" : displayHost(tab.url)}
+                    </small>
+                  </div>
+                  <details className="dashboard-tab-menu">
+                    <summary
+                      aria-label={`More actions for ${tab.title || "New tab"}`}
+                      data-action-description={`More actions for ${tab.title || "New tab"}`}
+                    >
+                      <Icon name="more" />
+                    </summary>
+                    <div className="dashboard-tab-menu-popover">
+                      <button
+                        type="button"
+                        data-action-description={actionHelpText.openDashboardTab(
+                          tab.title || "New tab",
+                        )}
+                        onClick={() => onOpenTab(tab)}
+                      >
+                        <Icon name="arrow-right" />
+                        Open tab
+                      </button>
+                      <button
+                        type="button"
+                        data-action-description={actionHelpText.pinDashboardTab(
+                          tab.title || "New tab",
+                          pinnedTabIds.includes(tab.id),
+                        )}
+                        onClick={(event) => {
+                          togglePinned(tab.id);
+                          event.currentTarget.closest("details")?.removeAttribute("open");
+                        }}
+                      >
+                        <Icon name="bookmark" />
+                        {pinnedTabIds.includes(tab.id) ? "Unpin tab" : "Pin tab"}
+                      </button>
+                      <button
+                        type="button"
+                        data-action-description={actionHelpText.favoriteDashboardTab(
+                          tab.title || "New tab",
+                          highlightedUrls.includes(tab.url),
+                        )}
+                        onClick={(event) => {
+                          toggleHighlight(tab.url, tab.title || displayHost(tab.url));
+                          event.currentTarget.closest("details")?.removeAttribute("open");
+                        }}
+                      >
+                        <span aria-hidden="true">
+                          {highlightedUrls.includes(tab.url) ? "★" : "☆"}
+                        </span>
+                        {highlightedUrls.includes(tab.url) ? "Remove favorite" : "Add favorite"}
+                      </button>
+                      <button
+                        className="danger"
+                        type="button"
+                        data-action-description={actionHelpText.closeDashboardTab(
+                          tab.title || "New tab",
+                        )}
+                        onClick={() => onCloseTab(tab)}
+                      >
+                        <Icon name="close" />
+                        Close tab
+                      </button>
+                    </div>
+                  </details>
+                </div>
+              </article>
             ))}
           </div>
         </section>

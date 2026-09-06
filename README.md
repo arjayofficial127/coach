@@ -1,5 +1,16 @@
 # Lattice — Phase 16
 
+## Run Coach Browser
+
+On Windows, double-click `START-COACH.cmd`. It selects the compatible bundled Node.js runtime when
+available and then starts the Electron development app.
+
+From a terminal with Node.js 24 or newer:
+
+```powershell
+pnpm start
+```
+
 **Status: PASS (2026-08-29).** Lattice is an installable, focus-first personal research browser with
 secure native website tabs, restart-safe desktops, Obsidian-compatible saved links, and local
 spatial pages made of connected notes, websites, files, objects, and more pages. A read-only local
