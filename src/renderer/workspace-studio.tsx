@@ -59,10 +59,6 @@ if (typeof window !== "undefined") window.addEventListener("beforeunload", prote
 if (import.meta.hot)
   import.meta.hot.dispose(() => window.removeEventListener("beforeunload", protectSessionDrafts));
 interface Props {
-  sidebarTarget?: HTMLElement | null;
-  sidebarVisible?: boolean;
-  onShowSidebar?: () => void;
-  onExitSidebar?: () => void;
   tabsTarget?: HTMLElement | null;
   browserTabs?: BrowserState[];
   sourceTab?: BrowserState | null;
@@ -99,10 +95,6 @@ function WorkspaceSession({
   onReveal,
   onSettings,
   onOpenUrl,
-  sidebarTarget = null,
-  sidebarVisible = true,
-  onShowSidebar,
-  onExitSidebar,
   tabsTarget = null,
   browserTabs = [],
   sourceTab = null,
@@ -117,7 +109,6 @@ function WorkspaceSession({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [view, setView] = useState<View>("home");
-  const [foldersOpen, setFoldersOpen] = useState(true);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [toolbarTarget, setToolbarTarget] = useState<HTMLDivElement | null>(null);
   const [openTools, setOpenTools] = useState<Set<string>>(new Set());
@@ -1086,32 +1077,16 @@ function WorkspaceSession({
     );
   return (
     <div
-      className={`trusted-surface ws-studio ws-vision ${sidebarTarget ? "ws-integrated" : ""}`}
+      className="trusted-surface ws-studio ws-vision"
       data-workspace-browser
       data-desktop-id={desktopId}
       data-view={view}
       data-calm-note={calmNote}
-      data-folders-open={foldersOpen}
     >
       {tabsTarget && <WorkspacePortal target={tabsTarget}>{fileTabs}</WorkspacePortal>}
       <header className="ws-header">
         {calmNote ? (
           <nav className="ws-calm-location" aria-label="Current folder">
-            <button
-              type="button"
-              aria-label="Toggle folders and search"
-              aria-expanded={sidebarVisible && foldersOpen}
-              onClick={() => {
-                if (!sidebarVisible) {
-                  setFoldersOpen(true);
-                  onShowSidebar?.();
-                  return;
-                }
-                setFoldersOpen(!foldersOpen);
-              }}
-            >
-              <Icon name="folder" />
-            </button>
             <button type="button" onClick={() => setView("home")}>
               {desktopName}
             </button>
@@ -1336,28 +1311,8 @@ function WorkspaceSession({
         </div>
       )}
       <fieldset className="ws-body" disabled={renaming}>
-        <WorkspacePortal target={sidebarTarget}>
-          <fieldset
-            className="ws-sidebar-surface"
-            disabled={renaming}
-            hidden={!sidebarVisible || (calmNote && !foldersOpen)}
-          >
-            {onExitSidebar && (
-              <div className="ws-files-context">
-                <button
-                  type="button"
-                  className="ws-files-context-back"
-                  aria-label="Back to main navigation"
-                  onClick={onExitSidebar}
-                >
-                  <Icon name="arrow-left" />
-                  <span>
-                    <strong>Files &amp; Inbox</strong>
-                    <small>{desktopName}</small>
-                  </span>
-                </button>
-              </div>
-            )}
+        <WorkspacePortal target={null}>
+          <fieldset className="ws-sidebar-surface" disabled={renaming}>
             <div className="ws-folder-tools">
               <label className="ws-search">
                 <Icon name="search" />

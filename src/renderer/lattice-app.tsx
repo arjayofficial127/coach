@@ -434,7 +434,6 @@ function colorLuminance(hex: string): number {
 
 export function LatticeApp() {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const [workspaceSidebarTarget, setWorkspaceSidebarTarget] = useState<HTMLDivElement | null>(null);
   const [workspaceTabsTarget, setWorkspaceTabsTarget] = useState<HTMLDivElement | null>(null);
   const [workspaceSourceViewport, setWorkspaceSourceViewport] = useState<HTMLDivElement | null>(
     null,
@@ -492,7 +491,6 @@ export function LatticeApp() {
       return DEFAULT_NAVIGATION_WIDTH;
     }
   });
-  const [filesSidebarActive, setFilesSidebarActive] = useState(true);
   const [dashboardCustomizing, setDashboardCustomizing] = useState(false);
   const [dashboardToolbarContentTarget, setDashboardToolbarContentTarget] =
     useState<HTMLDivElement | null>(null);
@@ -2669,8 +2667,6 @@ export function LatticeApp() {
   const showFiles = () => {
     if (!confirmCanvasLeave()) return;
     openSurfaceSelector("files");
-    setNavigationExpanded(true);
-    setFilesSidebarActive(true);
     setSurface("files");
     setCaptureOpen(false);
     setBrowserMenuOpen(false);
@@ -3573,11 +3569,6 @@ export function LatticeApp() {
       }`}
       data-theme={settings.activeTheme}
       data-surface={surface}
-      data-files-navigation={
-        surface === "files" && navigationExpanded && filesSidebarActive && !focusMode
-          ? "contextual"
-          : undefined
-      }
       data-theme-name={
         settings.activeTheme === "custom"
           ? previewCustomTheme.name
@@ -4107,14 +4098,7 @@ export function LatticeApp() {
                 ? `Files and Inbox, ${activeDesktopFiles?.fileCount ?? 0} files, ${activeDesktopFiles?.inboxCount ?? 0} in Inbox`
                 : "Files and Inbox, connect a local folder"
             }
-            aria-expanded={surface === "files" && filesSidebarActive}
-            onClick={() => {
-              if (surface === "files") {
-                setFilesSidebarActive((active) => !active);
-                return;
-              }
-              showFiles();
-            }}
+            onClick={showFiles}
           >
             <span className="navigation-row-icon files">
               <Icon name="folder" />
@@ -4174,7 +4158,6 @@ export function LatticeApp() {
             <strong>Settings</strong>
           </button>
         </div>
-        <div ref={setWorkspaceSidebarTarget} id="workspace-sidebar-slot" />
         <div className="workspace-spacer" />
         <button
           type="button"
@@ -5273,10 +5256,6 @@ export function LatticeApp() {
 
             {surface === "files" && (
               <LocalFilesSurface
-                sidebarTarget={navigationExpanded && !focusMode ? workspaceSidebarTarget : null}
-                sidebarVisible={filesSidebarActive}
-                onShowSidebar={() => setFilesSidebarActive(true)}
-                onExitSidebar={() => setFilesSidebarActive(false)}
                 tabsTarget={!focusMode ? workspaceTabsTarget : null}
                 browserTabs={desktopTabs}
                 sourceTab={contextualTab}

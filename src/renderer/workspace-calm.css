@@ -1,10 +1,4 @@
 /* Open notes use one compact command row; all selectors stay in the trusted UI. */
-.ws-sidebar-surface[hidden] {
-  display: none;
-}
-.ws-studio[data-calm-note="true"][data-folders-open="false"] .ws-body {
-  grid-template-columns: minmax(0, 1fr);
-}
 .ws-calm-location {
   display: flex;
   align-items: center;
@@ -12,9 +6,6 @@
   min-width: 0;
   flex-wrap: wrap;
   font-size: 13px;
-}
-.ws-calm-location > button:first-child {
-  margin-right: 10px;
 }
 .ws-calm-location span {
   color: var(--muted);
