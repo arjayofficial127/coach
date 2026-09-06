@@ -259,25 +259,25 @@ const railItems: Array<{
   {
     id: "dashboard",
     label: "Dashboard",
-    icon: "home",
+    icon: "dashboard",
     description: actionHelpText.dashboardOverview,
   },
   {
     id: "browser",
     label: "Browse",
-    icon: "globe",
+    icon: "compass",
     description: actionHelpText.browse,
   },
   {
     id: "files",
-    label: "Files & notes",
+    label: "Files & Inbox",
     icon: "folder",
     description: actionHelpText.localFiles,
   },
   {
     id: "apps",
     label: "Runnable apps",
-    icon: "timer",
+    icon: "apps",
     description: actionHelpText.runnableApps,
   },
   {
@@ -570,6 +570,7 @@ export function LatticeApp() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [addingDesktop, setAddingDesktop] = useState(false);
+  const [desktopOverflowOpen, setDesktopOverflowOpen] = useState(false);
   const [desktopName, setDesktopName] = useState("");
   const [editingDesktopId, setEditingDesktopId] = useState<string | null>(null);
   const [editingDesktopName, setEditingDesktopName] = useState("");
@@ -3506,19 +3507,54 @@ export function LatticeApp() {
         >
           <Icon name="search" />
         </button>
-        <button
-          type="button"
-          className="rail-desktop-switcher"
-          aria-label={`Expand navigation and change desktop. Active desktop: ${activeDesktop?.name ?? "Desktop 1"}`}
-          title={`Active desktop: ${activeDesktop?.name ?? "Desktop 1"}`}
-          data-action-description={actionHelpText.desktopList(activeDesktop?.name ?? "Desktop 1")}
-          onClick={() => setNavigationView(true)}
-        >
-          <span className={`rail-desktop-glyph ${activeDesktop?.color ?? "violet"}`}>
-            <DesktopIconGraphic icon={activeDesktop?.icon} color={activeDesktop?.color} />
-          </span>
-          <Icon name="arrow-right" />
-        </button>
+        <nav className="rail-desktops" aria-label="Desktops">
+          {workspace.desktops.slice(0, 3).map((desktop) => {
+            const active = desktop.id === workspace.activeDesktopId;
+            return (
+              <button
+                type="button"
+                key={desktop.id}
+                className={active ? "rail-desktop-button active" : "rail-desktop-button"}
+                aria-label={`Switch to ${desktop.name}`}
+                aria-current={active ? "page" : undefined}
+                title={desktop.name}
+                data-action-description={actionHelpText.desktop(desktop.name)}
+                onClick={() => void selectDesktop(desktop.id)}
+              >
+                <span className={`rail-desktop-glyph ${desktop.color}`}>
+                  <DesktopIconGraphic icon={desktop.icon} color={desktop.color} />
+                </span>
+              </button>
+            );
+          })}
+          {workspace.desktops.length > 3 && (
+            <button
+              type="button"
+              className="rail-desktop-control"
+              aria-label="Show more desktops"
+              title="More desktops"
+              onClick={() => {
+                setDesktopOverflowOpen(true);
+                setNavigationView(true);
+              }}
+            >
+              <Icon name="chevron-down" />
+            </button>
+          )}
+          <button
+            type="button"
+            className="rail-desktop-control"
+            aria-label="Add desktop"
+            title="Add desktop"
+            data-action-description={actionHelpText.addDesktop}
+            onClick={() => {
+              setAddingDesktop(true);
+              setNavigationView(true);
+            }}
+          >
+            <Icon name="plus" />
+          </button>
+        </nav>
         <div className="rail-actions">
           {railItems.map((item) => (
             <button
@@ -3560,6 +3596,14 @@ export function LatticeApp() {
             profileInitials(activeProfile?.name ?? "Personal")
           )}
         </button>
+        <span
+          className={vault ? "rail-vault-status connected" : "rail-vault-status"}
+          title={vault ? "Local folder connected" : "Connect local folder"}
+          aria-label={vault ? "Local folder connected" : "No local folder connected"}
+          role="status"
+        >
+          <Icon name={vault ? "check" : "sparkle"} />
+        </span>
         {profileMenuOpen && (
           <>
             <button
@@ -3779,16 +3823,6 @@ export function LatticeApp() {
             </span>
             <Icon name="chevron-down" />
           </button>
-          <button
-            type="button"
-            className="navigation-collapse-button"
-            aria-label="Use compact navigation"
-            title="Use compact navigation"
-            data-action-description={actionHelpText.compactNavigation}
-            onClick={() => setNavigationView(false)}
-          >
-            <Icon name="arrow-left" />
-          </button>
           {workspaceMenuOpen && (
             <div className="workspace-menu">
               <button
@@ -3899,231 +3933,242 @@ export function LatticeApp() {
           </section>
         )}
 
-        <div className="section-label desktop-section-label">
-          <span>Desktops</span>
-          <button
-            type="button"
-            onClick={() => setAddingDesktop(true)}
-            aria-label="Add desktop"
-            data-action-description={actionHelpText.addDesktop}
-          >
-            <Icon name="plus" />
-          </button>
-        </div>
         <div className="desktop-list">
-          {workspace.desktops.map((desktop) => {
-            const tabCount = snapshot.tabs.filter(
-              (tab) => tabDesktops[tab.id] === desktop.id,
-            ).length;
-            const linkCount = links.filter((link) =>
-              link.desktopId ? link.desktopId === desktop.id : link.folder === desktop.name,
-            ).length;
-            const active = desktop.id === workspace.activeDesktopId;
-            if (editingDesktopId === desktop.id) {
+          {workspace.desktops
+            .slice(0, desktopOverflowOpen ? workspace.desktops.length : 3)
+            .map((desktop) => {
+              const tabCount = snapshot.tabs.filter(
+                (tab) => tabDesktops[tab.id] === desktop.id,
+              ).length;
+              const linkCount = links.filter((link) =>
+                link.desktopId ? link.desktopId === desktop.id : link.folder === desktop.name,
+              ).length;
+              const active = desktop.id === workspace.activeDesktopId;
+              if (editingDesktopId === desktop.id) {
+                return (
+                  <div className="desktop-item-shell" key={desktop.id}>
+                    <form
+                      className={
+                        active
+                          ? "desktop-item desktop-rename-row active"
+                          : "desktop-item desktop-rename-row"
+                      }
+                      data-desktop-id={desktop.id}
+                      onSubmit={submitDesktopRename}
+                    >
+                      <span className={`desktop-glyph ${desktop.color}`}>
+                        <DesktopIconGraphic icon={desktop.icon} color={desktop.color} />
+                      </span>
+                      <input
+                        ref={desktopRenameInputRef}
+                        value={editingDesktopName}
+                        onChange={(event) => setEditingDesktopName(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape") {
+                            event.preventDefault();
+                            setEditingDesktopId(null);
+                          }
+                        }}
+                        placeholder="Desktop name"
+                        maxLength={40}
+                        aria-label={`Rename ${desktop.name}`}
+                      />
+                      <button type="submit" aria-label="Save desktop name">
+                        <Icon name="check" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Cancel rename"
+                        onClick={() => setEditingDesktopId(null)}
+                      >
+                        <Icon name="close" />
+                      </button>
+                    </form>
+                  </div>
+                );
+              }
               return (
                 <div className="desktop-item-shell" key={desktop.id}>
-                  <form
-                    className={
-                      active
-                        ? "desktop-item desktop-rename-row active"
-                        : "desktop-item desktop-rename-row"
-                    }
+                  <div
+                    className={active ? "desktop-item active" : "desktop-item"}
                     data-desktop-id={desktop.id}
-                    onSubmit={submitDesktopRename}
+                    data-active-desktop={active ? "true" : undefined}
+                    data-action-description={actionHelpText.desktop(desktop.name)}
                   >
-                    <span className={`desktop-glyph ${desktop.color}`}>
-                      <DesktopIconGraphic icon={desktop.icon} color={desktop.color} />
-                    </span>
-                    <input
-                      ref={desktopRenameInputRef}
-                      value={editingDesktopName}
-                      onChange={(event) => setEditingDesktopName(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Escape") {
-                          event.preventDefault();
-                          setEditingDesktopId(null);
-                        }
-                      }}
-                      placeholder="Desktop name"
-                      maxLength={40}
-                      aria-label={`Rename ${desktop.name}`}
+                    <button
+                      type="button"
+                      className="desktop-open-surface"
+                      aria-label={`Switch to ${desktop.name}`}
+                      aria-current={active ? "page" : undefined}
+                      data-action-description={actionHelpText.desktop(desktop.name)}
+                      onClick={() => void selectDesktop(desktop.id)}
                     />
-                    <button type="submit" aria-label="Save desktop name">
-                      <Icon name="check" />
-                    </button>
                     <button
                       type="button"
-                      aria-label="Cancel rename"
-                      onClick={() => setEditingDesktopId(null)}
-                    >
-                      <Icon name="close" />
-                    </button>
-                  </form>
-                </div>
-              );
-            }
-            return (
-              <div className="desktop-item-shell" key={desktop.id}>
-                <div
-                  className={active ? "desktop-item active" : "desktop-item"}
-                  data-desktop-id={desktop.id}
-                  data-active-desktop={active ? "true" : undefined}
-                  data-action-description={actionHelpText.desktop(desktop.name)}
-                >
-                  <button
-                    type="button"
-                    className="desktop-open-surface"
-                    aria-label={`Switch to ${desktop.name}`}
-                    aria-current={active ? "page" : undefined}
-                    data-action-description={actionHelpText.desktop(desktop.name)}
-                    onClick={() => void selectDesktop(desktop.id)}
-                  />
-                  <button
-                    type="button"
-                    className="desktop-select"
-                    aria-label={`Switch to ${desktop.name}`}
-                    data-action-description={actionHelpText.desktop(desktop.name)}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      void selectDesktop(desktop.id);
-                    }}
-                  >
-                    <span className={`desktop-glyph ${desktop.color}`}>
-                      <DesktopIconGraphic icon={desktop.icon} color={desktop.color} />
-                    </span>
-                  </button>
-                  <span className="desktop-copy">
-                    <span className="desktop-name-row">
-                      <button
-                        type="button"
-                        className="desktop-name-button"
-                        aria-label={`Switch to ${desktop.name}`}
-                        data-action-description={actionHelpText.desktop(desktop.name)}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void selectDesktop(desktop.id);
-                        }}
-                      >
-                        <strong>{desktop.name}</strong>
-                      </button>
-                      <button
-                        type="button"
-                        className="desktop-rename-button"
-                        aria-label={`Rename ${desktop.name}`}
-                        title={`Rename ${desktop.name}`}
-                        data-action-description={actionHelpText.renameDesktop(desktop.name)}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          beginRenameDesktop(desktop.id);
-                        }}
-                      >
-                        <Icon name="edit" />
-                      </button>
-                    </span>
-                    <button
-                      type="button"
-                      className="desktop-summary-button"
-                      aria-label={`${formatCount(tabCount, "tab")}, ${formatCount(linkCount, "saved link")} in ${desktop.name}`}
-                      title={`${formatCount(tabCount, "tab")} · ${formatCount(linkCount, "saved link")}`}
+                      className="desktop-select"
+                      aria-label={`Switch to ${desktop.name}`}
                       data-action-description={actionHelpText.desktop(desktop.name)}
                       onClick={(event) => {
                         event.stopPropagation();
                         void selectDesktop(desktop.id);
                       }}
                     >
-                      <small>
-                        {tabCount}
-                      </small>
+                      <span className={`desktop-glyph ${desktop.color}`}>
+                        <DesktopIconGraphic icon={desktop.icon} color={desktop.color} />
+                      </span>
                     </button>
-                  </span>
-                  <button
-                    type="button"
-                    className="desktop-archive-trigger"
-                    data-delete-desktop={desktop.id}
-                    aria-label={`Archive ${desktop.name}`}
-                    title={`Archive ${desktop.name}`}
-                    data-action-description={actionHelpText.archiveDesktop(desktop.name)}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      showDesktopArchiveActions(desktop.id);
-                    }}
-                  >
-                    <Icon name="folder" />
-                  </button>
-                </div>
-                {archiveDesktopId === desktop.id && (
-                  <aside className="desktop-archive-popover" data-archive-panel={desktop.id}>
-                    <header>
-                      <span>
-                        <strong>Archive {desktop.name}?</strong>
-                        <small>Keep its history and restore it later.</small>
+                    <span className="desktop-copy">
+                      <span className="desktop-name-row">
+                        <button
+                          type="button"
+                          className="desktop-name-button"
+                          aria-label={`Switch to ${desktop.name}`}
+                          data-action-description={actionHelpText.desktop(desktop.name)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void selectDesktop(desktop.id);
+                          }}
+                        >
+                          <strong>{desktop.name}</strong>
+                        </button>
+                        <button
+                          type="button"
+                          className="desktop-rename-button"
+                          aria-label={`Rename ${desktop.name}`}
+                          title={`Rename ${desktop.name}`}
+                          data-action-description={actionHelpText.renameDesktop(desktop.name)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            beginRenameDesktop(desktop.id);
+                          }}
+                        >
+                          <Icon name="edit" />
+                        </button>
                       </span>
                       <button
                         type="button"
-                        aria-label="Cancel desktop archive"
-                        onClick={() => setArchiveDesktopId(null)}
+                        className="desktop-summary-button"
+                        aria-label={`${formatCount(tabCount, "tab")}, ${formatCount(linkCount, "saved link")} in ${desktop.name}`}
+                        title={`${formatCount(tabCount, "tab")} · ${formatCount(linkCount, "saved link")}`}
+                        data-action-description={actionHelpText.desktop(desktop.name)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void selectDesktop(desktop.id);
+                        }}
                       >
-                        <Icon name="close" />
+                        <small>{tabCount}</small>
                       </button>
-                    </header>
-                    {tabCount + linkCount > 0 ? (
-                      <p>
-                        This desktop still contains {tabCount} open tab{tabCount === 1 ? "" : "s"}
-                        {linkCount > 0
-                          ? ` and ${linkCount} saved link${linkCount === 1 ? "" : "s"}`
-                          : ""}
-                        .
-                      </p>
-                    ) : (
-                      <p>This desktop has no open tabs or saved links.</p>
-                    )}
-                    {tabCount > 0 && (
-                      <label>
-                        <span>Move open tabs to</span>
-                        <select
-                          value={archiveMoveTargetId}
-                          data-archive-move-target={desktop.id}
-                          onChange={(event) => setArchiveMoveTargetId(event.target.value)}
-                        >
-                          {workspace.desktops
-                            .filter((candidate) => candidate.id !== desktop.id)
-                            .map((candidate) => (
-                              <option key={candidate.id} value={candidate.id}>
-                                {candidate.name}
-                              </option>
-                            ))}
-                        </select>
-                      </label>
-                    )}
-                    {linkCount > 0 && (
-                      <small className="desktop-archive-data-note">
-                        Saved links stay attached and return when this desktop is restored.
-                      </small>
-                    )}
-                    <div className="desktop-archive-actions">
-                      <button
-                        type="button"
-                        className="primary"
-                        data-archive-desktop={desktop.id}
-                        onClick={() => void archiveSelectedDesktop("move")}
-                      >
-                        Archive desktop
-                      </button>
-                      {tabCount > 0 && (
+                    </span>
+                    <button
+                      type="button"
+                      className="desktop-archive-trigger"
+                      data-delete-desktop={desktop.id}
+                      aria-label={`Archive ${desktop.name}`}
+                      title={`Archive ${desktop.name}`}
+                      data-action-description={actionHelpText.archiveDesktop(desktop.name)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        showDesktopArchiveActions(desktop.id);
+                      }}
+                    >
+                      <Icon name="folder" />
+                    </button>
+                  </div>
+                  {archiveDesktopId === desktop.id && (
+                    <aside className="desktop-archive-popover" data-archive-panel={desktop.id}>
+                      <header>
+                        <span>
+                          <strong>Archive {desktop.name}?</strong>
+                          <small>Keep its history and restore it later.</small>
+                        </span>
                         <button
                           type="button"
-                          data-close-and-archive-desktop={desktop.id}
-                          onClick={() => void archiveSelectedDesktop("close")}
+                          aria-label="Cancel desktop archive"
+                          onClick={() => setArchiveDesktopId(null)}
                         >
-                          Close open tabs &amp; archive
+                          <Icon name="close" />
                         </button>
+                      </header>
+                      {tabCount + linkCount > 0 ? (
+                        <p>
+                          This desktop still contains {tabCount} open tab{tabCount === 1 ? "" : "s"}
+                          {linkCount > 0
+                            ? ` and ${linkCount} saved link${linkCount === 1 ? "" : "s"}`
+                            : ""}
+                          .
+                        </p>
+                      ) : (
+                        <p>This desktop has no open tabs or saved links.</p>
                       )}
-                    </div>
-                  </aside>
-                )}
-              </div>
-            );
-          })}
+                      {tabCount > 0 && (
+                        <label>
+                          <span>Move open tabs to</span>
+                          <select
+                            value={archiveMoveTargetId}
+                            data-archive-move-target={desktop.id}
+                            onChange={(event) => setArchiveMoveTargetId(event.target.value)}
+                          >
+                            {workspace.desktops
+                              .filter((candidate) => candidate.id !== desktop.id)
+                              .map((candidate) => (
+                                <option key={candidate.id} value={candidate.id}>
+                                  {candidate.name}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                      )}
+                      {linkCount > 0 && (
+                        <small className="desktop-archive-data-note">
+                          Saved links stay attached and return when this desktop is restored.
+                        </small>
+                      )}
+                      <div className="desktop-archive-actions">
+                        <button
+                          type="button"
+                          className="primary"
+                          data-archive-desktop={desktop.id}
+                          onClick={() => void archiveSelectedDesktop("move")}
+                        >
+                          Archive desktop
+                        </button>
+                        {tabCount > 0 && (
+                          <button
+                            type="button"
+                            data-close-and-archive-desktop={desktop.id}
+                            onClick={() => void archiveSelectedDesktop("close")}
+                          >
+                            Close open tabs &amp; archive
+                          </button>
+                        )}
+                      </div>
+                    </aside>
+                  )}
+                </div>
+              );
+            })}
+        </div>
+        <div className="desktop-switcher-actions">
+          {workspace.desktops.length > 3 && (
+            <button
+              type="button"
+              aria-label={desktopOverflowOpen ? "Show fewer desktops" : "Show more desktops"}
+              aria-expanded={desktopOverflowOpen}
+              title={desktopOverflowOpen ? "Show fewer desktops" : "More desktops"}
+              onClick={() => setDesktopOverflowOpen((open) => !open)}
+            >
+              <Icon name="chevron-down" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setAddingDesktop(true)}
+            aria-label="Add desktop"
+            title="Add desktop"
+            data-action-description={actionHelpText.addDesktop}
+          >
+            <Icon name="plus" />
+          </button>
         </div>
         {addingDesktop && (
           <form className="add-desktop-form" onSubmit={addDesktop}>
@@ -4143,9 +4188,6 @@ export function LatticeApp() {
           </form>
         )}
 
-        <div className="section-label navigation-label">
-          <span>Navigate</span>
-        </div>
         <div className="focus-navigation">
           <button
             type="button"
@@ -4308,6 +4350,31 @@ export function LatticeApp() {
           onDoubleClick={() => setNavigationWidth(DEFAULT_NAVIGATION_WIDTH)}
         />
       </aside>
+
+      {!focusMode && (
+        <button
+          type="button"
+          className={`navigation-collapse-button navigation-mode-toggle ${
+            navigationExpanded ? "expanded" : "compact"
+          }`}
+          aria-label={navigationExpanded ? "Use compact navigation" : "Expand navigation"}
+          title={navigationExpanded ? "Use compact navigation" : "Expand navigation"}
+          data-action-description={
+            navigationExpanded
+              ? actionHelpText.compactNavigation
+              : "Show navigation labels and details"
+          }
+          onClick={() => setNavigationView(!navigationExpanded)}
+        >
+          <Icon name="arrow-left" />
+          <span className="navigation-menu-glyph" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+          <Icon name="arrow-right" />
+        </button>
+      )}
 
       <section
         className={[

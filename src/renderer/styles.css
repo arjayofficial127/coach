@@ -72,6 +72,7 @@ svg {
 }
 
 .lattice-shell {
+  position: relative;
   display: grid;
   grid-template-columns: 58px 258px minmax(0, 1fr);
   height: 100%;
@@ -101,10 +102,10 @@ svg {
   min-width: 0;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 0;
   border-right: 1px solid var(--line);
   background: var(--rail);
-  padding: 11px 8px 10px;
+  padding: 20px 8px 10px;
   transition:
     opacity 180ms ease,
     transform 300ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -187,7 +188,7 @@ svg {
   gap: 5px;
   width: 100%;
   justify-items: center;
-  margin-top: 4px;
+  margin-top: 10px;
 }
 
 .rail-button {
@@ -203,44 +204,49 @@ svg {
 }
 
 .rail-search-button {
+  margin-top: 31px;
+}
+
+.rail-desktops {
+  display: grid;
+  gap: 2px;
   margin-top: 8px;
 }
 
-.rail-desktop-switcher {
-  position: relative;
+.rail-desktop-button,
+.rail-desktop-control {
   display: grid;
   width: 40px;
-  min-height: 40px;
+  height: 38px;
   place-items: center;
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--accent-soft) 60%, transparent);
-  padding: 5px;
-  color: var(--accent-strong);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.rail-desktop-button {
+  border: 1px solid transparent;
   transition:
     transform 160ms ease,
     border-color 160ms ease,
     background 160ms ease;
 }
 
-.rail-desktop-switcher:hover {
+.rail-desktop-button.active {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--line));
+  background: color-mix(in srgb, var(--accent-soft) 60%, transparent);
+  color: var(--accent-strong);
+}
+
+.rail-desktop-button:hover {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--accent) 54%, var(--line));
   background: var(--accent-soft);
 }
 
-.rail-desktop-switcher > svg {
-  position: absolute;
-  top: 50%;
-  left: calc(100% + 3px);
-  width: 10px;
-  height: 10px;
-  transform: translateY(-50%);
-  transition: transform 160ms ease;
-}
-
-.rail-desktop-switcher:hover > svg {
-  transform: translate(2px, -50%);
+.rail-desktop-control:hover {
+  background: var(--surface-2);
+  color: var(--text);
 }
 
 .rail-desktop-glyph {
@@ -255,6 +261,11 @@ svg {
 .rail-desktop-glyph svg {
   width: 13px;
   height: 13px;
+}
+
+.rail-desktop-control svg {
+  width: 14px;
+  height: 14px;
 }
 
 .rail-count {
@@ -309,6 +320,27 @@ svg {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--accent) 52%, var(--line-strong));
   box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.rail-vault-status {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  margin-top: 8px;
+  border-radius: 11px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.rail-vault-status.connected {
+  background: color-mix(in srgb, var(--green) 10%, var(--surface));
+  color: var(--green);
+}
+
+.rail-vault-status svg {
+  width: 15px;
+  height: 15px;
 }
 
 .workspace-profile-button {
@@ -725,7 +757,7 @@ svg {
 .workspace-heading {
   position: relative;
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) 30px;
+  grid-template-columns: 36px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   padding: 0 7px;
@@ -737,13 +769,14 @@ svg {
 
 .navigation-collapse-button {
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: 78px;
+  height: 38px;
   flex: 0 0 auto;
   place-items: center;
   border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--line));
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--surface-2) 76%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--text) 14%, transparent);
   color: var(--muted);
   transition:
     transform 160ms ease,
@@ -752,7 +785,6 @@ svg {
 }
 
 .navigation-collapse-button:hover {
-  transform: translateX(-2px);
   border-color: color-mix(in srgb, var(--accent) 48%, var(--line));
   color: var(--accent-strong);
 }
@@ -760,6 +792,49 @@ svg {
 .navigation-collapse-button svg {
   width: 13px;
   height: 13px;
+}
+
+.navigation-mode-toggle {
+  position: absolute;
+  z-index: 22;
+  top: 50%;
+  left: var(--coach-navigation-width, 288px);
+  display: grid;
+  grid-template-columns: 14px 18px 14px;
+  gap: 7px;
+  transform: translate(-50%, -50%);
+  transition:
+    left 300ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.navigation-compact .navigation-mode-toggle {
+  left: 68px;
+}
+
+.navigation-mode-toggle > svg {
+  width: 14px;
+  height: 14px;
+}
+
+.navigation-mode-toggle.expanded > svg:first-child,
+.navigation-mode-toggle.compact > svg:last-child {
+  color: var(--accent-strong);
+}
+
+.navigation-menu-glyph {
+  display: grid;
+  gap: 3px;
+}
+
+.navigation-menu-glyph i {
+  display: block;
+  width: 18px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: currentColor;
 }
 
 .workspace-selector {
@@ -1157,8 +1232,37 @@ kbd {
   gap: 2px;
 }
 
-.desktop-section-label {
-  margin-top: 12px;
+.desktop-switcher-actions {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.desktop-switcher-actions button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.desktop-switcher-actions button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.desktop-switcher-actions button[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.desktop-switcher-actions svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 160ms ease;
 }
 
 .desktop-item-shell {
