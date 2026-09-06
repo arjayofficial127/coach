@@ -3573,6 +3573,11 @@ export function LatticeApp() {
       }`}
       data-theme={settings.activeTheme}
       data-surface={surface}
+      data-files-navigation={
+        surface === "files" && navigationExpanded && filesSidebarActive && !focusMode
+          ? "contextual"
+          : undefined
+      }
       data-theme-name={
         settings.activeTheme === "custom"
           ? previewCustomTheme.name
@@ -4119,7 +4124,6 @@ export function LatticeApp() {
               {activeDesktopFiles?.fileCount ?? 0}
             </span>
           </button>
-          <div ref={setWorkspaceSidebarTarget} id="workspace-sidebar-slot" />
           <button
             type="button"
             className={surface === "apps" ? "navigation-row active" : "navigation-row"}
@@ -4170,6 +4174,7 @@ export function LatticeApp() {
             <strong>Settings</strong>
           </button>
         </div>
+        <div ref={setWorkspaceSidebarTarget} id="workspace-sidebar-slot" />
         <div className="workspace-spacer" />
         <button
           type="button"
@@ -5271,6 +5276,7 @@ export function LatticeApp() {
                 sidebarTarget={navigationExpanded && !focusMode ? workspaceSidebarTarget : null}
                 sidebarVisible={filesSidebarActive}
                 onShowSidebar={() => setFilesSidebarActive(true)}
+                onExitSidebar={() => setFilesSidebarActive(false)}
                 tabsTarget={!focusMode ? workspaceTabsTarget : null}
                 browserTabs={desktopTabs}
                 sourceTab={contextualTab}
