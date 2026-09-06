@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  COMPACT_NAVIGATION_WIDTH,
   DEFAULT_NAVIGATION_WIDTH,
   MAX_NAVIGATION_WIDTH,
   navigationResizeResult,
@@ -15,11 +16,14 @@ describe("navigation width", () => {
     expect(normalizeNavigationWidth(500)).toBe(MAX_NAVIGATION_WIDTH);
   });
 
-  it("switches to compact mode at 139px", () => {
-    expect(navigationResizeResult(139)).toEqual({ mode: "compact" });
+  it("switches to compact mode at the compact sidebar width", () => {
+    expect(navigationResizeResult(COMPACT_NAVIGATION_WIDTH)).toEqual({ mode: "compact" });
   });
 
   it("remains expanded immediately above the compact threshold", () => {
-    expect(navigationResizeResult(140)).toEqual({ mode: "expanded", width: 140 });
+    expect(navigationResizeResult(COMPACT_NAVIGATION_WIDTH + 1)).toEqual({
+      mode: "expanded",
+      width: COMPACT_NAVIGATION_WIDTH + 1,
+    });
   });
 });

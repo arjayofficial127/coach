@@ -82,9 +82,9 @@ import {
   serializeStoredHistory,
 } from "./lattice-search-model";
 import {
+  COMPACT_NAVIGATION_WIDTH,
   DEFAULT_NAVIGATION_WIDTH,
   MAX_NAVIGATION_WIDTH,
-  MIN_NAVIGATION_WIDTH,
   NAVIGATION_WIDTH_STORAGE_KEY,
   navigationResizeResult,
   normalizeNavigationWidth,
@@ -4384,7 +4384,7 @@ export function LatticeApp() {
           className="navigation-resizer"
           aria-label="Resize navigation"
           aria-orientation="vertical"
-          aria-valuemin={MIN_NAVIGATION_WIDTH}
+          aria-valuemin={COMPACT_NAVIGATION_WIDTH}
           aria-valuemax={MAX_NAVIGATION_WIDTH}
           aria-valuenow={navigationWidth}
           tabIndex={0}
