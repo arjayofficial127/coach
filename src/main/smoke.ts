@@ -1510,8 +1510,7 @@ export async function runPhaseNineSmoke(
         focusBarThemed,
         intention: document.querySelector('.focus-session-copy strong')?.textContent?.trim() ?? "",
         focusMode: document.querySelector('.lattice-shell')?.classList.contains('focus-mode') ?? false,
-        chromeHidden: getComputedStyle(document.querySelector('.activity-rail')).display === 'none' &&
-          getComputedStyle(document.querySelector('.workspace-panel')).display === 'none' &&
+        chromeHidden: getComputedStyle(document.querySelector('.workspace-panel')).display === 'none' &&
           getComputedStyle(document.querySelector('.tab-strip')).display === 'none'
       };
     })()`)) as {
@@ -1549,7 +1548,7 @@ export async function runPhaseNineSmoke(
     await delay(75);
     const escapeRestoredNavigation = (await window.webContents.executeJavaScript(
       `!document.querySelector('.lattice-shell')?.classList.contains('focus-mode') &&
-        getComputedStyle(document.querySelector('.activity-rail')).display !== 'none'`,
+        getComputedStyle(document.querySelector('.workspace-panel')).display !== 'none'`,
     )) as boolean;
     const shortcutRouteSequence = (await window.webContents.executeJavaScript(`(async () => {
       const routes = [];

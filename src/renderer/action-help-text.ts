@@ -15,7 +15,7 @@ export const actionHelpText = {
   profiles: "Choose a browsing profile or change its privacy settings",
   connectObsidian: "Connect a local folder for files, notes, Canvas pages, and saved links",
   workspaceMenu: "Manage your profiles, desktops, tabs, and settings",
-  compactNavigation: "Hide the full sidebar and use the smaller icon menu",
+  compactNavigation: "Hide navigation labels and details",
   addDesktop: "Create a separate space for another group of tabs and saved links",
   desktop: (name: string) => `Go to ${name} and continue where you left off`,
   desktopDashboard: (name: string) => `Open ${name} Dashboard`,

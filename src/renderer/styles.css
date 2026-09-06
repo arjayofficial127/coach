@@ -86,7 +86,7 @@ svg {
 }
 
 .lattice-shell.navigation-compact {
-  grid-template-columns: 68px 0 minmax(0, 1fr);
+  grid-template-columns: 0 84px minmax(0, 1fr);
 }
 
 .lattice-shell.focus-mode,
@@ -96,65 +96,8 @@ svg {
   min-width: 0;
 }
 
-.activity-rail {
-  z-index: 5;
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-  border-right: 1px solid var(--line);
-  background: var(--rail);
-  padding: 20px 8px 10px;
-  transition:
-    opacity 180ms ease,
-    transform 300ms cubic-bezier(0.22, 1, 0.36, 1),
-    padding 300ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.navigation-expanded > .activity-rail {
-  overflow: hidden;
-  border-right-color: transparent;
-  padding-inline: 0;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-18px);
-}
-
-.navigation-compact > .workspace-panel {
-  overflow: hidden;
-  border-right-color: transparent;
-  padding-inline: 0;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-18px);
-}
-
-.navigation-expanded > .workspace-panel,
-.navigation-compact > .activity-rail {
-  display: flex;
-}
-
-.navigation-compact > .activity-rail {
-  overflow: visible;
-}
-
-.navigation-expanded > .activity-rail.profile-open {
-  overflow: visible;
-  opacity: 1;
-  transform: none;
-}
-
-.navigation-expanded
-  > .activity-rail.profile-open
-  > :not(.profile-menu):not(.profile-menu-backdrop) {
-  visibility: hidden;
-}
-
-.navigation-expanded > .activity-rail.profile-open > .profile-menu,
-.navigation-expanded > .activity-rail.profile-open > .profile-menu-backdrop {
-  visibility: visible;
-  pointer-events: auto;
+.profile-menu-host {
+  display: contents;
 }
 
 .brand-mark,
@@ -425,7 +368,7 @@ svg {
   position: fixed;
   z-index: 31;
   bottom: 10px;
-  left: 64px;
+  left: 92px;
   display: grid;
   width: min(352px, calc(100vw - 78px));
   max-height: calc(100vh - 20px);
@@ -440,7 +383,7 @@ svg {
 }
 
 .navigation-expanded .profile-menu {
-  left: 328px;
+  left: calc(var(--coach-navigation-width, 288px) + 8px);
 }
 
 .profile-menu-header {
@@ -697,6 +640,7 @@ svg {
   z-index: 4;
   display: flex;
   min-width: 0;
+  grid-column: 2;
   flex-direction: column;
   border-right: 1px solid var(--line);
   background: var(--panel);
@@ -800,7 +744,7 @@ svg {
   position: absolute;
   z-index: 22;
   top: 82px;
-  left: 14px;
+  left: 18px;
   display: grid;
   transform: translateY(-50%);
   -webkit-app-region: no-drag;
@@ -809,6 +753,10 @@ svg {
     border-color 160ms ease,
     color 160ms ease,
     box-shadow 160ms ease;
+}
+
+.navigation-compact .navigation-mode-toggle {
+  left: 22px;
 }
 
 .navigation-expanded .panel-search {
@@ -1931,10 +1879,105 @@ kbd {
   font-weight: 600;
 }
 
+.navigation-compact > .workspace-panel {
+  overflow: visible;
+  background: var(--rail);
+  padding: 20px 8px 10px;
+}
+
+.navigation-compact .workspace-heading {
+  grid-template-columns: 36px;
+  justify-content: center;
+  padding: 0;
+}
+
+.navigation-compact .workspace-selector,
+.navigation-compact .desktop-copy,
+.navigation-compact .desktop-archive-trigger,
+.navigation-compact .focus-navigation .navigation-row > :not(.navigation-row-icon),
+.navigation-compact .workspace-profile-copy,
+.navigation-compact .workspace-profile-button > svg,
+.navigation-compact .vault-card-copy,
+.navigation-compact .vault-card > button,
+.navigation-compact .vault-card-status {
+  display: none;
+}
+
+.navigation-compact .panel-search {
+  width: 48px;
+  height: 44px;
+  justify-content: center;
+  margin: 34px auto 10px;
+  border-color: transparent;
+  background: transparent;
+  padding: 0;
+}
+
+.navigation-compact .panel-search span,
+.navigation-compact .panel-search kbd {
+  display: none;
+}
+
+.navigation-compact .desktop-list,
+.navigation-compact .focus-navigation {
+  justify-items: center;
+  gap: 4px;
+}
+
+.navigation-compact .desktop-item {
+  width: 48px;
+  min-height: 44px;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: 0;
+}
+
+.navigation-compact .desktop-select {
+  width: 44px;
+  height: 40px;
+}
+
+.navigation-compact .desktop-switcher-actions {
+  flex-direction: column;
+  justify-content: center;
+  margin: 2px 0 10px;
+}
+
+.navigation-compact .focus-navigation {
+  margin-bottom: 10px;
+}
+
+.navigation-compact .focus-navigation .navigation-row {
+  width: 48px;
+  height: 44px;
+  min-height: 44px;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: 0;
+}
+
+.navigation-compact .workspace-profile-button {
+  width: 48px;
+  height: 48px;
+  grid-template-columns: 34px;
+  justify-content: center;
+  margin: 0 auto 9px;
+  padding: 6px;
+}
+
+.navigation-compact .vault-card {
+  width: 48px;
+  grid-template-columns: 28px;
+  justify-content: center;
+  margin-inline: auto;
+  padding: 9px;
+}
+
 .content-shell {
   display: grid;
   min-width: 0;
   min-height: 0;
+  grid-column: 3;
   grid-template-rows: 43px 50px minmax(0, 1fr) 24px;
   background: var(--bg);
 }
@@ -5495,18 +5538,6 @@ kbd {
 }
 
 @media (max-width: 960px) {
-  .lattice-shell {
-    grid-template-columns: 52px minmax(0, 1fr);
-  }
-
-  .workspace-panel {
-    display: none;
-  }
-
-  .activity-rail {
-    padding-inline: 6px;
-  }
-
   .desktop-context {
     min-width: auto;
   }
@@ -5518,9 +5549,7 @@ kbd {
 
 @media (prefers-reduced-motion: reduce) {
   .lattice-shell,
-  .activity-rail,
   .workspace-panel,
-  .rail-desktop-switcher,
   .navigation-collapse-button {
     transition: none;
   }
@@ -8868,9 +8897,12 @@ kbd {
   }
 }
 
-.lattice-shell.focus-mode > .activity-rail,
 .lattice-shell.focus-mode > .workspace-panel {
   display: none;
+}
+
+.lattice-shell.focus-mode > .content-shell {
+  grid-column: 1;
 }
 
 /* Theme contract: built-ins and future named themes only need to resolve these semantic tokens. */
@@ -8938,7 +8970,6 @@ kbd {
   color: var(--text);
 }
 
-.lattice-shell.theme-adaptive .activity-rail,
 .lattice-shell.theme-adaptive .workspace-panel,
 .lattice-shell.theme-adaptive .content-shell,
 .lattice-shell.theme-adaptive .tab-strip,
@@ -8948,10 +8979,6 @@ kbd {
   border-color: var(--line);
   background-color: var(--panel);
   color: var(--text);
-}
-
-.lattice-shell.theme-adaptive .activity-rail {
-  background-color: var(--rail);
 }
 
 .lattice-shell.theme-adaptive .content-shell {
@@ -9326,7 +9353,7 @@ kbd {
   background: color-mix(in srgb, var(--bg) 52%, transparent);
 }
 
-.lattice-shell[data-theme="paper-felt"] :where(.activity-rail, .workspace-panel) {
+.lattice-shell[data-theme="paper-felt"] .workspace-panel {
   background-image: var(--theme-texture);
   background-position: var(--theme-texture-position);
   background-size: var(--theme-texture-size);

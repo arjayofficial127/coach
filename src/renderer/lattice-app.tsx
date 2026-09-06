@@ -259,50 +259,6 @@ const NEW_TAB_SHORTCUTS = [
   { id: "drive", label: "Drive", mark: "▲", url: "https://drive.google.com/" },
 ] as const;
 
-const railItems: Array<{
-  id: Surface;
-  label: string;
-  icon: IconName;
-  description: string;
-}> = [
-  {
-    id: "dashboard",
-    label: "Dashboard",
-    icon: "dashboard",
-    description: actionHelpText.dashboardOverview,
-  },
-  {
-    id: "browser",
-    label: "Browse",
-    icon: "compass",
-    description: actionHelpText.browse,
-  },
-  {
-    id: "files",
-    label: "Files & Inbox",
-    icon: "folder",
-    description: actionHelpText.localFiles,
-  },
-  {
-    id: "apps",
-    label: "Runnable apps",
-    icon: "apps",
-    description: actionHelpText.runnableApps,
-  },
-  {
-    id: "library",
-    label: "Libraries",
-    icon: "library",
-    description: "Open saved links, reading queues, and pages",
-  },
-  {
-    id: "settings",
-    label: "Settings",
-    icon: "settings",
-    description: actionHelpText.settings,
-  },
-];
-
 const customThemeColorFields: Array<{
   key: Exclude<keyof CustomThemePreferences, "name">;
   label: string;
@@ -3398,9 +3354,6 @@ export function LatticeApp() {
     else await showLibrary();
   };
 
-  const activeRailItem: Surface = ["library", "queue", "pages"].includes(surface)
-    ? "library"
-    : surface;
   const libraryOpen = surface === "library" || surface === "queue" || surface === "pages";
   const surfaceTabDefinitions: Record<
     SurfaceTabId,
@@ -3654,129 +3607,7 @@ export function LatticeApp() {
       data-titlebar-theme={nativeAppearanceTheme ?? "syncing"}
       style={shellThemeStyle}
     >
-      <nav
-        className={`activity-rail${profileMenuOpen ? " profile-open" : ""}`}
-        aria-label="Compact navigation"
-        aria-hidden={navigationExpanded && !profileMenuOpen}
-        inert={navigationExpanded && !profileMenuOpen ? true : undefined}
-      >
-        <button
-          className="brand-mark"
-          type="button"
-          onClick={showDashboard}
-          aria-label="Open Dashboard"
-          title="Coach Browser"
-          data-action-description={actionHelpText.dashboard}
-        >
-          <img src={coachLogoUrl} alt="" />
-        </button>
-        <button
-          type="button"
-          className="rail-button rail-search-button"
-          aria-label="Search everything"
-          title={`Search everything (${searchShortcutLabel})`}
-          data-action-description={actionHelpText.searchEverything(searchShortcutLabel)}
-          onClick={openCommandPalette}
-        >
-          <Icon name="search" />
-        </button>
-        <nav className="rail-desktops" aria-label="Desktops">
-          {workspace.desktops.slice(0, 3).map((desktop) => {
-            const active = desktop.id === workspace.activeDesktopId;
-            return (
-              <button
-                type="button"
-                key={desktop.id}
-                className={active ? "rail-desktop-button active" : "rail-desktop-button"}
-                aria-label={`Switch to ${desktop.name}`}
-                aria-current={active ? "page" : undefined}
-                title={desktop.name}
-                data-action-description={actionHelpText.desktop(desktop.name)}
-                onClick={() => void selectDesktop(desktop.id)}
-              >
-                <span className={`rail-desktop-glyph ${desktop.color}`}>
-                  <DesktopIconGraphic icon={desktop.icon} color={desktop.color} />
-                </span>
-              </button>
-            );
-          })}
-          {workspace.desktops.length > 3 && (
-            <button
-              type="button"
-              className="rail-desktop-control"
-              aria-label="Show more desktops"
-              title="More desktops"
-              onClick={() => {
-                setDesktopOverflowOpen(true);
-                setNavigationView(true);
-              }}
-            >
-              <Icon name="chevron-down" />
-            </button>
-          )}
-          <button
-            type="button"
-            className="rail-desktop-control"
-            aria-label="Add desktop"
-            title="Add desktop"
-            data-action-description={actionHelpText.addDesktop}
-            onClick={() => {
-              setAddingDesktop(true);
-              setNavigationView(true);
-            }}
-          >
-            <Icon name="plus" />
-          </button>
-        </nav>
-        <div className="rail-actions">
-          {railItems.map((item) => (
-            <button
-              type="button"
-              key={item.id}
-              className={activeRailItem === item.id ? "rail-button active" : "rail-button"}
-              aria-label={item.label}
-              aria-current={activeRailItem === item.id ? "page" : undefined}
-              title={item.label}
-              data-action-description={item.description}
-              onClick={() => void showSurface(item.id)}
-            >
-              <Icon name={item.icon} />
-              {item.id === "queue" && queueCount > 0 && (
-                <span className="rail-count">{queueCount > 99 ? "99+" : queueCount}</span>
-              )}
-            </button>
-          ))}
-        </div>
-        <div className="rail-spacer" />
-        <button
-          className="profile-button"
-          type="button"
-          title={activeProfile ? `${activeProfile.name} profile` : "Website profiles"}
-          aria-label={activeProfile ? `Open ${activeProfile.name} profile menu` : "Open profiles"}
-          aria-expanded={profileMenuOpen}
-          data-action-description={actionHelpText.profiles}
-          onClick={() => {
-            setWorkspaceMenuOpen(false);
-            setBrowserMenuOpen(false);
-            setCommandOpen(false);
-            setProfileEditor(null);
-            setProfileMenuOpen((open) => !open);
-          }}
-        >
-          {activeProfile?.avatarDataUrl ? (
-            <img src={activeProfile.avatarDataUrl} alt="" />
-          ) : (
-            profileInitials(activeProfile?.name ?? "Personal")
-          )}
-        </button>
-        <span
-          className={vault ? "rail-vault-status connected" : "rail-vault-status"}
-          title={vault ? "Local folder connected" : "Connect local folder"}
-          aria-label={vault ? "Local folder connected" : "No local folder connected"}
-          role="status"
-        >
-          <Icon name={vault ? "check" : "sparkle"} />
-        </span>
+      <div className="profile-menu-host">
         {profileMenuOpen && (
           <>
             <button
@@ -3962,12 +3793,11 @@ export function LatticeApp() {
             </section>
           </>
         )}
-      </nav>
+      </div>
 
       <aside
         className="workspace-panel"
-        aria-hidden={!navigationExpanded}
-        inert={!navigationExpanded ? true : undefined}
+        aria-label={navigationExpanded ? "Expanded navigation" : "Compact navigation"}
       >
         <div className="workspace-heading" ref={workspaceHeadingRef}>
           <button
@@ -4042,6 +3872,8 @@ export function LatticeApp() {
         <button
           type="button"
           className="panel-search"
+          aria-label="Search everything"
+          title={`Search everything (${searchShortcutLabel})`}
           data-action-description={actionHelpText.searchEverything(searchShortcutLabel)}
           onClick={openCommandPalette}
         >
@@ -4328,14 +4160,20 @@ export function LatticeApp() {
               aria-label={desktopOverflowOpen ? "Show fewer desktops" : "Show more desktops"}
               aria-expanded={desktopOverflowOpen}
               title={desktopOverflowOpen ? "Show fewer desktops" : "More desktops"}
-              onClick={() => setDesktopOverflowOpen((open) => !open)}
+              onClick={() => {
+                if (!navigationExpanded) setNavigationView(true);
+                setDesktopOverflowOpen((open) => !open);
+              }}
             >
               <Icon name="chevron-down" />
             </button>
           )}
           <button
             type="button"
-            onClick={() => setAddingDesktop(true)}
+            onClick={() => {
+              setAddingDesktop(true);
+              if (!navigationExpanded) setNavigationView(true);
+            }}
             aria-label="Add desktop"
             title="Add desktop"
             data-action-description={actionHelpText.addDesktop}
@@ -4365,6 +4203,7 @@ export function LatticeApp() {
           <button
             type="button"
             className={surface === "dashboard" ? "navigation-row active" : "navigation-row"}
+            aria-label="Dashboard"
             aria-current={surface === "dashboard" ? "page" : undefined}
             data-action-description={actionHelpText.navigationDashboard}
             onClick={showDashboard}
@@ -4377,6 +4216,7 @@ export function LatticeApp() {
           <button
             type="button"
             className={surface === "browser" ? "navigation-row active" : "navigation-row"}
+            aria-label="Browse"
             aria-current={surface === "browser" ? "page" : undefined}
             data-action-description={actionHelpText.browse}
             onClick={() => void showBrowser()}
@@ -4449,6 +4289,7 @@ export function LatticeApp() {
           <button
             type="button"
             className={surface === "settings" ? "navigation-row active" : "navigation-row"}
+            aria-label="Settings"
             aria-current={surface === "settings" ? "page" : undefined}
             data-action-description={actionHelpText.settings}
             onClick={() => void showSettings()}
@@ -4510,6 +4351,35 @@ export function LatticeApp() {
           )}
           {vault && <span className="vault-card-status" aria-hidden="true" />}
         </div>
+        {!focusMode && (
+          <button
+            type="button"
+            className={`navigation-collapse-button navigation-mode-toggle ${
+              navigationExpanded ? "expanded" : "compact"
+            }`}
+            aria-label={navigationExpanded ? "Use compact navigation" : "Expand navigation"}
+            title={navigationExpanded ? "Use compact navigation" : "Expand navigation"}
+            data-action-description={
+              navigationExpanded
+                ? actionHelpText.compactNavigation
+                : "Show navigation labels and details"
+            }
+            onClick={() => {
+              if (navigationExpanded) {
+                setWorkspaceMenuOpen(false);
+                setAddingDesktop(false);
+                setArchivedDesktopsOpen(false);
+              }
+              setNavigationView(!navigationExpanded);
+            }}
+          >
+            <span className="navigation-menu-glyph" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
+          </button>
+        )}
         <hr
           className="navigation-resizer"
           aria-label="Resize navigation"
@@ -4523,29 +4393,6 @@ export function LatticeApp() {
           onDoubleClick={() => setNavigationWidth(DEFAULT_NAVIGATION_WIDTH)}
         />
       </aside>
-
-      {!focusMode && (
-        <button
-          type="button"
-          className={`navigation-collapse-button navigation-mode-toggle ${
-            navigationExpanded ? "expanded" : "compact"
-          }`}
-          aria-label={navigationExpanded ? "Use compact navigation" : "Expand navigation"}
-          title={navigationExpanded ? "Use compact navigation" : "Expand navigation"}
-          data-action-description={
-            navigationExpanded
-              ? actionHelpText.compactNavigation
-              : "Show navigation labels and details"
-          }
-          onClick={() => setNavigationView(!navigationExpanded)}
-        >
-          <span className="navigation-menu-glyph" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </span>
-        </button>
-      )}
 
       <section
         className={[
