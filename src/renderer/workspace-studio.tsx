@@ -89,7 +89,6 @@ function WorkspaceSession({
   workspaceName,
   sessionKey,
   connected,
-  busy,
   onConnect,
   onRefresh,
   onReveal,
@@ -101,7 +100,6 @@ function WorkspaceSession({
   onSourceTab,
   onResearchUrl,
   onSourceViewport,
-  onFocus,
   onOpenApp,
 }: Props) {
   const cacheKey = `${sessionKey}:${desktopId}`;
@@ -1127,7 +1125,7 @@ function WorkspaceSession({
           </nav>
         ) : (
           <div>
-            <h1>{desktopName}</h1>
+            <h1>Files &amp; Inbox: {desktopName}</h1>
             <span className="ws-local-badge">
               <span />
               Local only
@@ -1136,29 +1134,24 @@ function WorkspaceSession({
         )}
         <div className="ws-header-actions">
           {calmNote && <div className="ws-toolbar-slot" ref={setToolbarTarget} />}
-          {onFocus && (
-            <button type="button" onClick={onFocus}>
-              <Icon name="sparkle" />
-              Focus
-            </button>
-          )}
           {!calmNote && (
             <>
-              <button
-                type="button"
-                onClick={() => {
-                  onRefresh();
-                  void refresh();
-                }}
-                disabled={loading || busy || renaming}
-              >
-                <Icon name="reload" />
-                {loading ? "Refreshing…" : "Refresh"}
-              </button>
               <button type="button" onClick={onReveal}>
                 <Icon name="folder" />
                 Open in Explorer
               </button>
+              <label className="ws-search ws-header-search">
+                <Icon name="search" />
+                <input
+                  aria-label="Find a file or folder"
+                  value={query}
+                  placeholder="Find a file or folder…"
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    if (event.target.value) setView("recent");
+                  }}
+                />
+              </label>
               <button
                 type="button"
                 className="primary-action"
@@ -1174,35 +1167,6 @@ function WorkspaceSession({
           )}
         </div>
       </header>
-      {!calmNote && (
-        <div className="ws-navigation">
-          <nav aria-label="Workspace views">
-            {(["home", "files", "recent"] as const).map((item) => (
-              <button
-                type="button"
-                key={item}
-                aria-current={view === item ? "page" : undefined}
-                onClick={() => setView(item)}
-              >
-                {item[0]?.toUpperCase()}
-                {item.slice(1)}
-              </button>
-            ))}
-          </nav>
-          <label className="ws-search">
-            <Icon name="search" />
-            <input
-              aria-label="Find workspace files"
-              value={query}
-              placeholder="Find a file…"
-              onChange={(event) => {
-                setQuery(event.target.value);
-                if (event.target.value) setView("recent");
-              }}
-            />
-          </label>
-        </div>
-      )}
       {newMenu && (
         <div className="ws-new-menu">
           <small>Create in {folder || desktopName}</small>

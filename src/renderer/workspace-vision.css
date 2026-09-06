@@ -121,6 +121,17 @@
 .ws-vision .ws-header-actions button {
   font-size: 12px;
 }
+.ws-header-search {
+  min-width: 240px;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+}
+.ws-vision .ws-header-search input {
+  width: 190px;
+}
 .ws-vision .ws-header button.primary-action {
   box-shadow: none;
 }
@@ -129,9 +140,6 @@
   padding: 4px 26px;
   justify-content: flex-end;
   border-bottom: 1px solid var(--line);
-}
-.ws-vision[data-view="home"] .ws-navigation {
-  display: none;
 }
 .ws-vision .ws-navigation nav {
   display: none;
