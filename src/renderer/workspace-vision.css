@@ -17,6 +17,7 @@
   background-image: none;
 }
 .lattice-shell[data-surface="files"] .workspace-panel {
+  overflow-x: hidden;
   overflow-y: auto;
 }
 .lattice-shell.theme-adaptive[data-surface="files"] .trusted-surface {
