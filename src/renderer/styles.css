@@ -1239,7 +1239,7 @@ kbd {
 .desktop-item {
   position: relative;
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr);
+  grid-template-columns: 22px minmax(0, 1fr) 22px auto;
   min-height: 38px;
   align-items: center;
   gap: 8px;
@@ -1397,9 +1397,6 @@ kbd {
 }
 
 .desktop-archive-trigger {
-  position: absolute;
-  top: 50%;
-  right: 9px;
   display: grid;
   width: 22px;
   height: 22px;
@@ -1408,17 +1405,10 @@ kbd {
   background: transparent;
   color: var(--subtle);
   opacity: 0;
-  transform: translateY(-50%);
   transition:
     background-color 120ms ease,
     color 120ms ease,
     opacity 120ms ease;
-}
-
-.desktop-item:hover .desktop-summary-button,
-.desktop-item:has(.desktop-archive-trigger:focus-visible) .desktop-summary-button,
-.desktop-item-shell:has(.desktop-archive-popover) .desktop-summary-button {
-  opacity: 0;
 }
 
 .desktop-item:hover .desktop-archive-trigger,
@@ -1932,6 +1922,7 @@ kbd {
 .navigation-compact .workspace-selector,
 .navigation-compact .desktop-copy,
 .navigation-compact .desktop-archive-trigger,
+.navigation-compact .desktop-summary-button,
 .navigation-compact .focus-navigation .navigation-row > :not(.navigation-row-icon),
 .navigation-compact .workspace-profile-copy,
 .navigation-compact .workspace-profile-button > svg,
@@ -8587,7 +8578,7 @@ kbd {
 
 .lattice-shell.new-tab-sizing-invalidated .desktop-item:not(.desktop-rename-row) {
   min-height: 38px;
-  grid-template-columns: 22px minmax(0, 1fr);
+  grid-template-columns: 22px minmax(0, 1fr) 22px auto;
   gap: 8px;
   border-radius: 8px;
   padding: 0 9px;
@@ -9220,7 +9211,7 @@ kbd {
 .lattice-shell.theme-adaptive
   .workspace-panel
   :is(.desktop-item, .navigation-row):not(.active)
-  > :not(.desktop-open-surface) {
+  > :not(.desktop-open-surface, .desktop-archive-trigger) {
   opacity: 0.72;
   filter: saturate(0.82) blur(0.15px);
   transition:
@@ -9231,7 +9222,7 @@ kbd {
 .lattice-shell.theme-adaptive
   .workspace-panel
   :is(.desktop-item, .navigation-row):not(.active):hover
-  > :not(.desktop-open-surface) {
+  > :not(.desktop-open-surface, .desktop-archive-trigger) {
   opacity: 0.92;
   filter: saturate(0.96);
 }

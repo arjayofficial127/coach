@@ -4050,19 +4050,6 @@ export function LatticeApp() {
                           <Icon name="edit" />
                         </button>
                       </span>
-                      <button
-                        type="button"
-                        className="desktop-summary-button"
-                        aria-label={`${formatCount(tabCount, "tab")}, ${formatCount(linkCount, "saved link")} in ${desktop.name}`}
-                        title={`${formatCount(tabCount, "tab")} · ${formatCount(linkCount, "saved link")}`}
-                        data-action-description={actionHelpText.desktop(desktop.name)}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void selectDesktop(desktop.id);
-                        }}
-                      >
-                        <small className="navigation-count">{tabCount}</small>
-                      </button>
                     </span>
                     <button
                       type="button"
@@ -4076,7 +4063,20 @@ export function LatticeApp() {
                         showDesktopArchiveActions(desktop.id);
                       }}
                     >
-                      <Icon name="folder" />
+                      <Icon name="more" />
+                    </button>
+                    <button
+                      type="button"
+                      className="desktop-summary-button"
+                      aria-label={`${formatCount(tabCount, "tab")}, ${formatCount(linkCount, "saved link")} in ${desktop.name}`}
+                      title={`${formatCount(tabCount, "tab")} · ${formatCount(linkCount, "saved link")}`}
+                      data-action-description={actionHelpText.desktop(desktop.name)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void selectDesktop(desktop.id);
+                      }}
+                    >
+                      <small className="navigation-count">{tabCount}</small>
                     </button>
                   </div>
                   {archiveDesktopId === desktop.id && (
