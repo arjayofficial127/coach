@@ -40,7 +40,7 @@ export function WorkspaceFileRows({
           aria-label={`Open ${workspaceEntryTitle(entry)}`}
           onClick={() => onOpen(entry)}
         >
-          <Icon name={entry.fileType === "coach" ? "grid" : "edit"} />
+          <Icon name={entry.fileType === "coach" ? "grid" : "file"} />
           {dashboard ? (
             <>
               <strong>{workspaceEntryTitle(entry)}</strong>
@@ -154,7 +154,7 @@ export function WorkspaceHome({
         </form>
         <section className="ws-home-stats" aria-label="Workspace summary">
           <button type="button" onClick={onInbox}>
-            <Icon name="queue" />
+            <Icon name="inbox" />
             <span>
               <small>Inbox</small>
               <strong>{inbox.length}</strong>
@@ -162,7 +162,7 @@ export function WorkspaceHome({
             </span>
           </button>
           <button type="button" onClick={onRecent}>
-            <Icon name="file" />
+            <Icon name="papers" />
             <span>
               <small>Recent files</small>
               <strong>{files.length}</strong>
@@ -170,7 +170,7 @@ export function WorkspaceHome({
             </span>
           </button>
           <button type="button" onClick={onFocus}>
-            <Icon name="timer" />
+            <Icon name="calendar" />
             <span>
               <small>Due today</small>
               <strong>{due.length}</strong>
@@ -225,7 +225,9 @@ export function WorkspaceHome({
       <aside className="ws-home-rail" aria-label="Today and Inbox">
         <section>
           <header className="ws-home-folder-header">
-            <h3>Today</h3>
+            <h3 className="ws-rail-title">
+              <Icon name="calendar" /> Today
+            </h3>
             <small>{now.toLocaleDateString(undefined, { weekday: "short", day: "2-digit" })}</small>
           </header>
           {due.length ? (
@@ -263,7 +265,9 @@ export function WorkspaceHome({
         </section>
         <section>
           <header className="ws-home-folder-header">
-            <h3>Inbox · {inbox.length}</h3>
+            <h3 className="ws-rail-title">
+              <Icon name="inbox" /> Inbox · {inbox.length}
+            </h3>
             <button type="button" onClick={onInbox}>
               Open Inbox
             </button>

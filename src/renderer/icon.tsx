@@ -19,10 +19,12 @@ export type IconName =
   | "globe"
   | "grid"
   | "home"
+  | "inbox"
   | "library"
   | "lock"
   | "more"
   | "plus"
+  | "papers"
   | "reload"
   | "search"
   | "settings"
@@ -32,6 +34,7 @@ export type IconName =
   | "leaf"
   | "apps"
   | "sparkle"
+  | "calendar"
   | "timer"
   | "queue"
   | "trash";
@@ -69,7 +72,13 @@ const paths: Record<IconName, ReactNode> = {
   ),
   desktop: <path d="M4 5h16v11H4zM9 20h6M12 16v4" />,
   edit: <path d="M4 20h4l11-11-4-4L4 16v4ZM13.5 6.5l4 4" />,
-  file: <path d="M6 3h8l4 4v14H6zM14 3v5h5" />,
+  file: (
+    <>
+      <path d="M6 3h8l4 4v14H6z" />
+      <path className="icon-paper-corner" d="M14 3v5h5" />
+      <path className="icon-paper-lines" d="M9 13h6M9 17h6" />
+    </>
+  ),
   filter: <path d="M4 6h16M7 12h10M10 18h4" />,
   folder: <path d="M3.5 6.5h6l2-2h9v15h-17z" />,
   globe: (
@@ -80,6 +89,12 @@ const paths: Record<IconName, ReactNode> = {
   ),
   grid: <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />,
   home: <path d="m3 11 9-8 9 8M5.5 9.5V21h13V9.5M9.5 21v-7h5v7" />,
+  inbox: (
+    <>
+      <path d="M5.5 5h13l2 8.5v5A1.5 1.5 0 0 1 19 20H5a1.5 1.5 0 0 1-1.5-1.5v-5Z" />
+      <path className="icon-inbox-item" d="M3.5 13.5h5l1.5 2h4l1.5-2h5" />
+    </>
+  ),
   library: <path d="M5 4h3v16H5zM10.5 4h3v16h-3zM16 5l3-1 4 15-3 1z" />,
   lock: (
     <>
@@ -95,6 +110,13 @@ const paths: Record<IconName, ReactNode> = {
     </>
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  papers: (
+    <>
+      <path className="icon-paper-back" d="M4 7v14h10" />
+      <path className="icon-paper-middle" d="M7 5v14h10" />
+      <path d="M10 3h6l4 4v10H10zM16 3v4h4M13 11h4M13 14h4" />
+    </>
+  ),
   reload: <path d="M20 7v5h-5M4 17v-5h5M6.1 8A7 7 0 0 1 18.8 9.5M17.9 16A7 7 0 0 1 5.2 14.5" />,
   search: (
     <>
@@ -131,6 +153,12 @@ const paths: Record<IconName, ReactNode> = {
   sparkle: (
     <path d="m12 2 1.2 4.2L17 8l-3.8 1.8L12 14l-1.2-4.2L7 8l3.8-1.8ZM5 14l.7 2.3L8 17l-2.3.7L5 20l-.7-2.3L2 17l2.3-.7ZM19 14l.6 1.8 1.9.7-1.9.7L19 19l-.6-1.8-1.9-.7 1.9-.7Z" />
   ),
+  calendar: (
+    <>
+      <rect className="icon-calendar-page" x="3.5" y="5.5" width="17" height="15" rx="2" />
+      <path d="M8 3v5M16 3v5M3.5 10h17M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01" />
+    </>
+  ),
   timer: (
     <>
       <circle cx="12" cy="13" r="8" />
@@ -160,6 +188,7 @@ export function Icon({ name, ...props }: { name: IconName } & SVGProps<SVGSVGEle
       strokeWidth="1.7"
       strokeLinecap="round"
       strokeLinejoin="round"
+      data-icon={name}
       {...props}
     >
       {paths[name]}

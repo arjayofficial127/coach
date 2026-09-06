@@ -37,8 +37,26 @@ describe("unified workspace views", () => {
     expect(html).toContain("No recent files yet.");
     expect(html).toContain("No board cards due today.");
     expect(html).toContain("Create your first folder");
+    expect(html).toContain('data-icon="inbox"');
+    expect(html).toContain('data-icon="papers"');
+    expect(html).toContain('data-icon="calendar"');
     expect(html).not.toContain('type="checkbox"');
     expect(html).not.toContain("% complete");
+  });
+  it("uses a paper icon instead of a pencil for Markdown files", () => {
+    const html = home([
+      {
+        id: "note",
+        name: "Thought.md",
+        relativePath: "Inbox/Thought.md",
+        kind: "file",
+        fileType: "markdown",
+        size: 10,
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
+    expect(html).toContain('data-icon="file"');
+    expect(html).not.toContain('data-icon="edit"');
   });
   it("derives Today and Inbox from real indexed content", () => {
     const now = new Date();

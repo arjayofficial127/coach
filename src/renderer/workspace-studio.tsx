@@ -1064,7 +1064,7 @@ function WorkspaceSession({
               if (besidePath === tab.document.relativePath) setBesidePath(null);
             }}
           >
-            <Icon name={tab.document.fileType === "coach" ? "grid" : "edit"} />
+            <Icon name={tab.document.fileType === "coach" ? "grid" : "file"} />
             {workspaceDocumentTitle(tab.document, tab.draft)}
             {tab.draft !== tab.document.content && <b title="Unsaved changes">•</b>}
           </button>
@@ -1194,7 +1194,15 @@ function WorkspaceSession({
                 setNewMenu(false);
               }}
             >
-              <Icon name={kind === "folder" ? "folder" : kind === "board" ? "grid" : "edit"} />
+              <Icon
+                name={
+                  kind === "folder"
+                    ? "folder"
+                    : kind === "markdown" || kind === "text"
+                      ? "file"
+                      : "grid"
+                }
+              />
               {label}
             </button>
           ))}

@@ -501,6 +501,38 @@
   height: 26px;
   margin-top: 4px;
   color: var(--accent-strong);
+  transition:
+    transform 180ms ease,
+    color 180ms ease;
+}
+.ws-home-stats > button:hover > svg,
+.ws-home-stats > button:focus-visible > svg {
+  transform: translateY(-2px) scale(1.04);
+}
+.ws-home-stats svg [class^="icon-"],
+.ws-file-rows > button > svg:first-child [class^="icon-"],
+.ws-rail-title svg [class^="icon-"] {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 180ms ease;
+}
+.ws-rail-title:hover svg[data-icon="inbox"] .icon-inbox-item,
+.ws-home-stats > button:hover svg[data-icon="inbox"] .icon-inbox-item,
+.ws-home-stats > button:focus-visible svg[data-icon="inbox"] .icon-inbox-item {
+  transform: translateY(-1.5px);
+}
+.ws-home-stats > button:hover svg[data-icon="papers"] .icon-paper-back,
+.ws-home-stats > button:focus-visible svg[data-icon="papers"] .icon-paper-back {
+  transform: translate(-1px, 1px);
+}
+.ws-home-stats > button:hover svg[data-icon="papers"] .icon-paper-middle,
+.ws-home-stats > button:focus-visible svg[data-icon="papers"] .icon-paper-middle {
+  transform: translate(-0.5px, 0.5px);
+}
+.ws-rail-title:hover svg[data-icon="calendar"] .icon-calendar-page,
+.ws-home-stats > button:hover svg[data-icon="calendar"] .icon-calendar-page,
+.ws-home-stats > button:focus-visible svg[data-icon="calendar"] .icon-calendar-page {
+  transform: translateY(-1px);
 }
 .ws-home-stats > button > span,
 .ws-home-stats small,
@@ -548,8 +580,23 @@
   min-height: 43px;
   padding: 8px 12px;
 }
+.ws-file-rows > button > svg:first-child {
+  transition: transform 180ms ease;
+}
 .ws-file-rows.is-dashboard > button > svg:first-child {
   color: var(--accent);
+}
+.ws-file-rows > button:hover > svg:first-child,
+.ws-file-rows > button:focus-visible > svg:first-child {
+  transform: translateY(-1px);
+}
+.ws-file-rows > button:hover svg[data-icon="file"] .icon-paper-corner,
+.ws-file-rows > button:focus-visible svg[data-icon="file"] .icon-paper-corner {
+  transform: translate(-0.75px, 0.75px);
+}
+.ws-file-rows > button:hover svg[data-icon="file"] .icon-paper-lines,
+.ws-file-rows > button:focus-visible svg[data-icon="file"] .icon-paper-lines {
+  transform: translateX(0.75px);
 }
 .ws-file-rows.is-dashboard > button > svg:last-child {
   width: 14px;
@@ -612,6 +659,29 @@
 .ws-home-rail h3 {
   font-size: 14px;
   margin-bottom: 14px;
+}
+.ws-home-rail .ws-rail-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ws-rail-title svg {
+  width: 17px;
+  height: 17px;
+  transition: transform 180ms ease;
+}
+.ws-rail-title:hover svg {
+  transform: translateY(-1px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws-home-stats > button > svg,
+  .ws-home-stats svg [class^="icon-"],
+  .ws-file-rows > button > svg:first-child,
+  .ws-file-rows > button > svg:first-child [class^="icon-"],
+  .ws-rail-title svg,
+  .ws-rail-title svg [class^="icon-"] {
+    transition: none;
+  }
 }
 .ws-home-rail .ws-file-rows > button {
   grid-template-columns: 18px minmax(0, 1fr);

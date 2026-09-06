@@ -847,7 +847,7 @@ export function DashboardSurface({
         <div className="dashboard-list">
           {filteredDesktopFiles.slice(0, expanded ? undefined : 5).map((item) => (
             <button key={item.id} type="button" onClick={onOpenFiles}>
-              <Icon name={item.kind === "folder" ? "folder" : "edit"} />
+              <Icon name={item.kind === "folder" ? "folder" : "file"} />
               <span>
                 <strong>{item.name}</strong>
                 <small>
