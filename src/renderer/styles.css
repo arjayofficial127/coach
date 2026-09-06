@@ -644,7 +644,7 @@ svg {
   flex-direction: column;
   border-right: 1px solid var(--line);
   background: var(--panel);
-  padding: 20px 13px 13px;
+  padding: 20px 0 13px;
   opacity: 1;
   transition:
     opacity 180ms ease,
@@ -8468,7 +8468,7 @@ kbd {
 }
 
 .lattice-shell.new-tab-sizing-invalidated > .workspace-panel {
-  padding: 20px 13px 13px;
+  padding: 20px 0 13px;
 }
 
 .lattice-shell.new-tab-sizing-invalidated.navigation-compact > .workspace-panel {
