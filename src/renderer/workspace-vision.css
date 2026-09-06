@@ -1,6 +1,6 @@
 /* The approved workspace direction. Scoped to local UI; websites keep their own styling. */
 .lattice-shell[data-surface="files"].navigation-expanded:not(.focus-mode) {
-  grid-template-columns: 0 var(--coach-navigation-width, 288px) minmax(0, 1fr);
+  grid-template-columns: 0 var(--coach-navigation-width, 248px) minmax(0, 1fr);
 }
 .lattice-shell[data-surface="files"] .surface-toolbar {
   display: none;
@@ -151,7 +151,7 @@
 .ws-vision .ws-body {
   padding: 0;
   gap: 0;
-  grid-template-columns: 205px minmax(0, 1fr);
+  grid-template-columns: 188px minmax(0, 1fr);
 }
 .lattice-shell.focus-mode .ws-vision .ws-body {
   grid-template-columns: minmax(0, 1fr);
@@ -160,7 +160,7 @@
   display: none;
 }
 .ws-vision .ws-sidebar-surface {
-  padding: 14px 8px;
+  padding: 12px 7px;
   border-right: 1px solid var(--line);
 }
 .ws-vision .ws-tree,
@@ -425,13 +425,13 @@
 }
 .ws-vision .ws-home {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 270px;
+  grid-template-columns: minmax(0, 1fr) 248px;
   gap: 0;
   padding-bottom: 0;
 }
 .ws-home-primary {
   min-width: 0;
-  padding: 28px 30px;
+  padding: 26px clamp(22px, 2.4vw, 34px);
   display: grid;
   align-content: start;
   gap: 18px;
@@ -647,7 +647,7 @@
   margin-bottom: 10px;
 }
 .ws-home-rail {
-  padding: 28px 20px;
+  padding: 26px 18px;
   border-left: 1px solid var(--line);
   min-width: 0;
 }
@@ -772,7 +772,7 @@
 }
 @media (max-width: 1200px) {
   .ws-vision .ws-home {
-    grid-template-columns: minmax(0, 1fr) 230px;
+    grid-template-columns: minmax(0, 1fr) 220px;
   }
   .ws-home-primary {
     padding: 24px;
@@ -804,7 +804,7 @@
     border-top: 1px solid var(--line);
   }
   .ws-vision .ws-body {
-    grid-template-columns: 165px minmax(0, 1fr);
+    grid-template-columns: 176px minmax(0, 1fr);
   }
   .ws-home-folders {
     grid-template-columns: repeat(2, minmax(0, 1fr));

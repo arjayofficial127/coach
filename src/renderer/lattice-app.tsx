@@ -112,6 +112,7 @@ import {
   type CustomThemePreferences,
   DEFAULT_CUSTOM_THEME,
   DEFAULT_SETTINGS,
+  isLegacyDeepTealTheme,
   MAX_CUSTOM_THEME_NAME_LENGTH,
   normalizeCustomTheme,
   parseSettingsPreferences,
@@ -600,20 +601,28 @@ export function LatticeApp() {
     "--custom-text": previewCustomTheme.text,
     "--custom-muted": previewCustomTheme.muted,
     "--custom-accent": previewCustomTheme.accent,
-    "--coach-navigation-width": `${navigationWidth}px`,
+    "--coach-navigation-width": `${normalizeNavigationWidth(navigationWidth)}px`,
   } as CSSProperties;
   const titleBarAppearance = useMemo<ShellAppearance>(() => {
     if (settings.activeTheme === "paper-felt") {
       return { backgroundColor: "#e9e9e5", symbolColor: "#2b2d31" };
     }
     if (settings.activeTheme === "custom") {
+      if (["Industrial Builder", "Deep Teal"].includes(previewCustomTheme.name)) {
+        return { backgroundColor: "#252a29", symbolColor: previewCustomTheme.text };
+      }
       return {
         backgroundColor: previewCustomTheme.surface,
         symbolColor: previewCustomTheme.text,
       };
     }
     return { backgroundColor: "#101017", symbolColor: "#e9e9f2" };
-  }, [previewCustomTheme.surface, previewCustomTheme.text, settings.activeTheme]);
+  }, [
+    previewCustomTheme.name,
+    previewCustomTheme.surface,
+    previewCustomTheme.text,
+    settings.activeTheme,
+  ]);
 
   const clearRecovery = () => {
     if (recoveryTimerRef.current !== null) window.clearTimeout(recoveryTimerRef.current);
@@ -1398,6 +1407,15 @@ export function LatticeApp() {
       } satisfies ShellLocation),
     );
   }, [profileShellHydrated, profileState, sessionReady, surface, workspace.activeDesktopId]);
+
+  useEffect(() => {
+    if (!isLegacyDeepTealTheme(settings.customTheme)) return;
+    setSettings((current) =>
+      isLegacyDeepTealTheme(current.customTheme)
+        ? { ...current, customTheme: { ...DEFAULT_CUSTOM_THEME } }
+        : current,
+    );
+  }, [settings.customTheme]);
 
   useEffect(() => {
     if (!profileState || !canPersistProfileShell(sessionReady, profileShellHydrated)) return;
@@ -2946,6 +2964,8 @@ export function LatticeApp() {
     ]?.name ?? "next theme";
   const coachLogoUrl =
     settings.activeTheme === "paper-felt" ||
+    (settings.activeTheme === "custom" &&
+      ["Industrial Builder", "Deep Teal"].includes(previewCustomTheme.name)) ||
     (settings.activeTheme === "custom" && colorLuminance(previewCustomTheme.background) >= 0.34)
       ? lightCapLogoUrl
       : darkCapLogoUrl;
@@ -3477,7 +3497,8 @@ export function LatticeApp() {
     if (event.button !== 0) return;
     event.preventDefault();
     const startX = event.clientX;
-    const startWidth = navigationWidth;
+    const startWidth = navigationExpanded ? navigationWidth : COMPACT_NAVIGATION_WIDTH;
+    let moved = false;
     const shell = event.currentTarget.closest(".lattice-shell");
     shell?.classList.add("navigation-resizing");
 
@@ -3485,27 +3506,39 @@ export function LatticeApp() {
       shell?.classList.remove("navigation-resizing");
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", finish);
-      window.removeEventListener("pointercancel", finish);
+      window.removeEventListener("pointercancel", cancel);
+      if (!moved && !navigationExpanded) {
+        setNavigationWidth(DEFAULT_NAVIGATION_WIDTH);
+        setNavigationView(true);
+      }
+    };
+    const cancel = () => {
+      moved = true;
+      finish();
     };
     const move = (pointerEvent: PointerEvent) => {
-      const result = navigationResizeResult(startWidth + pointerEvent.clientX - startX);
+      const delta = pointerEvent.clientX - startX;
+      if (Math.abs(delta) <= 2) return;
+      moved = true;
+      const result = navigationResizeResult(startWidth + delta);
       if (result.mode === "compact") {
-        setNavigationView(false);
-        finish();
+        setNavigationExpanded(false);
         return;
       }
+      setNavigationExpanded(true);
       setNavigationWidth(result.width);
     };
 
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", finish);
-    window.addEventListener("pointercancel", finish);
+    window.addEventListener("pointercancel", cancel);
   };
 
   const resizeNavigationWithKeyboard = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     let requestedWidth: number;
-    if (event.key === "ArrowLeft") requestedWidth = navigationWidth - 8;
-    else if (event.key === "ArrowRight") requestedWidth = navigationWidth + 8;
+    const currentWidth = navigationExpanded ? navigationWidth : COMPACT_NAVIGATION_WIDTH;
+    if (event.key === "ArrowLeft") requestedWidth = currentWidth - 8;
+    else if (event.key === "ArrowRight") requestedWidth = currentWidth + 8;
     else if (event.key === "Home") requestedWidth = DEFAULT_NAVIGATION_WIDTH;
     else if (event.key === "End") requestedWidth = MAX_NAVIGATION_WIDTH;
     else return;
@@ -3513,7 +3546,10 @@ export function LatticeApp() {
     event.preventDefault();
     const result = navigationResizeResult(requestedWidth);
     if (result.mode === "compact") setNavigationView(false);
-    else setNavigationWidth(result.width);
+    else {
+      setNavigationWidth(result.width);
+      setNavigationView(true);
+    }
   };
 
   commandHandlerRef.current = (command) => {
@@ -4324,7 +4360,7 @@ export function LatticeApp() {
           aria-orientation="vertical"
           aria-valuemin={COMPACT_NAVIGATION_WIDTH}
           aria-valuemax={MAX_NAVIGATION_WIDTH}
-          aria-valuenow={navigationWidth}
+          aria-valuenow={navigationExpanded ? navigationWidth : COMPACT_NAVIGATION_WIDTH}
           tabIndex={0}
           onPointerDown={startNavigationResize}
           onKeyDown={resizeNavigationWithKeyboard}
@@ -4361,8 +4397,11 @@ export function LatticeApp() {
               onClick={() => {
                 if (navigationExpanded) {
                   setAddingDesktop(false);
+                  setNavigationView(false);
+                } else {
+                  setNavigationWidth(DEFAULT_NAVIGATION_WIDTH);
+                  setNavigationView(true);
                 }
-                setNavigationView(!navigationExpanded);
               }}
             >
               <span className="navigation-menu-glyph" aria-hidden="true">

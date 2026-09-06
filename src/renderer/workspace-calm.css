@@ -70,7 +70,7 @@
   width: 100%;
   min-height: calc(100vh - 120px);
   margin: 0;
-  padding: 24px 32px 12px;
+  padding: 20px 28px 12px;
 }
 .ws-document > .ws-note-toolbar {
   margin: -20px 0 30px;

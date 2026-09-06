@@ -12,11 +12,16 @@ describe("navigation width", () => {
     expect(COMPACT_NAVIGATION_WIDTH).toBe(48);
   });
 
+  it("keeps expanded navigation narrow enough to share the workspace", () => {
+    expect(DEFAULT_NAVIGATION_WIDTH).toBe(248);
+    expect(MAX_NAVIGATION_WIDTH).toBe(304);
+  });
+
   it("uses the default width when a stored value is invalid", () => {
     expect(normalizeNavigationWidth(Number.NaN)).toBe(DEFAULT_NAVIGATION_WIDTH);
   });
 
-  it("caps the expanded sidebar at 369px", () => {
+  it("caps the expanded sidebar at the compact maximum", () => {
     expect(normalizeNavigationWidth(500)).toBe(MAX_NAVIGATION_WIDTH);
   });
 

@@ -131,4 +131,30 @@ describe("settings preferences", () => {
     expect(normalizeCustomTheme(null)).toEqual(DEFAULT_CUSTOM_THEME);
     expect(normalizeCustomTheme(null)).not.toBe(DEFAULT_CUSTOM_THEME);
   });
+
+  it("upgrades the original Deep Teal preset to Industrial Builder", () => {
+    expect(
+      normalizeCustomTheme({
+        name: "Deep Teal",
+        background: "#101a1c",
+        surface: "#1b292c",
+        text: "#f2f3ec",
+        muted: "#a5b6b3",
+        accent: "#69cdbf",
+      }),
+    ).toEqual(DEFAULT_CUSTOM_THEME);
+  });
+
+  it("preserves a customized palette even when it kept the Deep Teal name", () => {
+    expect(
+      normalizeCustomTheme({
+        name: "Deep Teal",
+        background: "#101a1d",
+        surface: "#1b292c",
+        text: "#f2f3ec",
+        muted: "#a5b6b3",
+        accent: "#69cdbf",
+      }).name,
+    ).toBe("Deep Teal");
+  });
 });

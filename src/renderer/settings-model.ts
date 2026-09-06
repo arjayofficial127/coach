@@ -41,11 +41,20 @@ export const THEME_CATALOG: readonly ThemeCatalogEntry[] = [
   {
     id: "custom",
     name: "Custom",
-    description: "A named palette that belongs to this profile.",
+    description: "Cement, steel, wood, cork, and a warm utility glow.",
   },
 ] as const;
 
 export const DEFAULT_CUSTOM_THEME: CustomThemePreferences = {
+  name: "Industrial Builder",
+  background: "#222624",
+  surface: "#363b38",
+  text: "#f2eadc",
+  muted: "#b8afa0",
+  accent: "#f2b84b",
+};
+
+const LEGACY_DEEP_TEAL_THEME: CustomThemePreferences = {
   name: "Deep Teal",
   background: "#101a1c",
   surface: "#1b292c",
@@ -53,6 +62,13 @@ export const DEFAULT_CUSTOM_THEME: CustomThemePreferences = {
   muted: "#a5b6b3",
   accent: "#69cdbf",
 };
+
+export function isLegacyDeepTealTheme(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    Object.entries(LEGACY_DEEP_TEAL_THEME).every(([key, expected]) => value[key] === expected)
+  );
+}
 
 export const DEFAULT_SETTINGS: SettingsPreferences = {
   version: 4,
@@ -83,6 +99,7 @@ export function normalizeCustomThemeName(value: unknown): string {
 
 export function normalizeCustomTheme(value: unknown): CustomThemePreferences {
   if (!isRecord(value)) return { ...DEFAULT_CUSTOM_THEME };
+  if (isLegacyDeepTealTheme(value)) return { ...DEFAULT_CUSTOM_THEME };
   return {
     name: normalizeCustomThemeName(value.name),
     background: normalizeHexColor(value.background, DEFAULT_CUSTOM_THEME.background),

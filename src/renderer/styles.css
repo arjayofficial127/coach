@@ -82,7 +82,7 @@ svg {
 }
 
 .lattice-shell.navigation-expanded {
-  grid-template-columns: 0 var(--coach-navigation-width, 288px) minmax(0, 1fr);
+  grid-template-columns: 0 var(--coach-navigation-width, 248px) minmax(0, 1fr);
 }
 
 .lattice-shell.navigation-compact {
@@ -383,7 +383,7 @@ svg {
 }
 
 .navigation-expanded .profile-menu {
-  left: calc(var(--coach-navigation-width, 288px) + 8px);
+  left: calc(var(--coach-navigation-width, 248px) + 8px);
 }
 
 .profile-menu-header {
@@ -709,10 +709,36 @@ svg {
   transition: background 120ms ease;
 }
 
+.navigation-resizer::before {
+  position: absolute;
+  top: 50%;
+  left: 1px;
+  width: 6px;
+  height: 42px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--bg) 45%, transparent);
+  content: "";
+  opacity: 0;
+  transform: translateY(-50%);
+  transition:
+    opacity 140ms ease,
+    border-color 140ms ease;
+}
+
 .navigation-resizer:hover::after,
 .navigation-resizer:focus-visible::after,
 .navigation-resizing .navigation-resizer::after {
   background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.navigation-resizer:hover::before,
+.navigation-resizer:focus-visible::before,
+.navigation-resizing .navigation-resizer::before,
+.navigation-compact .navigation-resizer::before {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--line-strong));
+  opacity: 0.72;
 }
 
 .navigation-resizer:focus-visible {
@@ -723,10 +749,6 @@ svg {
   cursor: col-resize;
   user-select: none;
   transition: none;
-}
-
-.navigation-compact .navigation-resizer {
-  display: none;
 }
 
 .workspace-heading {
@@ -1780,7 +1802,7 @@ kbd {
 .navigation-compact > .workspace-panel {
   overflow: visible;
   background: var(--rail);
-  padding: 20px 0 10px;
+  padding: 20px 0 13px;
 }
 
 .navigation-compact .workspace-heading {
@@ -1804,9 +1826,9 @@ kbd {
 
 .navigation-compact .panel-search {
   width: 48px;
-  height: 44px;
+  height: 34px;
   justify-content: center;
-  margin: 34px auto 10px;
+  margin: 19px auto 14px;
   border-color: transparent;
   background: transparent;
   padding: 0;
@@ -1820,36 +1842,37 @@ kbd {
 .navigation-compact .desktop-list,
 .navigation-compact .focus-navigation {
   justify-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
 .navigation-compact .desktop-item {
   width: 48px;
-  min-height: 44px;
+  min-height: 38px;
+  height: 38px;
   grid-template-columns: 1fr;
   justify-items: center;
   padding: 0;
 }
 
 .navigation-compact .desktop-select {
-  width: 44px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
 }
 
 .navigation-compact .desktop-switcher-actions {
   flex-direction: column;
   justify-content: center;
-  margin: 2px 0 10px;
+  margin: 0;
 }
 
 .navigation-compact .focus-navigation {
-  margin-bottom: 10px;
+  margin-bottom: 15px;
 }
 
 .navigation-compact .focus-navigation .navigation-row {
   width: 48px;
-  height: 44px;
-  min-height: 44px;
+  height: 38px;
+  min-height: 38px;
   grid-template-columns: 1fr;
   justify-items: center;
   padding: 0;
@@ -1857,7 +1880,7 @@ kbd {
 
 .navigation-compact .workspace-profile-button {
   width: 48px;
-  height: 48px;
+  height: 54px;
   grid-template-columns: 34px;
   justify-content: center;
   margin: 0 auto 9px;
@@ -1869,7 +1892,7 @@ kbd {
   grid-template-columns: 28px;
   justify-content: center;
   margin-inline: auto;
-  padding: 9px;
+  padding: 10px;
 }
 
 .content-shell {
@@ -8334,7 +8357,7 @@ kbd {
 
 /* Temporary Council-scale invalidation. Remove this block and enable the TS flag to restore it. */
 .lattice-shell.new-tab-sizing-invalidated {
-  --coach-sidebar-width: var(--coach-navigation-width, 288px);
+  --coach-sidebar-width: var(--coach-navigation-width, 248px);
   --coach-chrome-height: 43px;
   --coach-bg: var(--bg);
   --coach-sidebar-bg: var(--panel);
@@ -8356,7 +8379,7 @@ kbd {
 }
 
 .lattice-shell.new-tab-sizing-invalidated.navigation-expanded:not(.focus-mode) {
-  grid-template-columns: 0 var(--coach-navigation-width, 288px) minmax(0, 1fr);
+  grid-template-columns: 0 var(--coach-navigation-width, 248px) minmax(0, 1fr);
 }
 
 .lattice-shell.new-tab-sizing-invalidated.navigation-compact:not(.focus-mode) {
@@ -8843,6 +8866,256 @@ kbd {
   );
   --theme-texture-size: auto;
   --theme-texture-position: 0 0;
+}
+
+/* Industrial Builder: concrete mass, steel structure, warm timber, and one work light. */
+.lattice-shell[data-theme="custom"]:is(
+  [data-theme-name="Industrial Builder"],
+  [data-theme-name="Deep Teal"]
+) {
+  color-scheme: dark;
+  --bg: #222624;
+  --rail: #272b29;
+  --panel: #303532;
+  --surface: #383d3a;
+  --surface-2: #414640;
+  --surface-3: #51544d;
+  --canvas: #292d2b;
+  --field: #202422;
+  --line: rgba(224, 226, 216, 0.13);
+  --line-strong: rgba(224, 226, 216, 0.24);
+  --text: #f2eadc;
+  --muted: #b8afa0;
+  --subtle: #8e8b82;
+  --accent: #f2b84b;
+  --accent-strong: #ffd786;
+  --accent-soft: rgba(242, 184, 75, 0.14);
+  --green: #a6b77e;
+  --shadow: 0 22px 60px rgba(8, 10, 9, 0.48);
+  --builder-steel: #66706d;
+  --builder-steel-dark: #252a29;
+  --builder-wood: #765638;
+  --builder-wood-dark: #513b2a;
+  --builder-cork: #bd9160;
+  --builder-bulb: #ffd276;
+  --builder-black-steel: #111413;
+  --builder-tab-slab: #252a29;
+  --theme-texture:
+    radial-gradient(circle, rgba(238, 235, 220, 0.09) 0 0.55px, transparent 0.8px),
+    radial-gradient(circle, rgba(5, 7, 6, 0.16) 0 0.65px, transparent 0.9px),
+    linear-gradient(112deg, transparent 0 48%, rgba(255, 255, 255, 0.018) 49% 51%, transparent 52%);
+  --theme-texture-size: 11px 13px, 17px 19px, 83px 71px;
+  --theme-texture-position: 0 0, 5px 8px, 0 0;
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  :is(.browser-toolbar, .surface-toolbar, .ws-header) {
+  background-color: var(--builder-black-steel);
+  background-image:
+    linear-gradient(rgba(7, 9, 8, 0.42), rgba(7, 9, 8, 0.42)),
+    url("./assets/industrial-black-steel.jpg");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  .tab-strip {
+  background: var(--builder-tab-slab);
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  .workspace-panel {
+  background-color: #2c302e;
+  background-image:
+    linear-gradient(rgba(28, 31, 29, 0.26), rgba(28, 31, 29, 0.26)),
+    url("./assets/industrial-concrete-slab.jpg");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  :is(.desktop-context.active, .browser-tab.active) {
+  border-color: color-mix(in srgb, var(--builder-steel) 58%, var(--line));
+  border-top-color: color-mix(in srgb, var(--builder-steel) 72%, var(--line));
+  border-bottom: 0;
+  background-color: var(--builder-black-steel);
+  background-image:
+    linear-gradient(rgba(7, 9, 8, 0.42), rgba(7, 9, 8, 0.42)),
+    url("./assets/industrial-black-steel.jpg");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  color: var(--text);
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  :is(.desktop-context.active, .browser-tab.active)::after {
+  background: var(--builder-black-steel);
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  :is(.workspace-panel .navigation-row.active, .workspace-panel .desktop-item.active) {
+  border-color: color-mix(in srgb, var(--builder-steel) 58%, var(--line));
+  border-right: 0;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  :is(
+    .settings-card,
+    .ws-home-stats > button,
+    .ws-home-folders button,
+    .ws-folder-home,
+    .ws-recent,
+    .ws-editing
+  ) {
+  border-color: color-mix(in srgb, var(--builder-steel) 46%, var(--line));
+  background-color: color-mix(in srgb, var(--surface) 93%, transparent);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035);
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  :is(.primary-action, .settings-action.primary) {
+  background: linear-gradient(180deg, #f5c765, #d99a2e);
+  color: #292116;
+  box-shadow: 0 0 0 rgba(255, 210, 118, 0);
+  transition:
+    box-shadow 160ms ease,
+    filter 160ms ease,
+    transform 160ms ease;
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  :is(.primary-action, .settings-action.primary):hover {
+  filter: brightness(1.06);
+  box-shadow:
+    0 0 18px rgba(255, 210, 118, 0.26),
+    0 5px 14px rgba(8, 10, 9, 0.36);
+  transform: translateY(-1px);
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  .profile-button {
+  border-color: color-mix(in srgb, var(--builder-cork) 52%, var(--line));
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent 48%), var(--builder-wood);
+  box-shadow: 0 8px 20px rgba(8, 10, 9, 0.34);
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  .brand-mark {
+  border-color: rgba(20, 17, 12, 0.58);
+  background-color: var(--builder-cork);
+  background-image:
+    linear-gradient(145deg, rgba(255, 245, 213, 0.16), rgba(52, 36, 20, 0.11)),
+    url("./assets/industrial-cork.jpg");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 0 1px rgba(255, 245, 213, 0.32),
+    0 8px 20px rgba(8, 10, 9, 0.34);
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  :is(.rail-button, .navigation-row, .desktop-item, .ws-tree-row, .ws-file-rows > button):hover {
+  color: var(--text);
+  background-color: rgba(255, 210, 118, 0.07);
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  :focus-visible {
+  outline-color: var(--builder-bulb);
+  box-shadow: 0 0 0 3px rgba(255, 210, 118, 0.12);
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  .theme-preview.custom {
+  border-color: #806343;
+  background:
+    radial-gradient(circle, rgba(238, 235, 220, 0.13) 0 0.5px, transparent 0.8px) 0 0 / 8px 9px,
+    #292d2b;
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  .theme-preview.custom::before {
+  background: repeating-linear-gradient(90deg, #5b6461 0 1px, #454c4a 1px 4px);
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  .theme-preview.custom
+  i:nth-child(1) {
+  background: var(--builder-bulb);
+  box-shadow: 0 0 7px rgba(255, 210, 118, 0.48);
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  .theme-preview.custom
+  i:nth-child(2) {
+  background: var(--builder-cork);
+}
+
+.lattice-shell[data-theme="custom"]:is(
+    [data-theme-name="Industrial Builder"],
+    [data-theme-name="Deep Teal"]
+  )
+  .theme-preview.custom
+  i:nth-child(3) {
+  background: var(--builder-wood);
 }
 
 .lattice-shell.theme-adaptive {

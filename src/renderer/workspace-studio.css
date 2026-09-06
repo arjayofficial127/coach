@@ -595,7 +595,7 @@
 }
 .ws-recent,
 .ws-folder-home {
-  padding: 22px;
+  padding: 22px 24px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -608,21 +608,91 @@
 .ws-recent > p {
   margin-bottom: 20px;
 }
-.ws-folder-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
-  gap: 10px;
-  margin: 24px 0;
+.ws-folder-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
 }
-.ws-folder-grid > button {
-  display: grid;
-  justify-items: start;
-  gap: 10px;
-  border: 1px solid var(--line);
-  padding: 15px;
+.ws-folder-heading h2 {
+  margin-bottom: 4px;
 }
-.ws-folder-grid strong {
-  overflow-wrap: anywhere;
+.ws-folder-list {
+  min-width: 0;
+  border-top: 1px solid var(--line);
+}
+.ws-folder-list-head,
+.ws-folder-list > button {
+  display: grid;
+  grid-template-columns: 20px minmax(160px, 1fr) 110px 100px 20px;
+  align-items: center;
+  gap: 10px;
+}
+.ws-folder-list-head {
+  padding: 9px 10px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.ws-folder-list-head > span:first-child {
+  grid-column: 1 / 3;
+}
+.ws-folder-list > button {
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 10px;
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.ws-folder-list > button:hover,
+.ws-folder-list > button:focus-visible {
+  background: var(--surface-2);
+}
+.ws-folder-list > button > svg:first-child {
+  color: var(--accent);
+}
+.ws-folder-list > button > svg:last-child {
+  width: 13px;
+  color: var(--muted);
+  opacity: 0;
+  transform: translateX(-3px);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+.ws-folder-list > button:hover > svg:last-child,
+.ws-folder-list > button:focus-visible > svg:last-child {
+  opacity: 1;
+  transform: translateX(0);
+}
+.ws-folder-list strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-folder-list small,
+.ws-folder-list time {
+  color: var(--muted);
+  font-size: 11px;
+}
+.ws-folder-empty {
+  min-height: 180px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 7px;
+  color: var(--muted);
+  text-align: center;
+}
+.ws-folder-empty svg {
+  width: 28px;
+  height: 28px;
+  color: var(--accent);
+}
+.ws-folder-empty strong {
+  color: var(--text);
 }
 .ws-editing {
   border: 1px solid var(--line);
@@ -1351,6 +1421,16 @@
   }
   .ws-document {
     padding: 15px;
+  }
+  .ws-folder-list-head,
+  .ws-folder-list > button {
+    grid-template-columns: 20px minmax(0, 1fr) 20px;
+  }
+  .ws-folder-list-head > span:nth-child(2),
+  .ws-folder-list-head > span:nth-child(3),
+  .ws-folder-list > button small,
+  .ws-folder-list > button time {
+    display: none;
   }
   .ws-board-table .ws-board-card {
     grid-template-columns: minmax(0, 1fr);

@@ -1548,25 +1548,45 @@ function WorkspaceSession({
                 </>
               ) : (
                 <div className="ws-folder-home">
-                  <h2>
-                    {folder ? (
-                      <button
-                        type="button"
-                        className="ws-title-button"
-                        aria-label="Rename current folder"
-                        onClick={() => {
-                          const entry = entries.find((item) => item.relativePath === folder);
-                          if (entry) startRename(entry);
-                        }}
-                      >
-                        {folder.split("/").pop()} <Icon name="edit" />
-                      </button>
-                    ) : (
-                      desktopName
-                    )}
-                  </h2>
-                  <p>Open a note, create a board, or add folders right here.</p>
-                  <div className="ws-folder-grid">
+                  <header className="ws-folder-heading">
+                    <div>
+                      <h2>
+                        {folder ? (
+                          <button
+                            type="button"
+                            className="ws-title-button"
+                            aria-label="Rename current folder"
+                            onClick={() => {
+                              const entry = entries.find((item) => item.relativePath === folder);
+                              if (entry) startRename(entry);
+                            }}
+                          >
+                            {folder.split("/").pop()} <Icon name="edit" />
+                          </button>
+                        ) : (
+                          desktopName
+                        )}
+                      </h2>
+                      <p>
+                        {index?.directories[folder]?.entries.length ?? 0} items in this location
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="primary-action"
+                      onClick={() => setNewMenu(true)}
+                    >
+                      <Icon name="plus" />
+                      New here
+                    </button>
+                  </header>
+                  <div className="ws-folder-list">
+                    <div className="ws-folder-list-head" aria-hidden="true">
+                      <span>Name</span>
+                      <span>Type</span>
+                      <span>Modified</span>
+                      <span />
+                    </div>
                     {index?.directories[folder]?.entries.map((entry) => (
                       <button type="button" key={entry.id} onClick={() => void openEntry(entry)}>
                         <Icon
@@ -1575,18 +1595,28 @@ function WorkspaceSession({
                               ? "folder"
                               : entry.fileType === "coach"
                                 ? "grid"
-                                : "edit"
+                                : "file"
                           }
                         />
                         <strong>{workspaceEntryTitle(entry)}</strong>
                         <small>{entry.kind === "folder" ? "Folder" : entry.fileType}</small>
+                        <time>
+                          {new Date(entry.updatedAt).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </time>
+                        <Icon name="arrow-right" />
                       </button>
                     ))}
+                    {!index?.directories[folder]?.entries.length && (
+                      <div className="ws-folder-empty">
+                        <Icon name="folder" />
+                        <strong>This folder is ready.</strong>
+                        <span>Create a note, board, or folder to begin.</span>
+                      </div>
+                    )}
                   </div>
-                  <button type="button" className="primary-action" onClick={() => setNewMenu(true)}>
-                    <Icon name="plus" />
-                    Create here
-                  </button>
                 </div>
               )}
             </div>
