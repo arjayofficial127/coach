@@ -8,7 +8,9 @@ import {
   captureLocalInboxNote,
   createWorkspaceEntry,
   listWorkspaceDirectory,
+  listWorkspaceFileRevisions,
   readWorkspaceFile,
+  readWorkspaceFileRevision,
   saveWorkspaceFile,
   syncLocalWorkspace,
 } from "./local-workspace";
@@ -47,6 +49,21 @@ describe("Coach local workspace", () => {
       expect(replace.mock.calls[1]?.[1]).toBe(
         path.join(root, "Desktops", "Research-research", "Brief.md"),
       );
+      const revisions = await listWorkspaceFileRevisions(root, {
+        desktopId: "research",
+        relativePath: "Brief.md",
+      });
+      expect(revisions).toHaveLength(1);
+      const revision = revisions[0];
+      if (!revision) throw new Error("Expected a saved revision.");
+      expect(revision.size).toBeGreaterThan(0);
+      await expect(
+        readWorkspaceFileRevision(root, {
+          desktopId: "research",
+          relativePath: "Brief.md",
+          revisionId: revision.id,
+        }),
+      ).resolves.toMatchObject({ content: document.content });
     } finally {
       replace.mockRestore();
     }

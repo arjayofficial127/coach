@@ -12,6 +12,7 @@ import type {
   DesktopFolderInput,
   LocalWorkspaceSnapshot,
   ProbeNoteInput,
+  ReadWorkspaceFileRevisionInput,
   RenameWorkspaceEntryInput,
   RenameWorkspaceEntryResult,
   RevealCanvasReferenceInput,
@@ -26,6 +27,8 @@ import type {
   VaultTrashResult,
   WorkspaceDirectoryListing,
   WorkspaceFileDocument,
+  WorkspaceFileRevision,
+  WorkspaceFileRevisionDocument,
   WorkspacePathInput,
 } from "../../shared/contracts";
 import { assertPathWithinRoot, saveProbeNoteAtomically } from "./atomic-note";
@@ -41,7 +44,9 @@ import {
   captureLocalInboxNote,
   createWorkspaceEntry,
   listWorkspaceDirectory,
+  listWorkspaceFileRevisions,
   readWorkspaceFile,
+  readWorkspaceFileRevision,
   renameWorkspaceEntry,
   resolveDesktopFolder,
   saveWorkspaceFile,
@@ -319,6 +324,18 @@ export class VaultService {
   async saveWorkspaceFile(input: SaveWorkspaceFileInput): Promise<WorkspaceFileDocument> {
     const root = this.requireActiveVault("Connect a local folder before saving desktop files.");
     return saveWorkspaceFile(root, input);
+  }
+
+  async listWorkspaceFileRevisions(input: WorkspacePathInput): Promise<WorkspaceFileRevision[]> {
+    const root = this.requireActiveVault("Connect a local folder before opening file history.");
+    return listWorkspaceFileRevisions(root, input);
+  }
+
+  async readWorkspaceFileRevision(
+    input: ReadWorkspaceFileRevisionInput,
+  ): Promise<WorkspaceFileRevisionDocument> {
+    const root = this.requireActiveVault("Connect a local folder before opening file history.");
+    return readWorkspaceFileRevision(root, input);
   }
 
   async renameWorkspaceEntry(

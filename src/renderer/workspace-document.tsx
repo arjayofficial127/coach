@@ -1,7 +1,9 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { isCoachBoard, parseCoachObject, writeCoachObject } from "../shared/coach-board";
+import type { WorkspaceFileRevision } from "../shared/contracts";
 import { Icon } from "./icon";
 import {
+  extendTextToLine,
   insertMarkdown,
   type WorkspaceTab,
   workspaceDisplayName,
@@ -61,6 +63,9 @@ export function WorkspaceDocument({
   const [mode, setMode] = useState<"page" | "write" | "preview">("page");
   const [raw, setRaw] = useState(false);
   const [history, setHistory] = useState(false);
+  const [revisions, setRevisions] = useState<WorkspaceFileRevision[]>([]);
+  const [historyError, setHistoryError] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [insertOpen, setInsertOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -85,6 +90,29 @@ export function WorkspaceDocument({
     setTitleDraft(savedTitle);
     setTitleError("");
   }, [savedTitle]);
+  useEffect(() => {
+    if (!history || !window.lattice.localWorkspace.listFileRevisions) return;
+    let current = true;
+    setHistoryLoading(true);
+    setHistoryError("");
+    void window.lattice.localWorkspace
+      .listFileRevisions({
+        desktopId: tab.document.desktopId,
+        relativePath: tab.document.relativePath,
+      })
+      .then((items) => {
+        if (current) setRevisions(items);
+      })
+      .catch(() => {
+        if (current) setHistoryError("Version history could not be loaded.");
+      })
+      .finally(() => {
+        if (current) setHistoryLoading(false);
+      });
+    return () => {
+      current = false;
+    };
+  }, [history, tab.document.desktopId, tab.document.relativePath]);
   const commitTitle = async () => {
     const next = titleDraft.trim();
     if (!next || next === savedTitle || !onRenameTitle) {
@@ -160,14 +188,56 @@ export function WorkspaceDocument({
       input.current?.setSelectionRange(result.cursor, result.cursor);
     });
   };
+  const restoreRevision = async (revision: WorkspaceFileRevision) => {
+    const readRevision = window.lattice.localWorkspace.readFileRevision;
+    if (!readRevision) return;
+    setHistoryError("");
+    try {
+      const restored = await readRevision({
+        desktopId: tab.document.desktopId,
+        relativePath: tab.document.relativePath,
+        revisionId: revision.id,
+      });
+      onChange(restored.content);
+      setHistory(false);
+      requestAnimationFrame(() => input.current?.focus());
+    } catch {
+      setHistoryError("That saved version could not be opened.");
+    }
+  };
   const sourceEditor = (
     <textarea
       ref={input}
       className={`ws-source ${isPage || tab.document.fileType === "text" ? "ws-page-input" : ""}`}
       aria-label={`Edit ${displayName}`}
       value={isPage ? page.body : tab.draft}
+      disabled={disabled}
       placeholder="Continue your thought…"
       onChange={(event) => changeText(event.target.value)}
+      onPointerDown={(event) => {
+        if (event.button !== 0 || disabled || !(isPage || tab.document.fileType === "text")) return;
+        const target = event.currentTarget;
+        const style = window.getComputedStyle(target);
+        const lineHeight = Number.parseFloat(style.lineHeight);
+        if (!Number.isFinite(lineHeight) || lineHeight <= 0) return;
+        const targetLine = Math.floor(
+          Math.max(
+            0,
+            event.clientY -
+              target.getBoundingClientRect().top +
+              target.scrollTop -
+              Number.parseFloat(style.paddingTop || "0"),
+          ) / lineHeight,
+        );
+        const expanded = extendTextToLine(target.value, targetLine);
+        if (!expanded) return;
+        event.preventDefault();
+        changeText(expanded.content);
+        requestAnimationFrame(() => {
+          input.current?.focus();
+          input.current?.setSelectionRange(expanded.cursor, expanded.cursor);
+        });
+      }}
       spellCheck={tab.document.fileType !== "coach"}
       onKeyDown={(event) => {
         if (
@@ -279,7 +349,7 @@ export function WorkspaceDocument({
                 Open beside
               </button>
               <button type="button" onClick={() => action(() => setHistory(!history))}>
-                Session history
+                Version history
               </button>
               <button type="button" onClick={() => action(() => setDetailsOpen(!detailsOpen))}>
                 File details
@@ -395,26 +465,36 @@ export function WorkspaceDocument({
       )}
       {history && (
         <div className="ws-history">
-          <strong>Previous saves in this session</strong>
+          <strong>Version history</strong>
           <button type="button" onClick={() => setHistory(false)}>
             Close history
           </button>
-          <p>
-            Restoring a version saves it automatically after a short pause. These copies do not
-            survive closing Coach.
-          </p>
-          {tab.history.length ? (
+          <p>Every distinct save is kept locally, up to 100 versions or 50 MB per file.</p>
+          {historyError && <small role="alert">{historyError}</small>}
+          {historyLoading ? (
+            <small>Loading saved versions…</small>
+          ) : revisions.length ? (
+            revisions.map((revision) => (
+              <button
+                type="button"
+                key={revision.id}
+                onClick={() => void restoreRevision(revision)}
+              >
+                Restore {new Date(revision.savedAt).toLocaleString()} as draft
+              </button>
+            ))
+          ) : !window.lattice.localWorkspace.listFileRevisions && tab.history.length ? (
             tab.history.map((revision) => (
               <button
                 type="button"
                 key={revision.savedAt}
                 onClick={() => onChange(revision.content)}
               >
-                Restore {new Date(revision.savedAt).toLocaleTimeString()} as draft
+                Restore {new Date(revision.savedAt).toLocaleString()} as draft
               </button>
             ))
           ) : (
-            <small>No previous saves yet.</small>
+            <small>No earlier saved versions yet.</small>
           )}
         </div>
       )}

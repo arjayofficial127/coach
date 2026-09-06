@@ -16,6 +16,7 @@ import * as atomic from "./atomic-note";
 import {
   captureLocalInboxNote,
   listWorkspaceDirectory,
+  listWorkspaceFileRevisions,
   readWorkspaceFile,
   renameWorkspaceEntry,
   saveWorkspaceFile,
@@ -51,6 +52,12 @@ describe("explicit workspace title changes", () => {
     const content = "# Original title\r\n[[Other.md]]\r\n";
     await writeFile(path.join(desktop, "Brief.md"), content);
     const before = await readWorkspaceFile(root, { desktopId: "work", relativePath: "Brief.md" });
+    const beforeRename = await saveWorkspaceFile(root, {
+      desktopId: "work",
+      relativePath: "Brief.md",
+      expectedUpdatedAt: before.updatedAt,
+      content: "first saved draft",
+    });
     const renamed = await renameWorkspaceEntry(root, await input(root, "Brief.md", "Renamed.md"));
     expect(renamed).toEqual({
       fromPath: "Brief.md",
@@ -58,15 +65,21 @@ describe("explicit workspace title changes", () => {
       name: "Renamed.md",
       kind: "file",
     });
-    expect(await readFile(path.join(desktop, "Renamed.md"), "utf8")).toBe(content);
+    expect(await readFile(path.join(desktop, "Renamed.md"), "utf8")).toBe("first saved draft");
     expect(await readdir(desktop)).not.toContain("Brief.md");
     const saved = await saveWorkspaceFile(root, {
       desktopId: "work",
       relativePath: renamed.toPath,
-      expectedUpdatedAt: before.updatedAt,
+      expectedUpdatedAt: beforeRename.updatedAt,
       content: "explicitly saved draft",
     });
     expect(saved.content).toBe("explicitly saved draft");
+    expect(
+      await listWorkspaceFileRevisions(root, {
+        desktopId: "work",
+        relativePath: renamed.toPath,
+      }),
+    ).toHaveLength(2);
     expect(JSON.stringify(renamed)).not.toContain(root);
   });
   it.each(["../escape.md", "Bad/name.md", ".hidden.md", "CON.md", "Bad?.md", "bad.md."])(

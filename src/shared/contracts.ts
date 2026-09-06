@@ -55,6 +55,8 @@ export const IPC = {
   workspaceReadFile: "workspace:read-file",
   workspaceCreateEntry: "workspace:create-entry",
   workspaceSaveFile: "workspace:save-file",
+  workspaceListFileRevisions: "workspace:list-file-revisions",
+  workspaceReadFileRevision: "workspace:read-file-revision",
   workspaceRenameEntry: "workspace:rename-entry",
 } as const;
 
@@ -432,6 +434,20 @@ export interface WorkspaceFileDocument {
   updatedAt: string;
 }
 
+export interface WorkspaceFileRevision {
+  id: string;
+  savedAt: string;
+  size: number;
+}
+
+export interface WorkspaceFileRevisionDocument extends WorkspaceFileRevision {
+  content: string;
+}
+
+export interface ReadWorkspaceFileRevisionInput extends WorkspacePathInput {
+  revisionId: string;
+}
+
 export interface CreateWorkspaceEntryInput {
   desktopId: string;
   parentPath: string;
@@ -526,6 +542,10 @@ export interface LatticeApi {
     readFile(input: WorkspacePathInput): Promise<WorkspaceFileDocument>;
     createEntry(input: CreateWorkspaceEntryInput): Promise<WorkspaceDirectoryListing>;
     saveFile(input: SaveWorkspaceFileInput): Promise<WorkspaceFileDocument>;
+    listFileRevisions?(input: WorkspacePathInput): Promise<WorkspaceFileRevision[]>;
+    readFileRevision?(
+      input: ReadWorkspaceFileRevisionInput,
+    ): Promise<WorkspaceFileRevisionDocument>;
     renameEntry(input: RenameWorkspaceEntryInput): Promise<RenameWorkspaceEntryResult>;
   };
 }

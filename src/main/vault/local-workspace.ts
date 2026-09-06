@@ -12,8 +12,11 @@ import {
   rm,
   stat,
   unlink,
+  writeFile,
 } from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
+import { gunzip, gzip } from "node:zlib";
 import { isCoachBoard, newCoachBoard, newCoachPlanner } from "../../shared/coach-board";
 import type {
   CaptureDesktopInboxInput,
@@ -23,6 +26,7 @@ import type {
   DesktopFolderInput,
   DesktopFolderSummary,
   LocalWorkspaceSnapshot,
+  ReadWorkspaceFileRevisionInput,
   RenameWorkspaceEntryInput,
   RenameWorkspaceEntryResult,
   SaveWorkspaceFileInput,
@@ -30,6 +34,8 @@ import type {
   WorkspaceDirectoryListing,
   WorkspaceEditableFileType,
   WorkspaceFileDocument,
+  WorkspaceFileRevision,
+  WorkspaceFileRevisionDocument,
   WorkspacePathInput,
 } from "../../shared/contracts";
 import {
@@ -48,12 +54,70 @@ const MAX_DIRECTORY_ITEMS = 500;
 const MAX_EDITABLE_BYTES = 2_000_000;
 const MAX_RELATIVE_PATH_LENGTH = 500;
 const MAX_PATH_SEGMENTS = 24;
+const MAX_FILE_REVISIONS = 100;
+const MAX_FILE_REVISION_BYTES = 50 * 1024 * 1024;
+const REVISION_DIRECTORY = "history";
+const revisionIdPattern = /^\d{13}-[0-9a-f-]{36}$/;
+const gzipAsync = promisify(gzip);
+const gunzipAsync = promisify(gunzip);
 const EDITABLE_EXTENSIONS: Record<WorkspaceEditableFileType, string> = {
   markdown: ".md",
   text: ".text",
   coach: ".coach",
 };
 const WINDOWS_RESERVED_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
+
+interface StoredWorkspaceRevision {
+  version: 1;
+  savedAt: string;
+  content: string;
+}
+
+function revisionDirectory(workspaceRoot: string, desktopId: string, relativePath: string): string {
+  return path.join(workspaceRoot, COACH_DIRECTORY, REVISION_DIRECTORY, desktopId, relativePath);
+}
+
+function revisionTime(id: string): string {
+  const date = new Date(Number(id.slice(0, 13)));
+  return Number.isNaN(date.getTime()) ? new Date(0).toISOString() : date.toISOString();
+}
+
+async function pruneWorkspaceRevisions(directory: string): Promise<void> {
+  const entries = (await readdir(directory, { withFileTypes: true }))
+    .filter(
+      (entry) => entry.isFile() && revisionIdPattern.test(entry.name.replace(/\.json\.gz$/, "")),
+    )
+    .sort((left, right) => right.name.localeCompare(left.name));
+  const sizes = await Promise.all(
+    entries.map(async (entry) => ({
+      entry,
+      size: (await stat(path.join(directory, entry.name))).size,
+    })),
+  );
+  let retainedBytes = 0;
+  await Promise.all(
+    sizes.map(async ({ entry, size }, index) => {
+      retainedBytes += size;
+      if (index >= MAX_FILE_REVISIONS || retainedBytes > MAX_FILE_REVISION_BYTES)
+        await rm(path.join(directory, entry.name), { force: true });
+    }),
+  );
+}
+
+async function saveWorkspaceRevision(
+  directory: string,
+  savedAt: string,
+  content: string,
+): Promise<void> {
+  await mkdir(directory, { recursive: true });
+  const id = `${Date.parse(savedAt).toString().padStart(13, "0")}-${randomUUID()}`;
+  const payload: StoredWorkspaceRevision = { version: 1, savedAt, content };
+  await writeFile(path.join(directory, `${id}.json.gz`), await gzipAsync(JSON.stringify(payload)), {
+    flag: "wx",
+    mode: 0o600,
+  });
+  await pruneWorkspaceRevisions(directory);
+}
 
 interface WorkspaceManifestDesktop {
   id: string;
@@ -587,6 +651,65 @@ export async function readWorkspaceFile(
   }
 }
 
+export async function listWorkspaceFileRevisions(
+  workspaceRoot: string,
+  input: WorkspacePathInput,
+): Promise<WorkspaceFileRevision[]> {
+  const context = await resolveExistingWorkspacePath(workspaceRoot, input, "file");
+  const directory = revisionDirectory(context.root, input.desktopId, context.relativePath);
+  assertPathWithinRoot(context.root, directory);
+  try {
+    const entries = (await readdir(directory, { withFileTypes: true }))
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json.gz"))
+      .map((entry) => entry.name.slice(0, -".json.gz".length))
+      .filter((id) => revisionIdPattern.test(id))
+      .sort((left, right) => right.localeCompare(left))
+      .slice(0, MAX_FILE_REVISIONS);
+    return Promise.all(
+      entries.map(async (id) => ({
+        id,
+        savedAt: revisionTime(id),
+        size: (await stat(path.join(directory, `${id}.json.gz`))).size,
+      })),
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw new Error("Coach could not read this file's version history.");
+  }
+}
+
+export async function readWorkspaceFileRevision(
+  workspaceRoot: string,
+  input: ReadWorkspaceFileRevisionInput,
+): Promise<WorkspaceFileRevisionDocument> {
+  if (!revisionIdPattern.test(input.revisionId)) throw new Error("That file version is invalid.");
+  const context = await resolveExistingWorkspacePath(workspaceRoot, input, "file");
+  const target = path.join(
+    revisionDirectory(context.root, input.desktopId, context.relativePath),
+    `${input.revisionId}.json.gz`,
+  );
+  assertPathWithinRoot(context.root, target);
+  try {
+    const stored = JSON.parse(
+      (await gunzipAsync(await readFile(target))).toString("utf8"),
+    ) as Partial<StoredWorkspaceRevision>;
+    if (
+      stored.version !== 1 ||
+      typeof stored.savedAt !== "string" ||
+      typeof stored.content !== "string"
+    )
+      throw new Error("invalid revision");
+    return {
+      id: input.revisionId,
+      savedAt: stored.savedAt,
+      size: (await stat(target)).size,
+      content: stored.content,
+    };
+  } catch {
+    throw new Error("Coach could not open that saved version.");
+  }
+}
+
 export async function createWorkspaceEntry(
   workspaceRoot: string,
   input: CreateWorkspaceEntryInput,
@@ -678,6 +801,8 @@ async function saveWorkspaceFileUnlocked(
     throw new Error("This file changed outside Coach. Reopen it before saving your edits.");
   }
   if (fileType === "coach") validateCoachContent(input.content);
+  const previousContent = await readFile(context.target, "utf8");
+  if (previousContent === input.content) return readWorkspaceFile(workspaceRoot, input);
   const temporary = path.join(
     path.dirname(context.target),
     `.${path.basename(context.target)}.${randomUUID()}.tmp`,
@@ -685,6 +810,13 @@ async function saveWorkspaceFileUnlocked(
   assertPathWithinRoot(context.desktopRoot, temporary);
   let handle: Awaited<ReturnType<typeof open>> | undefined;
   try {
+    const historyDirectory = revisionDirectory(context.root, input.desktopId, context.relativePath);
+    assertPathWithinRoot(context.root, historyDirectory);
+    await saveWorkspaceRevision(
+      historyDirectory,
+      context.targetStats.mtime.toISOString(),
+      previousContent,
+    );
     handle = await open(
       temporary,
       fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_WRONLY,
@@ -809,6 +941,12 @@ export async function renameWorkspaceEntry(
           throw new Error("Folder renaming is currently supported in the Windows app.");
         await rename(context.target, target);
       }
+      const oldHistory = revisionDirectory(context.root, input.desktopId, context.relativePath);
+      const newHistory = revisionDirectory(context.root, input.desktopId, toPath);
+      // Version history follows file and folder renames. A history-only failure must not undo a
+      // successful user-file rename; the old internal copies remain recoverable on disk.
+      await mkdir(path.dirname(newHistory), { recursive: true });
+      await rename(oldHistory, newHistory).catch(() => undefined);
       if (updated) {
         try {
           await writeJsonAtomically(

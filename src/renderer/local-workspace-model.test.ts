@@ -6,6 +6,7 @@ import type {
 } from "../shared/contracts";
 import {
   acceptSavedDocument,
+  extendTextToLine,
   insertMarkdown,
   loadWorkspaceIndex,
   noteBody,
@@ -36,6 +37,14 @@ const document: WorkspaceFileDocument = {
   updatedAt: "2026-09-03T00:00:00.000Z",
 };
 describe("workspace view model", () => {
+  it("extends a plain-text canvas only to the clicked line", () => {
+    expect(extendTextToLine("This is good right?", 10)).toEqual({
+      content: `This is good right?${"\n".repeat(10)}`,
+      cursor: "This is good right?".length + 10,
+    });
+    expect(extendTextToLine("first\nsecond", 1)).toBeNull();
+    expect(extendTextToLine("first\nsecond", 0)).toBeNull();
+  });
   it("remaps renamed folders without touching drafts, history, or similarly prefixed siblings", () => {
     const tab = {
       document: { ...document, relativePath: "Notes/Project/Brief.md" },

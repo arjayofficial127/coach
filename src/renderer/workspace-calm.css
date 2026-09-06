@@ -64,16 +64,19 @@
 }
 .ws-vision .ws-document {
   position: relative;
-  max-width: 820px;
+  display: flex;
+  flex-direction: column;
+  max-width: none;
   width: 100%;
-  margin-inline: auto;
-  padding: clamp(40px, 7vh, 80px) clamp(24px, 4vw, 50px) 16px;
+  min-height: calc(100vh - 120px);
+  margin: 0;
+  padding: 24px 32px 12px;
 }
 .ws-document > .ws-note-toolbar {
   margin: -20px 0 30px;
 }
 .ws-vision .ws-document-header {
-  margin-bottom: 26px;
+  margin-bottom: 14px;
 }
 .ws-vision .ws-document-header h2 {
   font-size: clamp(27px, 3vw, 38px);
@@ -99,14 +102,16 @@
   opacity: 1;
 }
 .ws-vision .ws-source {
-  min-height: max(240px, calc(100vh - 390px));
+  flex: 1 1 auto;
+  min-height: max(360px, calc(100vh - 250px));
+  margin: 0;
   padding: 0;
 }
 .ws-vision .ws-page-input {
   font-family: inherit;
   font-size: 17px;
   line-height: 1.85;
-  resize: vertical;
+  resize: none;
 }
 .ws-vision .ws-source:focus {
   padding: 0;

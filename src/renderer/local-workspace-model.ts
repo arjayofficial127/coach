@@ -339,6 +339,17 @@ export function acceptSavedDocument(
   };
 }
 
+export function extendTextToLine(
+  content: string,
+  targetLine: number,
+): { content: string; cursor: number } | null {
+  const lastLine = (content.match(/\n/g) ?? []).length;
+  const missingLines = Math.max(0, Math.floor(targetLine) - lastLine);
+  if (!missingLines) return null;
+  const next = content + "\n".repeat(missingLines);
+  return { content: next, cursor: next.length };
+}
+
 export function insertMarkdown(
   content: string,
   start: number,

@@ -88,6 +88,8 @@ const api: LatticeApi = {
     readFile: (input) => ipcRenderer.invoke(IPC.workspaceReadFile, input),
     createEntry: (input) => ipcRenderer.invoke(IPC.workspaceCreateEntry, input),
     saveFile: (input) => ipcRenderer.invoke(IPC.workspaceSaveFile, input),
+    listFileRevisions: (input) => ipcRenderer.invoke(IPC.workspaceListFileRevisions, input),
+    readFileRevision: (input) => ipcRenderer.invoke(IPC.workspaceReadFileRevision, input),
     renameEntry: (input) => ipcRenderer.invoke(IPC.workspaceRenameEntry, input),
   },
 };

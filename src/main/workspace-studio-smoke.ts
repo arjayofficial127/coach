@@ -259,7 +259,7 @@ export async function verifyWorkspaceStudio(
     return saved.content.startsWith(${JSON.stringify(capturedNote.content)}) && saved.content.endsWith('One new thought.');
   })()`);
   if (!pageSaved) throw new Error("Clean page save lost source prefix or body");
-  await click(".ws-document-tools", "Session history");
+  await click(".ws-document-tools", "Version history");
   await evaluate("document.querySelector('.ws-history button:not(:first-of-type)').click()");
   await wait(
     "document.querySelector('.ws-toolbar-slot .ws-document-status')?.textContent.includes('Unsaved changes')",

@@ -151,6 +151,9 @@ const workspaceSaveFileSchema = workspacePathSchema.extend({
   content: z.string().max(2_000_000),
   expectedUpdatedAt: z.string().datetime(),
 });
+const workspaceReadFileRevisionSchema = workspacePathSchema.extend({
+  revisionId: z.string().regex(/^\d{13}-[0-9a-f-]{36}$/),
+});
 const workspaceRenameEntrySchema = workspacePathSchema.extend({
   newName: z.string().trim().min(1).max(120),
   kind: z.enum(["file", "folder"]),
@@ -380,6 +383,12 @@ export function registerIpc(
   );
   handle(IPC.workspaceSaveFile, (_event, payload) =>
     vault.saveWorkspaceFile(workspaceSaveFileSchema.parse(payload)),
+  );
+  handle(IPC.workspaceListFileRevisions, (_event, payload) =>
+    vault.listWorkspaceFileRevisions(workspacePathSchema.parse(payload)),
+  );
+  handle(IPC.workspaceReadFileRevision, (_event, payload) =>
+    vault.readWorkspaceFileRevision(workspaceReadFileRevisionSchema.parse(payload)),
   );
   handle(IPC.workspaceRenameEntry, (_event, payload) =>
     vault.renameWorkspaceEntry(workspaceRenameEntrySchema.parse(payload)),
