@@ -743,9 +743,14 @@ svg {
 .navigation-mode-toggle {
   position: relative;
   z-index: 1;
-  align-self: center;
+  align-self: stretch;
   display: grid;
-  margin: 0 6px 1px 0;
+  width: 43px;
+  height: auto;
+  margin: 0 5px 0 0;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-radius: 0;
   -webkit-app-region: no-drag;
   transition:
     border-color 160ms ease,
@@ -1992,7 +1997,7 @@ kbd {
   border-bottom: 1px solid var(--line);
   background: #101017;
   padding: 0
-    max(8px, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 8px)) 0 8px;
+    max(8px, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 8px)) 0 0;
   -webkit-app-region: drag;
 }
 
@@ -8624,7 +8629,7 @@ kbd {
 }
 
 .lattice-shell.new-tab-sizing-invalidated .tab-strip {
-  padding-left: 8px;
+  padding-left: 0;
 }
 
 .lattice-shell.new-tab-sizing-invalidated .browser-tab {
