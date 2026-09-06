@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "^(startup|resume|clear|compact)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const f=require('node:fs'),p=require('node:path');let r=process.cwd();while(!f.existsSync(p.join(r,'.codex/project.json'))){let n=p.dirname(r);if(n===r)process.exit(0);r=n;}const e=Number(process.versions.node.split('.')[0])>=24?process.execPath:p.join(require('node:os').homedir(),'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe');const s=require('node:child_process').spawnSync(e,[p.join(r,'scripts/ai/control-room.mjs'),'hook-session-start'],{stdio:'inherit',windowsHide:true,timeout:8000});process.exitCode=s.status===null?1:s.status;\"",
+            "timeout": 10,
+            "additionalContextLimit": 500,
+            "statusMessage": "Loading local repository guidance"
+          }
+        ]
+      }
+    ]
+  }
+}

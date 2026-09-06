@@ -1,0 +1,60 @@
+{
+  "framework": "local-first-control-room",
+  "version": "2.0.0",
+  "files": [
+    {
+      "path": ".agents/skills/control-room/SKILL.md",
+      "sha256": "5468c0cb512f3fb37c95a6d54fa050cd03768c06334d122eb2e3e56742d67fcf"
+    },
+    {
+      "path": ".codex/biome.json",
+      "sha256": "b4fda47f5c873850183534ce199b13565423ccd9bf27d4a82b6ce247c5f1f8f0"
+    },
+    {
+      "path": ".codex/hooks.json",
+      "sha256": "bd4869c2e31bbe08dcee8e038d8a88d0b940e10e0de2a96bd7b79f1ee05801c0"
+    },
+    {
+      "path": ".codex/MAP.md",
+      "sha256": "ccdbf53c5887b6261d5173a90316bc4a4ea0b2f94ba1a29c090d114bf9182ece"
+    },
+    {
+      "path": ".codex/project.json",
+      "sha256": "cd4ac3822bff12258c740e1f66b30b5f5ba1955f2fc832e51646ddb0cb88cd7e"
+    },
+    {
+      "path": ".codex/PROJECT.md",
+      "sha256": "11dd0686a737c19b6b424d27665664f0c9b65f25c79bf9a6b02ec72eea3ad2af"
+    },
+    {
+      "path": ".codex/README.md",
+      "sha256": "47ad72e273c6ed2b46c3202aaeed248aaf22fd1710b504996ab1134ac43b8bda"
+    },
+    {
+      "path": ".codex/WORKFLOW.md",
+      "sha256": "0ba5a06bf7d8699b3619d24c8e209ef3448be2e4f6745890e045750c18525150"
+    },
+    {
+      "path": ".gitignore",
+      "section": "ignore",
+      "sha256": "1b21c22e01cce8ef5c69ffdd61df5e368b0f86ae225e60c4a4aa5e59651e1e0a"
+    },
+    {
+      "path": "AGENTS.md",
+      "section": "router",
+      "sha256": "c1f0079cb3ee7c64595db5a406599f539c6a7f8a387744546d93ccfea89b1b64"
+    },
+    {
+      "path": "scripts/ai/control-room.mjs",
+      "sha256": "4995e90cb2d2061d6cc579fd8f7684c1e12c1b5ebceecbd84d294f3b360b196c"
+    },
+    {
+      "path": "scripts/ai/core.mjs",
+      "sha256": "15753845828c01cbe50231d96184803e1c756468ba7d6d58c05d5d3340147f35"
+    },
+    {
+      "path": "scripts/ai/framework.test.mjs",
+      "sha256": "3ef046f24dce2a870ae88d3e9fd6f2ee83b2e6b978b97be33abede4a71ce7faa"
+    }
+  ]
+}

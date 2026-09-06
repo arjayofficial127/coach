@@ -1,0 +1,10 @@
+{
+  "root": false,
+  "extends": ["../biome.json"],
+  "files": {
+    "includes": ["!!local", "!!tasks"]
+  },
+  "formatter": {
+    "lineEnding": "crlf"
+  }
+}
