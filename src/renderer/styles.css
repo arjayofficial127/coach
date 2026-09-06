@@ -991,10 +991,13 @@ svg {
 }
 
 .navigation-count {
+  appearance: none;
   min-width: 1ch;
   justify-self: end;
   border: 0;
+  border-radius: 0;
   background: transparent;
+  box-shadow: none;
   padding: 0;
   color: var(--subtle);
   font-family: inherit;
@@ -1381,7 +1384,11 @@ kbd {
   width: fit-content;
   max-width: 100%;
   overflow: hidden;
+  border: 0;
+  border-radius: 0;
   background: transparent;
+  box-shadow: none;
+  padding: 0;
   color: inherit;
   text-align: right;
   text-overflow: ellipsis;
@@ -9783,8 +9790,7 @@ kbd {
 }
 
 .new-tab-app-icon::after,
-.app-catalog-icon::after,
-.navigation-row-icon::after {
+.app-catalog-icon::after {
   position: absolute;
   inset: 0 0 48% 0;
   border-radius: inherit;
@@ -10282,11 +10288,10 @@ kbd {
 
 .navigation-row-icon {
   position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow:
-    0 4px 9px rgba(20, 21, 33, 0.13),
-    inset 0 1px rgba(255, 255, 255, 0.18);
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .navigation-row-icon.violet {
