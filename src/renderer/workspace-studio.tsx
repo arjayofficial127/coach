@@ -1332,56 +1332,9 @@ function WorkspaceSession({
       <fieldset className="ws-body" disabled={renaming}>
         <WorkspacePortal target={null}>
           <fieldset className="ws-sidebar-surface" disabled={renaming}>
-            <header className="ws-sidebar-heading">
-              <button type="button" aria-label="Open Files dashboard" onClick={openFilesDashboard}>
-                <Icon name="arrow-left" />
-              </button>
-              <span>
-                <strong>Files &amp; Inbox</strong>
-                <small>{desktopName}</small>
-              </span>
-            </header>
-            <div className="ws-folder-tools">
-              <label className="ws-search">
-                <Icon name="search" />
-                <input
-                  aria-label="Search folders and files"
-                  placeholder="Find a file…"
-                  value={query}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                    if (event.target.value) setView("recent");
-                  }}
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => {
-                  setFolder(currentFolder);
-                  setNewMenu(!newMenu);
-                }}
-                aria-expanded={newMenu}
-              >
-                <Icon name="plus" />
-                New
-              </button>
-            </div>
-            <nav className="ws-files-dashboard" aria-label="Files dashboard">
-              <button
-                type="button"
-                aria-current={view === "home" ? "page" : undefined}
-                onClick={openFilesDashboard}
-              >
-                <Icon name="sparkle" />
-                <span>
-                  <strong>Files dashboard</strong>
-                  <small>Overview of this workspace</small>
-                </span>
-              </button>
-            </nav>
             <aside className="ws-tree" aria-label="Files and folders">
               <header>
-                <button type="button" onClick={() => void openFolder("")}>
+                <button type="button" onClick={openFilesDashboard}>
                   <Icon name="folder" />
                   {desktopName}
                 </button>

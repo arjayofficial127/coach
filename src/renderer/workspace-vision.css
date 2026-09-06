@@ -99,59 +99,6 @@
   min-width: 0;
   min-height: 0;
 }
-.ws-sidebar-heading {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  align-items: start;
-  gap: 4px;
-  padding: 3px 3px 12px;
-}
-.ws-sidebar-heading > button {
-  min-height: 28px;
-  padding: 5px;
-}
-.ws-sidebar-heading > span,
-.ws-sidebar-heading strong,
-.ws-sidebar-heading small {
-  min-width: 0;
-  display: block;
-}
-.ws-sidebar-heading strong {
-  font-size: 12px;
-}
-.ws-sidebar-heading small {
-  margin-top: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.ws-files-dashboard {
-  margin: 2px 0 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--line);
-}
-.ws-files-dashboard button {
-  text-align: left;
-  justify-content: flex-start;
-  width: 100%;
-}
-.ws-files-dashboard button[aria-current] {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-}
-.ws-files-dashboard button > span {
-  display: grid;
-  min-width: 0;
-  gap: 1px;
-}
-.ws-files-dashboard strong {
-  font-size: 12px;
-}
-.ws-files-dashboard small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .ws-vision.ws-studio {
   background: var(--surface);
   padding: 0;
@@ -218,6 +165,24 @@
   border-radius: 0;
   padding: 0;
   background: transparent;
+}
+.ws-vision .ws-tree > header > button:last-child {
+  opacity: 0.46;
+  transition: opacity 140ms ease;
+}
+.ws-vision .ws-tree > header:hover > button:last-child,
+.ws-vision .ws-tree > header:focus-within > button:last-child {
+  opacity: 1;
+}
+.ws-vision .ws-tree > .ws-tree-list > .ws-tree-item {
+  opacity: 0.34;
+  transition: opacity 140ms ease;
+}
+.ws-vision .ws-tree > .ws-tree-list > .ws-tree-item:hover,
+.ws-vision .ws-tree > .ws-tree-list > .ws-tree-item:focus-within,
+.ws-vision .ws-tree > .ws-tree-list > .ws-tree-item:has(.ws-tree-row.is-active),
+.ws-vision .ws-tree > .ws-tree-list > .ws-tree-item:has(.ws-tree-row.is-folder) {
+  opacity: 1;
 }
 .ws-portal .ws-tree > header {
   display: none;
