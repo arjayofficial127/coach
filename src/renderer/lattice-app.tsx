@@ -439,7 +439,6 @@ export function LatticeApp() {
   const [workspaceSourceViewport, setWorkspaceSourceViewport] = useState<HTMLDivElement | null>(
     null,
   );
-  const workspaceHeadingRef = useRef<HTMLDivElement>(null);
   const webStageRef = useRef<HTMLElement>(null);
   const omniboxRef = useRef<HTMLInputElement>(null);
   const latticeBarRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
@@ -551,12 +550,11 @@ export function LatticeApp() {
   const [desktopName, setDesktopName] = useState("");
   const [editingDesktopId, setEditingDesktopId] = useState<string | null>(null);
   const [editingDesktopName, setEditingDesktopName] = useState("");
-  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [browserMenuOpen, setBrowserMenuOpen] = useState(false);
   const [archiveDesktopId, setArchiveDesktopId] = useState<string | null>(null);
   const [archiveMoveTargetId, setArchiveMoveTargetId] = useState("");
-  const [archivedDesktopsOpen, setArchivedDesktopsOpen] = useState(false);
   const [confirmHardDeleteDesktopId, setConfirmHardDeleteDesktopId] = useState<string | null>(null);
+  const [confirmCloseAllTabs, setConfirmCloseAllTabs] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [sessionReady, setSessionReady] = useState(false);
@@ -682,18 +680,6 @@ export function LatticeApp() {
   zoomHandlerRef.current = (command) => {
     applyShellZoom(nextZoomPercent(zoomPercentRef.current, command));
   };
-
-  useEffect(() => {
-    if (!workspaceMenuOpen) return;
-    const closeOnOutsidePointer = (event: PointerEvent) => {
-      const target = event.target;
-      if (target instanceof Node && !workspaceHeadingRef.current?.contains(target)) {
-        setWorkspaceMenuOpen(false);
-      }
-    };
-    document.addEventListener("pointerdown", closeOnOutsidePointer);
-    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
-  }, [workspaceMenuOpen]);
 
   useEffect(() => {
     let active = true;
@@ -1784,8 +1770,7 @@ export function LatticeApp() {
                 !browserMenuOpen &&
                 !commandOpen &&
                 !profileMenuOpen &&
-                !profileBusy &&
-                !workspaceMenuOpen,
+                !profileBusy,
             );
         });
     };
@@ -1820,7 +1805,6 @@ export function LatticeApp() {
     workspaceSourceViewport,
     surface,
     contextualTab?.url,
-    workspaceMenuOpen,
   ]);
 
   useEffect(() => {
@@ -2145,7 +2129,6 @@ export function LatticeApp() {
     if (!desktop) return;
     setEditingDesktopId(desktop.id);
     setEditingDesktopName(desktop.name);
-    setWorkspaceMenuOpen(false);
   };
 
   const submitDesktopRename = (event: FormEvent) => {
@@ -2206,7 +2189,7 @@ export function LatticeApp() {
       setSurface("blank");
       setAddress("");
       setCaptureOpen(false);
-      setWorkspaceMenuOpen(false);
+      setConfirmCloseAllTabs(false);
       setStatus("Started a fresh browser session");
       if (closed.length > 0) {
         offerRecovery(`Closed ${closed.length} tab${closed.length === 1 ? "" : "s"}`, () =>
@@ -2245,7 +2228,6 @@ export function LatticeApp() {
     const fallback = workspace.desktops.find((desktop) => desktop.id !== desktopId);
     setArchiveDesktopId((current) => (current === desktopId ? null : desktopId));
     setArchiveMoveTargetId(fallback?.id ?? "");
-    setWorkspaceMenuOpen(false);
   };
 
   const archiveSelectedDesktop = async (tabAction: "move" | "close") => {
@@ -2355,8 +2337,6 @@ export function LatticeApp() {
       return;
     }
     setWorkspace(result.workspace);
-    setArchivedDesktopsOpen(false);
-    setWorkspaceMenuOpen(false);
     setSurface("blank");
     setStatus("Desktop restored");
   };
@@ -2847,7 +2827,6 @@ export function LatticeApp() {
     setFocusMode(enabled);
     setCaptureOpen(false);
     setCommandOpen(false);
-    setWorkspaceMenuOpen(false);
     setBrowserMenuOpen(false);
     setProfileMenuOpen(false);
     setStatus(enabled ? "Focus view on — press Escape to show navigation" : "Navigation restored");
@@ -3052,7 +3031,6 @@ export function LatticeApp() {
     setFocusMode(false);
     setCaptureOpen(false);
     setCommandOpen(false);
-    setWorkspaceMenuOpen(false);
     setBrowserMenuOpen(false);
     setProfileEditor(null);
     setProfileMenuOpen(false);
@@ -3317,7 +3295,6 @@ export function LatticeApp() {
     setCommandQuery("");
     setCommandOpen(true);
     setCaptureOpen(false);
-    setWorkspaceMenuOpen(false);
     setProfileMenuOpen(false);
   };
 
@@ -3425,8 +3402,6 @@ export function LatticeApp() {
 
   const setNavigationView = (expanded: boolean) => {
     setNavigationExpanded(expanded);
-    setWorkspaceMenuOpen(false);
-    setArchivedDesktopsOpen(false);
     setProfileMenuOpen(false);
     setStatus(expanded ? "Expanded navigation" : "Compact navigation");
   };
@@ -3525,7 +3500,6 @@ export function LatticeApp() {
       if (event.key === "Escape") {
         setCommandOpen(false);
         setCaptureOpen(false);
-        setWorkspaceMenuOpen(false);
         setBrowserMenuOpen(false);
         setZoomFineTuneOpen(false);
         setFocusMode(false);
@@ -3799,7 +3773,7 @@ export function LatticeApp() {
         className="workspace-panel"
         aria-label={navigationExpanded ? "Expanded navigation" : "Compact navigation"}
       >
-        <div className="workspace-heading" ref={workspaceHeadingRef}>
+        <div className="workspace-heading">
           <button
             className="brand-mark workspace-brand-mark"
             type="button"
@@ -3810,63 +3784,11 @@ export function LatticeApp() {
           >
             <img src={coachLogoUrl} alt="" />
           </button>
-          <button
-            className="workspace-selector"
-            type="button"
-            aria-label="Open workspace menu"
-            aria-expanded={workspaceMenuOpen}
-            data-action-description={actionHelpText.workspaceMenu}
-            onClick={() => {
-              setConfirmHardDeleteDesktopId(null);
-              setWorkspaceMenuOpen((open) => !open);
-            }}
-          >
+          <div className="workspace-name">
             <span className="workspace-title">
               <strong>Coach Browser</strong>
             </span>
-            <Icon name="chevron-down" />
-          </button>
-          {workspaceMenuOpen && (
-            <div className="workspace-menu">
-              <button
-                type="button"
-                onClick={() => {
-                  setWorkspaceMenuOpen(false);
-                  setProfileEditor(null);
-                  setProfileMenuOpen(true);
-                }}
-              >
-                <Icon name="command" />
-                Website profiles
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setWorkspaceMenuOpen(false);
-                  void showSettings();
-                }}
-              >
-                <Icon name="settings" />
-                Settings &amp; appearance
-              </button>
-              <button type="button" onClick={() => void closeAllTabs()}>
-                <Icon name="close" />
-                Close all tabs
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setArchivedDesktopsOpen((open) => !open);
-                  setWorkspaceMenuOpen(false);
-                  void showSettings();
-                }}
-              >
-                <Icon name="folder" />
-                Archived desktops ({workspace.archivedDesktops.length})
-              </button>
-              <span>Desktop names can be edited beside each name</span>
-            </div>
-          )}
+          </div>
         </div>
 
         <button
@@ -3881,62 +3803,6 @@ export function LatticeApp() {
           <span>Search everything</span>
           <kbd>{searchShortcutLabel}</kbd>
         </button>
-
-        {archivedDesktopsOpen && (
-          <section className="archived-desktops-panel" data-archived-desktops>
-            <header>
-              <div>
-                <strong>Archived desktops</strong>
-                <small>Recover one or remove its record permanently.</small>
-              </div>
-              <button
-                type="button"
-                aria-label="Close archived desktops"
-                onClick={() => setArchivedDesktopsOpen(false)}
-              >
-                <Icon name="close" />
-              </button>
-            </header>
-            {workspace.archivedDesktops.length === 0 ? (
-              <p>No archived desktops yet.</p>
-            ) : (
-              <div className="archived-desktop-list">
-                {workspace.archivedDesktops.map((desktop) => (
-                  <div className="archived-desktop-item" key={desktop.id}>
-                    <span className={`desktop-glyph ${desktop.color}`}>
-                      <DesktopIconGraphic icon={desktop.icon} color={desktop.color} />
-                    </span>
-                    <span>
-                      <strong>{desktop.name}</strong>
-                      <small>Browser activity is retained until permanent deletion</small>
-                    </span>
-                    <button
-                      type="button"
-                      data-restore-desktop={desktop.id}
-                      onClick={() => restoreDesktopFromArchive(desktop.id)}
-                    >
-                      Restore
-                    </button>
-                    <button
-                      type="button"
-                      className="archived-hard-delete"
-                      data-hard-delete-desktop={desktop.id}
-                      onClick={() => hardDeleteDesktopFromArchive(desktop.id)}
-                    >
-                      {confirmHardDeleteDesktopId === desktop.id
-                        ? "Confirm clear browser data"
-                        : "Delete permanently"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <p>
-              Permanent removal clears this desktop's history and closed-tab records. Local notes,
-              saved Markdown, Canvas pages, and files are never erased here.
-            </p>
-          </section>
-        )}
 
         <div className="desktop-list">
           {workspace.desktops
@@ -4312,7 +4178,6 @@ export function LatticeApp() {
           aria-expanded={profileMenuOpen}
           data-action-description={actionHelpText.profiles}
           onClick={() => {
-            setWorkspaceMenuOpen(false);
             setBrowserMenuOpen(false);
             setCommandOpen(false);
             setProfileEditor(null);
@@ -4397,9 +4262,7 @@ export function LatticeApp() {
               }
               onClick={() => {
                 if (navigationExpanded) {
-                  setWorkspaceMenuOpen(false);
                   setAddingDesktop(false);
-                  setArchivedDesktopsOpen(false);
                 }
                 setNavigationView(!navigationExpanded);
               }}
@@ -6107,6 +5970,40 @@ export function LatticeApp() {
                       onClick={toggleRestoreTabs}
                     >
                       <span />
+                    </button>
+                  </section>
+
+                  <section className="settings-card" data-settings-close-all-tabs>
+                    <div className="settings-card-icon amber">
+                      <Icon name="close" />
+                    </div>
+                    <div className="settings-card-copy">
+                      <span className="settings-kicker">Browser session</span>
+                      <h2>Close all website tabs</h2>
+                      <p>
+                        Close every open website tab across all desktops and return to a blank
+                        browser. The closed tabs can be restored immediately from the recovery
+                        message.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className={
+                        confirmCloseAllTabs ? "settings-action warning" : "settings-cancel"
+                      }
+                      disabled={snapshot.tabs.length === 0}
+                      onBlur={() => setConfirmCloseAllTabs(false)}
+                      onClick={() => {
+                        if (!confirmCloseAllTabs) {
+                          setConfirmCloseAllTabs(true);
+                          return;
+                        }
+                        void closeAllTabs();
+                      }}
+                    >
+                      {confirmCloseAllTabs
+                        ? `Confirm closing ${snapshot.tabs.length} tab${snapshot.tabs.length === 1 ? "" : "s"}`
+                        : `Close all ${snapshot.tabs.length} website tab${snapshot.tabs.length === 1 ? "" : "s"}`}
                     </button>
                   </section>
 

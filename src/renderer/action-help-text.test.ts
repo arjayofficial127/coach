@@ -16,7 +16,6 @@ function examples(): string[] {
     actionHelpText.settings,
     actionHelpText.profiles,
     actionHelpText.connectObsidian,
-    actionHelpText.workspaceMenu,
     actionHelpText.compactNavigation,
     actionHelpText.addDesktop,
     actionHelpText.desktop("Desk 1"),
