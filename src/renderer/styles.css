@@ -912,6 +912,10 @@ svg {
 .navigation-row.active,
 .library-row.navigation-row.active,
 .library-row.active {
+  z-index: 1;
+  width: calc(100% + 1px);
+  border: 1px solid var(--line-strong);
+  border-right: 0;
   border-radius: 0;
   background: #fff;
   color: #24252a;
@@ -919,7 +923,7 @@ svg {
 
 .navigation-row.active,
 .library-row.navigation-row.active {
-  border-color: rgba(139, 124, 246, 0.13);
+  border-right: 0;
 }
 
 .navigation-row-icon {
@@ -1275,6 +1279,10 @@ kbd {
 }
 
 .desktop-item.active {
+  z-index: 1;
+  width: calc(100% + 1px);
+  border: 1px solid var(--line-strong);
+  border-right: 0;
   border-radius: 0;
   background: #fff;
   color: #24252a;
@@ -9066,7 +9074,8 @@ kbd {
 }
 
 .lattice-shell.theme-adaptive .workspace-panel :is(.navigation-row, .library-row).active {
-  border-color: transparent;
+  border-color: var(--line-strong);
+  border-right: 0;
   border-radius: 0;
   background-color: #fff;
   color: #24252a;
@@ -9193,7 +9202,8 @@ kbd {
 }
 
 .lattice-shell.theme-adaptive .desktop-item.active {
-  border-color: transparent;
+  border-color: var(--line-strong);
+  border-right: 0;
   border-radius: 0;
   background: #fff;
   box-shadow: none;
