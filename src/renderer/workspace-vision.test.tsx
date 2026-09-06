@@ -34,9 +34,9 @@ const home = (
 describe("unified workspace views", () => {
   it("renders honest empty states and creation choices without fictional tasks", () => {
     const html = home();
-    expect(html).toContain("A home for your next idea.");
+    expect(html).toContain("No recent files yet.");
     expect(html).toContain("No board cards due today.");
-    expect(html).toContain("Cards, dates, and calendar");
+    expect(html).toContain("Create your first folder");
     expect(html).not.toContain('type="checkbox"');
     expect(html).not.toContain("% complete");
   });
@@ -72,6 +72,9 @@ describe("unified workspace views", () => {
     const html = home([file], { [file.relativePath]: document });
     expect(html).toContain("Real due card");
     expect(html).toContain("Inbox · 1");
+    expect(html).toContain("Workspace summary");
+    expect(html).toContain("Location");
+    expect(html).toContain("Modified");
     expect(html).not.toContain("No board cards due today.");
   });
   it("opens an empty planner in Calendar without seeded cards", () => {

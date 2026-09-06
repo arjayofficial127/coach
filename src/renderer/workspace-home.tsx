@@ -1,17 +1,38 @@
 import { isCoachBoard, parseCoachObject } from "../shared/coach-board";
 import type { WorkspaceDirectoryEntry, WorkspaceFileDocument } from "../shared/contracts";
 import { Icon } from "./icon";
-import { notePreview, workspaceEntryTitle } from "./local-workspace-model";
+import { workspaceEntryTitle } from "./local-workspace-model";
 
 export function WorkspaceFileRows({
   entries,
   onOpen,
+  dashboard = false,
 }: {
   entries: WorkspaceDirectoryEntry[];
   onOpen: (entry: WorkspaceDirectoryEntry) => void;
+  dashboard?: boolean;
 }) {
+  const modified = (value: string) => {
+    const date = new Date(value);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    if (date.toDateString() === today.toDateString()) return `Today, ${time}`;
+    if (date.toDateString() === yesterday.toDateString()) return `Yesterday, ${time}`;
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  };
+
   return (
-    <div className="ws-file-rows">
+    <div className={`ws-file-rows${dashboard ? " is-dashboard" : ""}`}>
+      {dashboard && (
+        <div className="ws-file-row-head" aria-hidden="true">
+          <span>Name</span>
+          <span>Location</span>
+          <span>Modified</span>
+          <span />
+        </div>
+      )}
       {entries.map((entry) => (
         <button
           type="button"
@@ -20,14 +41,30 @@ export function WorkspaceFileRows({
           onClick={() => onOpen(entry)}
         >
           <Icon name={entry.fileType === "coach" ? "grid" : "edit"} />
-          <span>
-            <strong>{workspaceEntryTitle(entry)}</strong>
-            <small>
-              {entry.relativePath.split("/").slice(0, -1).join(" / ") || "Desktop root"}
-            </small>
-          </span>
-          <span className="ws-type">{entry.fileType === "other" ? "file" : entry.fileType}</span>
-          <time>{new Date(entry.updatedAt).toLocaleDateString()}</time>
+          {dashboard ? (
+            <>
+              <strong>{workspaceEntryTitle(entry)}</strong>
+              <span className="ws-file-location">
+                <Icon name="folder" />
+                {entry.relativePath.split("/").slice(0, -1).join(" / ") || "Desktop root"}
+              </span>
+              <time>{modified(entry.updatedAt)}</time>
+              <Icon name="more" />
+            </>
+          ) : (
+            <>
+              <span>
+                <strong>{workspaceEntryTitle(entry)}</strong>
+                <small>
+                  {entry.relativePath.split("/").slice(0, -1).join(" / ") || "Desktop root"}
+                </small>
+              </span>
+              <span className="ws-type">
+                {entry.fileType === "other" ? "file" : entry.fileType}
+              </span>
+              <time>{new Date(entry.updatedAt).toLocaleDateString()}</time>
+            </>
+          )}
         </button>
       ))}
     </div>
@@ -67,8 +104,7 @@ export function WorkspaceHome({
   onNew: (kind: "markdown" | "board" | "planner" | "coach") => void;
   onRecent: () => void;
 }) {
-  const inbox = files.filter((entry) => entry.relativePath.startsWith(inboxFolder + "/"));
-  const previews = files.filter((entry) => entry.fileType !== "other").slice(0, 2);
+  const inbox = files.filter((entry) => entry.relativePath.startsWith(`${inboxFolder}/`));
   const now = new Date();
   const today = [
     now.getFullYear(),
@@ -90,9 +126,9 @@ export function WorkspaceHome({
   return (
     <div className="ws-home" data-workspace-home>
       <div className="ws-home-primary">
-        <header>
-          <h2>A little clarity. Then momentum.</h2>
-          <p>Your notes, sources, and next steps—in one place.</p>
+        <header className="ws-home-intro">
+          <h2>Files &amp; Inbox</h2>
+          <p>Everything you’re working on, in one place.</p>
         </header>
         <form
           className="ws-capture"
@@ -106,138 +142,83 @@ export function WorkspaceHome({
             maxLength={20000}
             value={capture}
             onChange={(e) => onCaptureChange(e.target.value)}
-            placeholder="Catch a thought or paste a link…"
+            placeholder="Capture a note, task, or link…"
           />
-          <button type="submit" disabled={!capture.trim() || captureBusy}>
-            <Icon name="plus" />
-            {captureBusy ? "Capturing…" : "Capture to Inbox"}
+          <button
+            type="submit"
+            className="primary-action"
+            disabled={!capture.trim() || captureBusy}
+          >
+            {captureBusy ? "Adding…" : "Add to Inbox"}
           </button>
         </form>
-        <section>
-          <h3>Pick up where you left off</h3>
-          {previews.length ? (
-            <div className="ws-preview-grid">
-              {previews.map((entry) => {
-                const document = documents[entry.relativePath];
-                const object = parseCoachObject(document?.content ?? "");
-                const title = workspaceEntryTitle(entry);
-                const preview = document
-                  ? notePreview(
-                      entry.fileType === "coach"
-                        ? String(object?.content ?? object?.title ?? "JSON object")
-                        : document.content,
-                      title,
-                    )
-                  : "Open to read this file.";
-                return (
-                  <button
-                    type="button"
-                    className="ws-preview-card"
-                    key={entry.id}
-                    aria-label={`Open ${title}`}
-                    onClick={() => onOpen(entry)}
-                  >
-                    <header>
-                      <Icon name={entry.fileType === "coach" ? "grid" : "edit"} />
-                      <strong>{title}</strong>
-                    </header>
-                    {isCoachBoard(object) ? (
-                      <div className="ws-mini-board">
-                        {object.columns.slice(0, 3).map((column) => (
-                          <div key={column.id}>
-                            <b>{column.title}</b>
-                            {object.cards
-                              .filter((card) => card.columnId === column.id)
-                              .slice(0, 2)
-                              .map((card) => (
-                                <span key={card.id}>{card.title}</span>
-                              ))}
-                            <small>
-                              {object.cards.filter((card) => card.columnId === column.id).length}{" "}
-                              cards
-                            </small>
-                          </div>
-                        ))}
-                      </div>
-                    ) : preview ? (
-                      <p>{preview}</p>
-                    ) : null}
-                    <footer>
-                      <span className="ws-tag">{entry.fileType}</span>
-                      <small>{new Date(entry.updatedAt).toLocaleDateString()}</small>
-                    </footer>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="ws-welcome">
-              <h3>A home for your next idea.</h3>
-              <p>Create a note or a board. Only your own work appears here.</p>
-              <button type="button" className="primary-action" onClick={() => onNew("markdown")}>
-                Create your first note
-              </button>
-              <button type="button" onClick={() => onNew("board")}>
-                Create a board
+        <section className="ws-home-stats" aria-label="Workspace summary">
+          <button type="button" onClick={onInbox}>
+            <Icon name="queue" />
+            <span>
+              <small>Inbox</small>
+              <strong>{inbox.length}</strong>
+              <span>Items captured</span>
+            </span>
+          </button>
+          <button type="button" onClick={onRecent}>
+            <Icon name="file" />
+            <span>
+              <small>Recent files</small>
+              <strong>{files.length}</strong>
+              <span>Files in this workspace</span>
+            </span>
+          </button>
+          <button type="button" onClick={onFocus}>
+            <Icon name="timer" />
+            <span>
+              <small>Due today</small>
+              <strong>{due.length}</strong>
+              <span>Items due today</span>
+            </span>
+          </button>
+        </section>
+        <section className="ws-home-recent" aria-label="Recent files">
+          <header className="ws-home-folder-header">
+            <h3>Recent files</h3>
+            <button type="button" className="ws-text-action" onClick={onRecent}>
+              View all
+            </button>
+          </header>
+          <WorkspaceFileRows dashboard entries={files.slice(0, 5)} onOpen={onOpen} />
+          {!files.length && (
+            <div className="ws-home-empty-row">
+              <Icon name="file" />
+              <span>
+                <strong>No recent files yet.</strong>
+                <small>Create a note or capture something to start your workspace.</small>
+              </span>
+              <button type="button" onClick={() => onNew("markdown")}>
+                Create a note
               </button>
             </div>
           )}
         </section>
-        <section aria-label="Your space">
+        <section className="ws-pinned-spaces" aria-label="Pinned spaces">
           <header className="ws-home-folder-header">
-            <h3>Your space</h3>
-            <div>
-              <button type="button" onClick={onNewFolder}>
-                <Icon name="plus" />
-                Folder
-              </button>
-              <button type="button" onClick={() => onNew("markdown")}>
-                <Icon name="plus" />
-                File
-              </button>
-            </div>
+            <h3>Pinned spaces</h3>
+            <button type="button" onClick={onNewFolder}>
+              <Icon name="plus" /> New folder
+            </button>
           </header>
           <div className="ws-home-folders">
-            {folders.map((entry) => (
+            {folders.slice(0, 4).map((entry) => (
               <button type="button" key={entry.id} onClick={() => onFolder(entry)}>
                 <Icon name="folder" />
                 <span>{entry.name}</span>
               </button>
             ))}
-          </div>
-          <WorkspaceFileRows entries={files.slice(0, 5)} onOpen={onOpen} />
-          {!files.length && (
-            <p className="ws-empty-copy">
-              Files can live at the root or inside any folder. Start wherever you like.
-            </p>
-          )}
-          {files.length > 5 && (
-            <button type="button" className="ws-text-action" onClick={onRecent}>
-              See all files <Icon name="arrow-right" />
-            </button>
-          )}
-        </section>
-        <section>
-          <h3>Make something useful</h3>
-          <div className="ws-template-row">
-            <button type="button" onClick={() => onNew("board")}>
-              <Icon name="grid" />
-              <span>
-                Board<small>Saved as a .coach file</small>
-              </span>
-            </button>
-            <button type="button" onClick={() => onNew("planner")}>
-              <Icon name="timer" />
-              <span>
-                Planner<small>Cards, dates, and calendar</small>
-              </span>
-            </button>
-            <button type="button" onClick={() => onNew("coach")}>
-              <Icon name="edit" />
-              <span>
-                Coach document<small>Text and structured data</small>
-              </span>
-            </button>
+            {!folders.length && (
+              <button type="button" onClick={onNewFolder}>
+                <Icon name="plus" />
+                <span>Create your first folder</span>
+              </button>
+            )}
           </div>
         </section>
       </div>
@@ -249,14 +230,14 @@ export function WorkspaceHome({
           </header>
           {due.length ? (
             <>
-              {due.slice(0, 6).map(({ entry, card, column }) => (
+              {due.slice(0, 4).map(({ entry, card, column }) => (
                 <button
                   type="button"
                   className="ws-today-item"
-                  key={entry.id + ":" + card.id}
+                  key={`${entry.id}:${card.id}`}
                   onClick={() => onOpen(entry)}
                 >
-                  <Icon name="grid" />
+                  <span className="ws-task-check" />
                   <span>
                     <strong>{card.title}</strong>
                     <small>
@@ -265,8 +246,8 @@ export function WorkspaceHome({
                   </span>
                 </button>
               ))}
-              {due.length > 6 && (
-                <p className="ws-muted">{due.length - 6} more dated cards in your boards.</p>
+              {due.length > 4 && (
+                <p className="ws-muted">{due.length - 4} more dated cards in your boards.</p>
               )}
             </>
           ) : (
@@ -305,7 +286,9 @@ export function WorkspaceHome({
           </button>
         </section>
         <section>
-          <h3>Local by design</h3>
+          <h3 className="ws-local-title">
+            <Icon name="desktop" /> Local by design
+          </h3>
           <p className="ws-muted">
             Your files stay in your connected folder. Archiving a desktop keeps its notes.
           </p>

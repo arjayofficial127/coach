@@ -15,7 +15,7 @@ const entry: WorkspaceDirectoryEntry = {
   updatedAt: "2026-09-03T00:00:00.000Z",
 };
 const noop = () => {};
-const card = (content?: string) => {
+const dashboard = (content?: string) => {
   const documents: Record<string, WorkspaceFileDocument> =
     content === undefined
       ? {}
@@ -42,10 +42,10 @@ const card = (content?: string) => {
     />,
   );
   expect(JSON.stringify(documents)).toBe(before);
-  return html.match(/<button[^>]*class="ws-preview-card"[\s\S]*?<\/button>/)?.[0] ?? "";
+  return html;
 };
 
-describe("non-repeating workspace card previews", () => {
+describe("workspace note previews", () => {
   it.each([
     `# ${title}\n\n${title}`,
     `---\ncoach_type: "inbox-item"\n---\n\n# ${title}\n\n${title}\n`,
@@ -55,10 +55,6 @@ describe("non-repeating workspace card previews", () => {
     `# ${title}\n\n${title}\n\n${title}`,
   ])("shows the capture once with no empty/filler paragraph: %s", (content) => {
     expect(notePreview(content, title)).toBe("");
-    const html = card(content);
-    expect(html).toContain(`<strong>${title}</strong>`);
-    expect(html).not.toContain("<p>");
-    expect(html.replace(/<[^>]*>/g, "").split(title)).toHaveLength(2);
   });
 
   it.each([
@@ -73,7 +69,6 @@ describe("non-repeating workspace card previews", () => {
     [`# ${title}\n\n${title}!`, `${title}!`],
   ])("preserves additional or structurally meaningful content: %s", (content, preview) => {
     expect(notePreview(content, title)).toBe(preview);
-    expect(card(content)).toContain(`<p>${preview}</p>`);
   });
 
   it("compares before truncating and retains the full additional preview budget", () => {
@@ -82,9 +77,11 @@ describe("non-repeating workspace card previews", () => {
     expect(notePreview(`${title} ${"x".repeat(200)}`, title)).toContain(`${title} `);
   });
 
-  it("does not pretend an unindexed document is an empty note", () => {
-    expect(card()).toContain("<p>Open to read this file.</p>");
-    expect(card("")).not.toContain("<p>");
+  it("lists indexed files without leaking document content into the dashboard", () => {
+    const html = dashboard(`# ${title}\n\nPrivate body copy.`);
+    expect(html).toContain(`<strong>${title}</strong>`);
+    expect(html).toContain("Inbox");
+    expect(html).not.toContain("Private body copy.");
   });
 
   it("retains the existing preview when there is no displayed title to compare", () => {

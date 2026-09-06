@@ -238,6 +238,23 @@ function WorkspaceSession({
   }, [renaming, refresh]);
 
   const entries = index?.entries ?? [];
+  const rootFolderRoles = index?.directories[""]?.areaFolders;
+  const preferredRootFolders = (["Files", "Inbox", "Notes", "Planner"] as const)
+    .map((role) => rootFolderRoles?.[role])
+    .filter((name): name is string => Boolean(name));
+  const rootFolderRank = (entry: WorkspaceDirectoryEntry) => {
+    const rank = preferredRootFolders.indexOf(entry.name);
+    return rank < 0 ? preferredRootFolders.length : rank;
+  };
+  const rootFolders = [...(index?.directories[""]?.entries ?? [])]
+    .filter((entry) => entry.kind === "folder")
+    .sort((a, b) => rootFolderRank(a) - rootFolderRank(b));
+  const directoryEntries = (relativePath: string) => {
+    const current = index?.directories[relativePath]?.entries ?? [];
+    return relativePath
+      ? current
+      : [...current].sort((a, b) => rootFolderRank(a) - rootFolderRank(b));
+  };
   const inboxFolder = index?.directories[""]?.areaFolders?.Inbox ?? "Inbox";
   const files = entries
     .filter((entry) => entry.kind === "file")
@@ -703,9 +720,11 @@ function WorkspaceSession({
   const tree = (relativePath: string, depth = 0): ReactNode =>
     depth > 24 ? null : (
       <ul className="ws-tree-list">
-        {index?.directories[relativePath]?.entries.map((entry) => {
+        {directoryEntries(relativePath).map((entry) => {
           const counts =
-            entry.kind === "folder" ? workspaceFolderCounts(index, entry.relativePath) : null;
+            entry.kind === "folder" && index
+              ? workspaceFolderCounts(index, entry.relativePath)
+              : null;
           const displayCount = (value: number, complete: boolean) =>
             `${value}${complete ? "" : "+"}`;
           const hasKnownChildren = Boolean(counts && counts.directFiles + counts.directFolders > 0);
@@ -1313,6 +1332,15 @@ function WorkspaceSession({
       <fieldset className="ws-body" disabled={renaming}>
         <WorkspacePortal target={null}>
           <fieldset className="ws-sidebar-surface" disabled={renaming}>
+            <header className="ws-sidebar-heading">
+              <button type="button" aria-label="Open Files dashboard" onClick={openFilesDashboard}>
+                <Icon name="arrow-left" />
+              </button>
+              <span>
+                <strong>Files &amp; Inbox</strong>
+                <small>{desktopName}</small>
+              </span>
+            </header>
             <div className="ws-folder-tools">
               <label className="ws-search">
                 <Icon name="search" />
@@ -1385,9 +1413,7 @@ function WorkspaceSession({
           {view === "home" && (
             <WorkspaceHome
               files={files}
-              folders={
-                index?.directories[""]?.entries.filter((entry) => entry.kind === "folder") ?? []
-              }
+              folders={rootFolders}
               onFolder={(entry) => void openEntry(entry)}
               onNewFolder={() => {
                 setFolder("");
