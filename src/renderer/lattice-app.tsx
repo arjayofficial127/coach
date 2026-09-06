@@ -126,6 +126,13 @@ import {
   siteIconDomainKey,
 } from "./site-icon-cache";
 import {
+  closeSurfaceTab as closeSurfaceTabInModel,
+  createDefaultSurfaceTabs,
+  openSurfaceTab as openSurfaceTabInModel,
+  type SurfaceTabId,
+  surfaceTabForSurface,
+} from "./surface-tabs-model";
+import {
   archiveDesktop,
   createDesktop,
   DEFAULT_WORKSPACE,
@@ -394,7 +401,7 @@ async function restoreProfileBrowser(
   if (saved.tabs.length === 0) {
     return {
       snapshot: initial,
-      assignments: { [initial.activeTabId]: workspace.activeDesktopId },
+      assignments: initial.activeTabId ? { [initial.activeTabId]: workspace.activeDesktopId } : {},
       restoredCount: 0,
       restoredActive: null,
     };
@@ -542,6 +549,9 @@ export function LatticeApp() {
   const siteIconRetryTimers = useRef(new Set<number>());
   const [siteIconRetryGeneration, setSiteIconRetryGeneration] = useState(0);
   const [tabDesktops, setTabDesktops] = useState<Record<string, string>>({});
+  const [surfaceTabsByDesktop, setSurfaceTabsByDesktop] = useState<Record<string, SurfaceTabId[]>>(
+    () => createDefaultSurfaceTabs(DEFAULT_WORKSPACE.desktops.map((desktop) => desktop.id)),
+  );
   const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
   const [tabDropTarget, setTabDropTarget] = useState<{
     tabId: string;
@@ -801,6 +811,7 @@ export function LatticeApp() {
     () => snapshot.tabs.filter((tab) => tabDesktops[tab.id] === workspace.activeDesktopId),
     [snapshot.tabs, tabDesktops, workspace.activeDesktopId],
   );
+  const activeSurfaceTabs = surfaceTabsByDesktop[workspace.activeDesktopId] ?? [];
   const contextualTab =
     activeTab && tabDesktops[activeTab.id] === workspace.activeDesktopId ? activeTab : null;
   const resumableTab = contextualTab && contextualTab.url !== "about:blank" ? contextualTab : null;
@@ -1652,9 +1663,9 @@ export function LatticeApp() {
             shell,
             restored: {
               snapshot: fallback,
-              assignments: {
-                [fallback.activeTabId]: shell.workspace.activeDesktopId,
-              },
+              assignments: fallback.activeTabId
+                ? { [fallback.activeTabId]: shell.workspace.activeDesktopId }
+                : {},
               restoredCount: 0,
               restoredActive: null,
             },
@@ -1673,6 +1684,9 @@ export function LatticeApp() {
           restored.restoredActive
             ? { ...shell.workspace, activeDesktopId: restored.restoredActive.desktopId }
             : shell.workspace,
+        );
+        setSurfaceTabsByDesktop(
+          createDefaultSurfaceTabs(shell.workspace.desktops.map((desktop) => desktop.id)),
         );
         setSettings(shell.settings);
         setFocusIntention(shell.focusIntention);
@@ -1706,7 +1720,9 @@ export function LatticeApp() {
         setProfileLoadError(error instanceof Error ? error.message : "Profiles could not load");
         const fallback = await window.lattice.browser.snapshot();
         setSnapshot(fallback);
-        setTabDesktops({ [fallback.activeTabId]: DEFAULT_WORKSPACE.activeDesktopId });
+        setTabDesktops(
+          fallback.activeTabId ? { [fallback.activeTabId]: DEFAULT_WORKSPACE.activeDesktopId } : {},
+        );
         setSessionReady(true);
         setStatus(
           error instanceof Error
@@ -1881,10 +1897,12 @@ export function LatticeApp() {
 
   const setBrowserSnapshot = (next: BrowserSnapshot, desktopId = workspace.activeDesktopId) => {
     setSnapshot(next);
-    setTabDesktops((current) => ({
-      ...current,
-      [next.activeTabId]: current[next.activeTabId] ?? desktopId,
-    }));
+    if (next.activeTabId) {
+      setTabDesktops((current) => ({
+        ...current,
+        [next.activeTabId]: current[next.activeTabId] ?? desktopId,
+      }));
+    }
   };
 
   const openUrl = async (
@@ -2058,7 +2076,9 @@ export function LatticeApp() {
     try {
       const closedTab = snapshot.tabs.find((tab) => tab.id === tabId);
       const closedDesktopId = tabDesktops[tabId] ?? workspace.activeDesktopId;
-      const next = await window.lattice.browser.closeTab(tabId);
+      const closingVisibleBrowserTab =
+        tabId === snapshot.activeTabId && (surface === "browser" || surface === "home");
+      let next = await window.lattice.browser.closeTab(tabId);
       if (closedTab) {
         const closedItem: DashboardClosedTab = {
           tab: closedTab,
@@ -2070,15 +2090,27 @@ export function LatticeApp() {
       setSnapshot(next);
       const remaining = { ...tabDesktops };
       delete remaining[tabId];
-      remaining[next.activeTabId] ??= workspace.activeDesktopId;
+      if (closingVisibleBrowserTab) {
+        const nextDesktopTab = next.tabs.find(
+          (candidate) => remaining[candidate.id] === workspace.activeDesktopId,
+        );
+        if (nextDesktopTab && nextDesktopTab.id !== next.activeTabId) {
+          next = await window.lattice.browser.switchTab(nextDesktopTab.id);
+          setSnapshot(next);
+        }
+      }
       setTabDesktops(remaining);
-      const nextActive = next.tabs.find((tab) => tab.id === next.activeTabId);
-      setSurface(
-        remaining[next.activeTabId] === workspace.activeDesktopId &&
-          nextActive?.url !== "about:blank"
-          ? "browser"
-          : "home",
-      );
+      if (closingVisibleBrowserTab) {
+        const nextActive = next.tabs.find((tab) => tab.id === next.activeTabId);
+        setSurface(
+          remaining[next.activeTabId] === workspace.activeDesktopId &&
+            nextActive?.url !== "about:blank"
+            ? "browser"
+            : nextActive && remaining[nextActive.id] === workspace.activeDesktopId
+              ? "home"
+              : "blank",
+        );
+      }
       if (closedTab) {
         const placeholderId = snapshot.tabs.length === 1 ? next.activeTabId : undefined;
         offerRecovery(`Closed ${displayTitle(closedTab)}`, () =>
@@ -2108,7 +2140,9 @@ export function LatticeApp() {
     const rememberedLocation = desktopLocationsRef.current[desktopId];
     if (rememberedLocation?.kind === "dashboard") {
       setAddress("");
-      setSurface("dashboard");
+      setSurface(
+        (surfaceTabsByDesktop[desktopId] ?? []).includes("dashboard") ? "dashboard" : "blank",
+      );
       setCaptureOpen(false);
       return;
     }
@@ -2130,7 +2164,7 @@ export function LatticeApp() {
       setSurface(firstTab.url === "about:blank" ? "home" : "browser");
     } else {
       setAddress("");
-      setSurface("dashboard");
+      setSurface("blank");
     }
     setCaptureOpen(false);
   };
@@ -2147,7 +2181,7 @@ export function LatticeApp() {
     }));
     setDesktopName("");
     setAddingDesktop(false);
-    setSurface("dashboard");
+    setSurface("blank");
   };
 
   const beginRenameDesktop = (desktopId: string) => {
@@ -2208,15 +2242,19 @@ export function LatticeApp() {
       let next = snapshot;
       for (const tab of snapshot.tabs) next = await window.lattice.browser.closeTab(tab.id);
       setSnapshot(next);
-      setTabDesktops({ [next.activeTabId]: workspace.activeDesktopId });
-      setSurface("home");
+      setTabDesktops({});
+      setSurfaceTabsByDesktop((current) => ({
+        ...current,
+        [workspace.activeDesktopId]: [],
+      }));
+      setSurface("blank");
       setAddress("");
       setCaptureOpen(false);
       setWorkspaceMenuOpen(false);
       setStatus("Started a fresh browser session");
       if (closed.length > 0) {
         offerRecovery(`Closed ${closed.length} tab${closed.length === 1 ? "" : "s"}`, () =>
-          restoreClosedTabs(closed, activeClosedId, next.activeTabId),
+          restoreClosedTabs(closed, activeClosedId),
         );
       }
     } catch (error) {
@@ -2319,7 +2357,7 @@ export function LatticeApp() {
         (tab) => tab.id === nextSnapshot.activeTabId && nextAssignments[tab.id] === target.id,
       );
       setSurface(
-        activeVisibleTab?.url && activeVisibleTab.url !== "about:blank" ? "browser" : "home",
+        activeVisibleTab ? (activeVisibleTab.url !== "about:blank" ? "browser" : "home") : "blank",
       );
       if (!activeVisibleTab) setAddress("");
       setStatus(`Archived ${desktop.name}; saved files remain untouched`);
@@ -2363,7 +2401,7 @@ export function LatticeApp() {
     setWorkspace(result.workspace);
     setArchivedDesktopsOpen(false);
     setWorkspaceMenuOpen(false);
-    setSurface("home");
+    setSurface("blank");
     setStatus("Desktop restored");
   };
 
@@ -2573,8 +2611,30 @@ export function LatticeApp() {
     })();
   };
 
+  const openSurfaceSelector = (tabId: SurfaceTabId) => {
+    setSurfaceTabsByDesktop((current) =>
+      openSurfaceTabInModel(current, workspace.activeDesktopId, tabId),
+    );
+  };
+
+  const closeSurfaceSelector = (tabId: SurfaceTabId) => {
+    const activeSurfaceTab = surfaceTabForSurface(surface);
+    if (activeSurfaceTab === tabId && !confirmCanvasLeave()) return;
+    setSurfaceTabsByDesktop((current) =>
+      closeSurfaceTabInModel(current, workspace.activeDesktopId, tabId),
+    );
+    if (activeSurfaceTab === tabId) {
+      if (tabId === "dashboard") delete desktopLocationsRef.current[workspace.activeDesktopId];
+      setSurface("blank");
+      setCaptureOpen(false);
+      setBrowserMenuOpen(false);
+      setCommandOpen(false);
+    }
+  };
+
   const showLibrary = async () => {
     if (!confirmCanvasLeave()) return;
+    openSurfaceSelector("libraries");
     setSurface("library");
     setCaptureOpen(false);
     if (vault) {
@@ -2589,12 +2649,14 @@ export function LatticeApp() {
 
   const showReadingQueue = async () => {
     if (!confirmCanvasLeave()) return;
+    openSurfaceSelector("libraries");
     setSurface("queue");
     setCaptureOpen(false);
     if (vault) setLinks(await window.lattice.vault.listSavedLinks());
   };
 
   const showCanvasPages = async (pageId: string | null = null) => {
+    openSurfaceSelector("libraries");
     setRequestedCanvasPageId(pageId);
     setSurface("pages");
     setCaptureOpen(false);
@@ -2610,6 +2672,7 @@ export function LatticeApp() {
 
   const showSettings = async () => {
     if (!confirmCanvasLeave()) return;
+    openSurfaceSelector("settings");
     setSurface("settings");
     setCaptureOpen(false);
     setCommandOpen(false);
@@ -2623,6 +2686,7 @@ export function LatticeApp() {
 
   const showRunnableApps = () => {
     if (!confirmCanvasLeave()) return;
+    openSurfaceSelector("apps");
     setRunnableAppTarget("pomodoro");
     setSurface("apps");
     setCaptureOpen(false);
@@ -2632,6 +2696,7 @@ export function LatticeApp() {
 
   const showRunnableApp = (appId: RunnableAppId, dailyFlowView: DailyFlowView = "today") => {
     if (!confirmCanvasLeave()) return;
+    openSurfaceSelector("apps");
     setRunnableAppTarget(appId);
     setDailyFlowTargetView(dailyFlowView);
     setSurface("apps");
@@ -2642,6 +2707,7 @@ export function LatticeApp() {
 
   const showDashboard = () => {
     if (!confirmCanvasLeave()) return;
+    openSurfaceSelector("dashboard");
     desktopLocationsRef.current[workspace.activeDesktopId] = { kind: "dashboard" };
     setSurface("dashboard");
     setCaptureOpen(false);
@@ -2666,6 +2732,7 @@ export function LatticeApp() {
 
   const showFiles = () => {
     if (!confirmCanvasLeave()) return;
+    openSurfaceSelector("files");
     setNavigationExpanded(true);
     setFilesSidebarActive(true);
     setSurface("files");
@@ -3003,6 +3070,9 @@ export function LatticeApp() {
         ? { ...shell.workspace, activeDesktopId: restored.restoredActive.desktopId }
         : shell.workspace,
     );
+    setSurfaceTabsByDesktop(
+      createDefaultSurfaceTabs(shell.workspace.desktops.map((desktop) => desktop.id)),
+    );
     setSettings(shell.settings);
     setFocusIntention(shell.focusIntention);
     setRunnableApps(shell.runnableApps);
@@ -3013,7 +3083,15 @@ export function LatticeApp() {
     );
     setSnapshot(restored.snapshot);
     setTabDesktops(restored.assignments);
-    setSurface("home");
+    const restoredActiveTab = restored.snapshot.tabs.find(
+      (tab) =>
+        tab.id === restored.snapshot.activeTabId &&
+        restored.assignments[tab.id] ===
+          (restored.restoredActive?.desktopId ?? shell.workspace.activeDesktopId),
+    );
+    setSurface(
+      restoredActiveTab ? (restoredActiveTab.url === "about:blank" ? "home" : "browser") : "blank",
+    );
     setAddress("");
     setFocusMode(false);
     setCaptureOpen(false);
@@ -3324,6 +3402,39 @@ export function LatticeApp() {
     ? "library"
     : surface;
   const libraryOpen = surface === "library" || surface === "queue" || surface === "pages";
+  const surfaceTabDefinitions: Record<
+    SurfaceTabId,
+    { label: string; icon: IconName; count?: number; open: () => void }
+  > = {
+    dashboard: {
+      label: activeDesktop?.name ?? "Desk 1",
+      icon: "dashboard",
+      count: desktopTabs.length,
+      open: showDashboard,
+    },
+    files: {
+      label: "Files",
+      icon: "folder",
+      count: activeDesktopFiles?.inboxCount ?? 0,
+      open: showFiles,
+    },
+    libraries: {
+      label: "Libraries",
+      icon: "library",
+      count: links.length + canvasPages.length,
+      open: () => void showLibrary(),
+    },
+    apps: {
+      label: "Runnable apps",
+      icon: "apps",
+      open: showRunnableApps,
+    },
+    settings: {
+      label: "Settings",
+      icon: "settings",
+      open: () => void showSettings(),
+    },
+  };
   const libraryNavigation = (
     <nav className="libraries-tabs" aria-label="Libraries">
       <button
@@ -4441,6 +4552,7 @@ export function LatticeApp() {
           "content-shell",
           surface === "dashboard" ? "dashboard-content-shell" : "",
           showNewTabSurface ? "new-tab-content home-content" : "",
+          surface === "blank" ? "blank-content-shell" : "",
           captureOpen ? "drawer-open" : "",
           focusMode ? "focus-content" : "",
         ]
@@ -4448,64 +4560,52 @@ export function LatticeApp() {
           .join(" ")}
       >
         <header className="tab-strip">
-          <button
-            className={surface === "dashboard" ? "desktop-context active" : "desktop-context"}
-            type="button"
-            aria-current={surface === "dashboard" ? "page" : undefined}
-            aria-label={actionHelpText.desktopDashboard(activeDesktop?.name ?? "Desk 1")}
-            data-action-description={actionHelpText.desktopDashboard(
-              activeDesktop?.name ?? "Desk 1",
-            )}
-            onClick={showDashboard}
-          >
-            <span className={`favicon desktop-tab-icon ${activeDesktop?.color ?? "violet"}`}>
-              <DesktopIconGraphic icon={activeDesktop?.icon} color={activeDesktop?.color} />
-            </span>
-            <span className="desktop-context-name">{activeDesktop?.name ?? "Desk 1"}</span>
-            <span className="desktop-context-count" aria-hidden="true">
-              {desktopTabs.length}
-            </span>
-          </button>
-          <button
-            className={
-              surface === "files"
-                ? "desktop-context files-context active"
-                : "desktop-context files-context"
-            }
-            type="button"
-            aria-current={surface === "files" ? "page" : undefined}
-            aria-label={`Open ${activeDesktop?.name ?? "Desk 1"} files and Inbox`}
-            data-action-description={actionHelpText.localFiles}
-            onClick={showFiles}
-          >
-            <span className="favicon desktop-tab-icon violet">
-              <Icon name="folder" />
-            </span>
-            <span className="desktop-context-name">Files</span>
-            <span className="desktop-context-count" aria-hidden="true">
-              {activeDesktopFiles?.inboxCount ?? 0}
-            </span>
-          </button>
-          <button
-            className={
-              libraryOpen
-                ? "desktop-context libraries-context active"
-                : "desktop-context libraries-context"
-            }
-            type="button"
-            aria-current={libraryOpen ? "page" : undefined}
-            aria-label="Open Libraries"
-            data-action-description="Open saved links, reading queues, and pages"
-            onClick={() => void showLibrary()}
-          >
-            <span className="favicon desktop-tab-icon violet">
-              <Icon name="library" />
-            </span>
-            <span className="desktop-context-name">Libraries</span>
-            <span className="desktop-context-count" aria-hidden="true">
-              {links.length + canvasPages.length}
-            </span>
-          </button>
+          {activeSurfaceTabs.map((tabId) => {
+            const definition = surfaceTabDefinitions[tabId];
+            const active = surfaceTabForSurface(surface) === tabId;
+            return (
+              <div
+                className={
+                  active ? "desktop-context surface-tab active" : "desktop-context surface-tab"
+                }
+                key={tabId}
+              >
+                <button
+                  className="surface-tab-select"
+                  type="button"
+                  aria-current={active ? "page" : undefined}
+                  aria-label={`Open ${definition.label}`}
+                  onClick={definition.open}
+                >
+                  <span
+                    className={`favicon desktop-tab-icon ${
+                      tabId === "dashboard" ? (activeDesktop?.color ?? "violet") : "violet"
+                    }`}
+                  >
+                    {tabId === "dashboard" ? (
+                      <DesktopIconGraphic icon={activeDesktop?.icon} color={activeDesktop?.color} />
+                    ) : (
+                      <Icon name={definition.icon} />
+                    )}
+                  </span>
+                  <span className="desktop-context-name">{definition.label}</span>
+                  {definition.count !== undefined && (
+                    <span className="desktop-context-count" aria-hidden="true">
+                      {definition.count}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="tab-close"
+                  aria-label={`Close ${definition.label}`}
+                  onClick={() => closeSurfaceSelector(tabId)}
+                >
+                  <Icon name="close" />
+                </button>
+              </div>
+            );
+          })}
           <div ref={setWorkspaceTabsTarget} id="workspace-tabs-slot" />
           <ul className="tabs-viewport" aria-label="Open tabs">
             {desktopTabs.map((tab) => (
@@ -4543,14 +4643,7 @@ export function LatticeApp() {
                 }}
                 onDragEnd={clearTabDrag}
                 className={
-                  tab.id === snapshot.activeTabId &&
-                  surface !== "dashboard" &&
-                  surface !== "library" &&
-                  surface !== "files" &&
-                  surface !== "queue" &&
-                  surface !== "pages" &&
-                  surface !== "apps" &&
-                  surface !== "settings"
+                  tab.id === snapshot.activeTabId && (surface === "browser" || surface === "home")
                     ? "browser-tab active"
                     : "browser-tab"
                 }
@@ -4707,7 +4800,7 @@ export function LatticeApp() {
           </form>
         )}
 
-        {surface !== "browser" && surface !== "home" && (
+        {surface !== "blank" && surface !== "browser" && surface !== "home" && (
           <header
             className={`surface-toolbar ${surface === "dashboard" ? "dashboard-surface-toolbar" : ""}`}
           >
@@ -4825,6 +4918,7 @@ export function LatticeApp() {
             <div ref={viewportRef} className="native-view-slot">
               Native WebContentsView surface
             </div>
+            {surface === "blank" && <div className="trusted-surface blank-desktop-surface" />}
             {showNewTabSurface && (
               <div className="trusted-surface new-tab-surface">
                 <nav className="new-tab-page-actions" aria-label="New tab actions">
@@ -5487,7 +5581,7 @@ export function LatticeApp() {
                 onFocus={toggleDistractionFree}
                 onOpenApp={showRunnableApp}
                 sessionKey={`${profileState?.activeProfileId ?? "pending"}:${vault?.id ?? "disconnected"}`}
-                onSettings={() => setSurface("settings")}
+                onSettings={() => void showSettings()}
                 onOpenUrl={(url) => void openUrl(url, true)}
                 desktopId={workspace.activeDesktopId}
                 desktopName={activeDesktop?.name ?? "Desktop 1"}

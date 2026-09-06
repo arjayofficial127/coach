@@ -1,4 +1,5 @@
 export type Surface =
+  | "blank"
   | "home"
   | "dashboard"
   | "browser"
@@ -42,6 +43,11 @@ export const surfaceDetails: Record<
   Surface,
   { label: string; description: string; shortcut: string }
 > = {
+  blank: {
+    label: "Empty desktop",
+    description: "No tabs are open",
+    shortcut: "",
+  },
   home: {
     label: "New tab",
     description: "Search, open, or capture without distraction",

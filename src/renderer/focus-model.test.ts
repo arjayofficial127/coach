@@ -70,8 +70,9 @@ describe("focus-first navigation shortcuts", () => {
   });
 
   it("keeps every destination label and shortcut explicit", () => {
-    expect(Object.values(surfaceDetails)).toHaveLength(9);
-    expect(new Set(Object.values(surfaceDetails).map((item) => item.shortcut)).size).toBe(9);
+    expect(Object.values(surfaceDetails)).toHaveLength(10);
+    expect(new Set(Object.values(surfaceDetails).map((item) => item.shortcut)).size).toBe(10);
+    expect(surfaceDetails.blank.label).toBe("Empty desktop");
     expect(surfaceDetails.home.label).toBe("New tab");
     expect(surfaceDetails.dashboard.label).toBe("Dashboard");
   });

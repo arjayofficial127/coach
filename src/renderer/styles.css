@@ -1948,6 +1948,10 @@ kbd {
   grid-template-rows: 43px minmax(0, 1fr);
 }
 
+.content-shell.blank-content-shell {
+  grid-template-rows: 43px minmax(0, 1fr) 24px;
+}
+
 .tab-strip {
   display: flex;
   min-width: 0;
@@ -2000,6 +2004,31 @@ kbd {
   border-radius: 9px 9px 0 0;
   background: var(--surface);
   color: var(--text);
+}
+
+.desktop-context.surface-tab {
+  grid-template-columns: minmax(0, 1fr) 18px;
+  gap: 0;
+  padding: 0 6px 0 0;
+  cursor: default;
+}
+
+.surface-tab-select {
+  display: grid;
+  min-width: 0;
+  height: 100%;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  padding: 0 4px 0 8px;
+  color: inherit;
+  text-align: left;
+}
+
+.surface-tab:hover .tab-close,
+.surface-tab.active .tab-close {
+  opacity: 1;
 }
 
 .context-dot {
@@ -2239,6 +2268,15 @@ kbd {
 .tab-close svg {
   width: 11px;
   height: 11px;
+}
+
+.blank-desktop-surface {
+  background: #fff;
+}
+
+.lattice-shell.theme-adaptive .trusted-surface.blank-desktop-surface {
+  background: #fff;
+  background-image: none;
 }
 
 .tab-spinner {

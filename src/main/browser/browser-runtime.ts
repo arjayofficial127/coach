@@ -156,10 +156,8 @@ export class BrowserRuntime {
     this.disposeTab(tab);
 
     if (this.tabs.size === 0) {
-      const replacement = this.createTabRecord();
-      this.tabs.set(replacement.id, replacement);
-      this.configureTab(replacement);
-      this.activeTabId = replacement.id;
+      this.activeTabId = "";
+      return this.snapshot();
     } else if (wasActive) {
       const nextId = tabIds[closedIndex + 1] ?? tabIds[closedIndex - 1];
       if (nextId) this.activeTabId = nextId;
@@ -398,7 +396,8 @@ export class BrowserRuntime {
       width: width ?? 1,
       height: height ?? 1,
     });
-    const tab = this.activeTab();
+    const tab = this.tabs.get(this.activeTabId);
+    if (!tab) return;
     if (this.htmlFullscreenTabId === tab.id) {
       tab.view.setBounds(this.fullscreenBounds());
       tab.view.setVisible(true);
@@ -470,7 +469,8 @@ export class BrowserRuntime {
     this.visible = visible;
     if (visible && this.livePreviewIds.size > 0) this.setLivePreviews([]);
     if (!this.closed) {
-      const tab = this.activeTab();
+      const tab = this.tabs.get(this.activeTabId);
+      if (!tab) return;
       if (visible) {
         tab.contents.setZoomFactor(1);
         tab.view.setBorderRadius(0);
@@ -491,17 +491,19 @@ export class BrowserRuntime {
   }
 
   back(): void {
-    const contents = this.activeTab().contents;
+    const contents = this.tabs.get(this.activeTabId)?.contents;
+    if (!contents) return;
     if (contents.navigationHistory.canGoBack()) contents.navigationHistory.goBack();
   }
 
   forward(): void {
-    const contents = this.activeTab().contents;
+    const contents = this.tabs.get(this.activeTabId)?.contents;
+    if (!contents) return;
     if (contents.navigationHistory.canGoForward()) contents.navigationHistory.goForward();
   }
 
   reload(): void {
-    this.activeTab().contents.reload();
+    this.tabs.get(this.activeTabId)?.contents.reload();
   }
 
   close(): void {
@@ -516,11 +518,14 @@ export class BrowserRuntime {
   }
 
   getBounds(): BrowserBounds {
-    return this.activeTab().view.getBounds();
+    return (
+      this.tabs.get(this.activeTabId)?.view.getBounds() ??
+      this.lastBounds ?? { x: 0, y: 0, width: 1, height: 1 }
+    );
   }
 
   isVisible(): boolean {
-    return !this.closed && this.activeTab().view.getVisible();
+    return !this.closed && Boolean(this.tabs.get(this.activeTabId)?.view.getVisible());
   }
 
   async privacySummary(): Promise<BrowserPrivacySummary> {

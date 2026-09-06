@@ -281,18 +281,7 @@ export function installBrowserPreviewBridge(): void {
       closeTab: async (tabId) => {
         tabs = tabs.filter((tab) => tab.id !== tabId);
         if (tabs.length === 0) {
-          activeTabId = crypto.randomUUID();
-          tabs = [
-            {
-              id: activeTabId,
-              url: "about:blank",
-              title: "New tab",
-              loading: false,
-              canGoBack: false,
-              canGoForward: false,
-              error: null,
-            },
-          ];
+          activeTabId = "";
         } else if (activeTabId === tabId) {
           activeTabId = tabs[0]?.id ?? "";
         }
