@@ -1,7 +1,7 @@
 export const NAVIGATION_WIDTH_STORAGE_KEY = "lattice.navigation-width.v1";
 export const DEFAULT_NAVIGATION_WIDTH = 288;
 export const MAX_NAVIGATION_WIDTH = 369;
-export const COMPACT_NAVIGATION_WIDTH = 68;
+export const COMPACT_NAVIGATION_WIDTH = 48;
 
 export function normalizeNavigationWidth(value: number): number {
   if (!Number.isFinite(value)) return DEFAULT_NAVIGATION_WIDTH;

@@ -86,7 +86,7 @@ svg {
 }
 
 .lattice-shell.navigation-compact {
-  grid-template-columns: 0 68px minmax(0, 1fr);
+  grid-template-columns: 0 48px minmax(0, 1fr);
 }
 
 .lattice-shell.focus-mode,
@@ -8456,7 +8456,7 @@ kbd {
 }
 
 .lattice-shell.new-tab-sizing-invalidated.navigation-compact:not(.focus-mode) {
-  grid-template-columns: 68px 0 minmax(0, 1fr);
+  grid-template-columns: 48px 0 minmax(0, 1fr);
 }
 
 .lattice-shell.new-tab-sizing-invalidated .new-tab-content {

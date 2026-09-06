@@ -9,7 +9,7 @@ import {
 
 describe("navigation width", () => {
   it("uses the gutter-free compact rail width", () => {
-    expect(COMPACT_NAVIGATION_WIDTH).toBe(68);
+    expect(COMPACT_NAVIGATION_WIDTH).toBe(48);
   });
 
   it("uses the default width when a stored value is invalid", () => {
