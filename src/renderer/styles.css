@@ -985,6 +985,21 @@ svg {
   font-weight: 560;
 }
 
+.navigation-count {
+  min-width: 1ch;
+  justify-self: end;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--subtle);
+  font-family: inherit;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  line-height: 1;
+  text-align: right;
+}
+
 .navigation-row:hover .navigation-row-icon.dashboard svg,
 .navigation-row:hover .navigation-row-icon.files svg,
 .library-row:hover .navigation-row-icon.saved svg,
@@ -1216,14 +1231,14 @@ kbd {
 .desktop-item {
   position: relative;
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) 22px;
+  grid-template-columns: 22px minmax(0, 1fr);
   min-height: 38px;
   align-items: center;
   gap: 8px;
   border: 0;
   border-radius: 8px;
   background: transparent;
-  padding: 0 7px;
+  padding: 0 9px;
   color: #a2a0ae;
   cursor: pointer;
   transition: 140ms ease;
@@ -1360,10 +1375,14 @@ kbd {
   color: inherit;
   text-align: right;
   text-overflow: ellipsis;
+  transition: opacity 120ms ease;
   white-space: nowrap;
 }
 
 .desktop-archive-trigger {
+  position: absolute;
+  top: 50%;
+  right: 9px;
   display: grid;
   width: 22px;
   height: 22px;
@@ -1372,10 +1391,17 @@ kbd {
   background: transparent;
   color: var(--subtle);
   opacity: 0;
+  transform: translateY(-50%);
   transition:
     background-color 120ms ease,
     color 120ms ease,
     opacity 120ms ease;
+}
+
+.desktop-item:hover .desktop-summary-button,
+.desktop-item:has(.desktop-archive-trigger:focus-visible) .desktop-summary-button,
+.desktop-item-shell:has(.desktop-archive-popover) .desktop-summary-button {
+  opacity: 0;
 }
 
 .desktop-item:hover .desktop-archive-trigger,
@@ -8544,10 +8570,10 @@ kbd {
 
 .lattice-shell.new-tab-sizing-invalidated .desktop-item:not(.desktop-rename-row) {
   min-height: 38px;
-  grid-template-columns: 22px minmax(0, 1fr) 22px;
+  grid-template-columns: 22px minmax(0, 1fr);
   gap: 8px;
   border-radius: 8px;
-  padding: 0 7px;
+  padding: 0 9px;
 }
 
 .lattice-shell.new-tab-sizing-invalidated .desktop-select,

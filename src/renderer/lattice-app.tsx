@@ -4061,7 +4061,7 @@ export function LatticeApp() {
                           void selectDesktop(desktop.id);
                         }}
                       >
-                        <small>{tabCount}</small>
+                        <small className="navigation-count">{tabCount}</small>
                       </button>
                     </span>
                     <button
@@ -4249,7 +4249,9 @@ export function LatticeApp() {
               <Icon name="folder" />
             </span>
             <strong>Files &amp; Inbox</strong>
-            <b aria-hidden="true">{activeDesktopFiles?.fileCount ?? 0}</b>
+            <span className="navigation-count" aria-hidden="true">
+              {activeDesktopFiles?.fileCount ?? 0}
+            </span>
           </button>
           <div ref={setWorkspaceSidebarTarget} id="workspace-sidebar-slot" />
           <button
@@ -4270,7 +4272,9 @@ export function LatticeApp() {
               <Icon name="apps" />
             </span>
             <strong>Runnable apps</strong>
-            <kbd>7</kbd>
+            <span className="navigation-count" aria-hidden="true">
+              7
+            </span>
           </button>
           <button
             type="button"
