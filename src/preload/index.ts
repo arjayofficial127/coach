@@ -58,6 +58,7 @@ const api: LatticeApi = {
     chooseAvatar: (profileId) => ipcRenderer.invoke(IPC.profilesChooseAvatar, profileId),
     clearAvatar: (profileId) => ipcRenderer.invoke(IPC.profilesClearAvatar, profileId),
     switch: (profileId) => ipcRenderer.invoke(IPC.profilesSwitch, profileId),
+    openWindow: (profileId) => ipcRenderer.invoke(IPC.profilesOpenWindow, profileId),
   },
   vault: {
     createDisposable: () => ipcRenderer.invoke(IPC.vaultCreateDisposable),

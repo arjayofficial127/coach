@@ -215,6 +215,30 @@ export interface ProfileController {
   chooseAvatar(profileId: string): Promise<ProfileState>;
   clearAvatar(profileId: string): Promise<ProfileState>;
   switchProfile(profileId: string): Promise<ProfileSwitchResult>;
+  openProfileWindow(profileId: string): Promise<void>;
+}
+
+type WindowIpcHandler = (event: IpcMainInvokeEvent, payload: unknown) => unknown;
+
+interface WindowIpcContext {
+  window: BrowserWindow;
+  handlers: Map<string, WindowIpcHandler>;
+}
+
+const windowIpcContexts = new Map<number, WindowIpcContext>();
+const registeredIpcChannels = new Set<string>();
+
+function registerWindowIpcChannel(channel: string): void {
+  if (registeredIpcChannels.has(channel)) return;
+  ipcMain.handle(channel, (event, payload: unknown) => {
+    const context = windowIpcContexts.get(event.sender.id);
+    if (!context) throw new Error("This Coach window is no longer available.");
+    assertTrustedShell(event, context.window);
+    const handler = context.handlers.get(channel);
+    if (!handler) throw new Error(`Coach window handler unavailable: ${channel}`);
+    return handler(event, payload);
+  });
+  registeredIpcChannels.add(channel);
 }
 
 export function registerIpc(
@@ -224,14 +248,14 @@ export function registerIpc(
   profiles: ProfileController,
   shellActions: TrustedShellActions = defaultShellActions,
 ): () => void {
+  const handlers = new Map<string, WindowIpcHandler>();
+  windowIpcContexts.set(window.webContents.id, { window, handlers });
   const handle = <T>(
     channel: string,
     handler: (event: IpcMainInvokeEvent, payload: T) => unknown,
   ) => {
-    ipcMain.handle(channel, (event, payload: T) => {
-      assertTrustedShell(event, window);
-      return handler(event, payload);
-    });
+    handlers.set(channel, handler as WindowIpcHandler);
+    registerWindowIpcChannel(channel);
   };
 
   handle(IPC.shellSetAppearance, (_event, payload) => {
@@ -308,6 +332,9 @@ export function registerIpc(
   );
   handle(IPC.profilesSwitch, (_event, payload) =>
     profiles.switchProfile(profileIdSchema.parse(payload)),
+  );
+  handle(IPC.profilesOpenWindow, (_event, payload) =>
+    profiles.openProfileWindow(profileIdSchema.parse(payload)),
   );
   handle(IPC.vaultCreateDisposable, () => vault.createDisposable());
   handle(IPC.vaultChoose, () => vault.choose());
@@ -395,10 +422,10 @@ export function registerIpc(
   );
 
   return () => {
-    for (const channel of Object.values(IPC)) {
-      if (channel !== IPC.browserState && channel !== IPC.shellCommand) {
-        ipcMain.removeHandler(channel);
-      }
+    windowIpcContexts.delete(window.webContents.id);
+    if (windowIpcContexts.size === 0) {
+      for (const channel of registeredIpcChannels) ipcMain.removeHandler(channel);
+      registeredIpcChannels.clear();
     }
   };
 }

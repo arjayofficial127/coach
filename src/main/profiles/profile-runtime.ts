@@ -26,13 +26,24 @@ export class ProfileRuntime {
   constructor(
     private readonly window: BrowserWindow,
     private readonly store: ProfileStore,
+    private readonly options: {
+      initialProfileId?: string;
+      openProfileWindow?: (profileId: string) => Promise<void>;
+    } = {},
   ) {
-    this.activeProfileId = store.state().activeProfileId;
+    const state = store.state();
+    this.activeProfileId = state.profiles.some((profile) => profile.id === options.initialProfileId)
+      ? (options.initialProfileId as string)
+      : state.activeProfileId;
     this.runtimes.set(this.activeProfileId, this.createRuntime(this.activeProfileId));
   }
 
   state(): ProfileState {
-    return this.store.state();
+    return { ...this.store.state(), activeProfileId: this.activeProfileId };
+  }
+
+  activeProfile(): string {
+    return this.activeProfileId;
   }
 
   async createProfile(name: string): Promise<ProfileSwitchResult> {
@@ -40,8 +51,8 @@ export class ProfileRuntime {
     return { state, browser: this.activateRuntime(state.activeProfileId) };
   }
 
-  updateProfile(profileId: string, name: string): Promise<ProfileState> {
-    return this.store.updateName(profileId, name);
+  async updateProfile(profileId: string, name: string): Promise<ProfileState> {
+    return this.windowState(await this.store.updateName(profileId, name));
   }
 
   async chooseAvatar(profileId: string): Promise<ProfileState> {
@@ -51,7 +62,7 @@ export class ProfileRuntime {
       filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }],
     });
     const selected = result.filePaths[0];
-    if (result.canceled || !selected) return this.store.state();
+    if (result.canceled || !selected) return this.state();
     const source = await stat(selected);
     if (!source.isFile() || source.size > MAX_SOURCE_AVATAR_BYTES) {
       throw new Error("Choose an image smaller than 10 MB.");
@@ -68,16 +79,29 @@ export class ProfileRuntime {
       height: edge,
     });
     const png = square.resize({ width: 128, height: 128, quality: "best" }).toPNG();
-    return this.store.setAvatar(profileId, png);
+    return this.windowState(await this.store.setAvatar(profileId, png));
   }
 
-  clearAvatar(profileId: string): Promise<ProfileState> {
-    return this.store.clearAvatar(profileId);
+  async clearAvatar(profileId: string): Promise<ProfileState> {
+    return this.windowState(await this.store.clearAvatar(profileId));
   }
 
   async switchProfile(profileId: string): Promise<ProfileSwitchResult> {
     const state = await this.store.activate(profileId);
-    return { state, browser: this.activateRuntime(profileId) };
+    return {
+      state: { ...state, activeProfileId: profileId },
+      browser: this.activateRuntime(profileId),
+    };
+  }
+
+  async openProfileWindow(profileId: string): Promise<void> {
+    if (!this.store.state().profiles.some((profile) => profile.id === profileId)) {
+      throw new Error("The selected profile does not exist.");
+    }
+    if (!this.options.openProfileWindow) {
+      throw new Error("Opening another Coach window is unavailable here.");
+    }
+    await this.options.openProfileWindow(profileId);
   }
 
   navigate(input: string): Promise<void> {
@@ -242,6 +266,10 @@ export class ProfileRuntime {
     const runtime = this.runtimes.get(this.activeProfileId);
     if (!runtime) throw new Error("The active website profile is unavailable.");
     return runtime;
+  }
+
+  private windowState(state: ProfileState): ProfileState {
+    return { ...state, activeProfileId: this.activeProfileId };
   }
 
   private createRuntime(profileId: string): BrowserRuntime {

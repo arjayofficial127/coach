@@ -446,24 +446,55 @@ svg {
   padding-block: 9px;
 }
 
-.profile-list > button {
+.profile-list-item {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   border-radius: 11px;
   background: transparent;
   padding: 7px;
-  text-align: left;
 }
 
-.profile-list > button:hover,
-.profile-list > button.active {
+.profile-list-item:hover,
+.profile-list-item.active {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.profile-list > button.active {
+.profile-list-item.active {
   box-shadow: inset 0 0 0 1px rgba(139, 124, 246, 0.2);
+}
+
+.profile-identity {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  text-align: left;
+}
+
+.profile-entry-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.profile-entry-actions button {
+  min-height: 27px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-2);
+  padding: 0 7px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.profile-entry-actions button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  color: var(--text);
 }
 
 .profile-list strong {

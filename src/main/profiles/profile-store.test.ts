@@ -47,6 +47,18 @@ describe("ProfileStore", () => {
     expect(state.profiles.map((profile) => profile.name)).toEqual(["Personal", "Client work"]);
   });
 
+  it("serializes rapid profile changes so the latest choice reaches disk", async () => {
+    const { root, store } = await createStore();
+    const primaryId = store.state().activeProfileId;
+    const workId = (await store.create("Work")).activeProfileId;
+    await store.activate(primaryId);
+
+    await Promise.all([store.activate(workId), store.activate(primaryId)]);
+
+    const reloaded = new ProfileStore(path.join(root, "profiles.json"), path.join(root, "avatars"));
+    expect((await reloaded.initialize()).activeProfileId).toBe(primaryId);
+  });
+
   it("rejects duplicate names and an unbounded number of profiles", async () => {
     const { store } = await createStore();
     await expect(store.create("personal")).rejects.toThrow("different profile name");

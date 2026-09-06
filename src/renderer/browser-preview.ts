@@ -346,6 +346,7 @@ export function installBrowserPreviewBridge(): void {
         state: structuredClone({ ...profileState, activeProfileId: profileId }),
         browser: activatePreviewProfile(profileId),
       }),
+      openWindow: async () => undefined,
     },
     vault: {
       createDisposable: async () => {

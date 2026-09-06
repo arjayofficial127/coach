@@ -3113,6 +3113,24 @@ export function LatticeApp() {
     }
   };
 
+  const openProfileWindow = async (profile: ProfileSummary) => {
+    if (!profileState || profileBusy) return;
+    if (profile.id === profileState.activeProfileId) {
+      setProfileMenuOpen(false);
+      return;
+    }
+    setProfileBusy(true);
+    try {
+      await window.lattice.profiles.openWindow(profile.id);
+      setProfileMenuOpen(false);
+      setStatus(`${profile.name} opened in another Coach window`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setProfileBusy(false);
+    }
+  };
+
   const createProfile = async (event: FormEvent) => {
     event.preventDefault();
     if (!profileName.trim() || profileBusy) return;
@@ -3704,32 +3722,61 @@ export function LatticeApp() {
               ) : profileState ? (
                 <>
                   <div className="profile-list">
-                    {profileState?.profiles.map((profile) => (
-                      <button
-                        type="button"
-                        key={profile.id}
-                        className={profile.id === profileState.activeProfileId ? "active" : ""}
-                        onClick={() => void switchProfile(profile)}
-                        disabled={profileBusy}
-                      >
-                        <span className="profile-avatar">
-                          {profile.avatarDataUrl ? (
-                            <img src={profile.avatarDataUrl} alt="" />
+                    {profileState?.profiles.map((profile) => {
+                      const active = profile.id === profileState.activeProfileId;
+                      return (
+                        <div
+                          key={profile.id}
+                          className={active ? "profile-list-item active" : "profile-list-item"}
+                        >
+                          <button
+                            type="button"
+                            className="profile-identity"
+                            onClick={() => void openProfileWindow(profile)}
+                            disabled={profileBusy}
+                            aria-label={
+                              active
+                                ? `${profile.name} is active`
+                                : `Open ${profile.name} in a new Coach window`
+                            }
+                          >
+                            <span className="profile-avatar">
+                              {profile.avatarDataUrl ? (
+                                <img src={profile.avatarDataUrl} alt="" />
+                              ) : (
+                                profileInitials(profile.name)
+                              )}
+                            </span>
+                            <span className="profile-copy">
+                              <strong>{profile.name}</strong>
+                              <small>
+                                {active ? "Active in this window" : "Open in a new window"}
+                              </small>
+                            </span>
+                          </button>
+                          {active ? (
+                            <Icon name="check" />
                           ) : (
-                            profileInitials(profile.name)
+                            <div className="profile-entry-actions">
+                              <button
+                                type="button"
+                                onClick={() => void switchProfile(profile)}
+                                disabled={profileBusy}
+                              >
+                                Switch here
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void openProfileWindow(profile)}
+                                disabled={profileBusy}
+                              >
+                                New window
+                              </button>
+                            </div>
                           )}
-                        </span>
-                        <span className="profile-copy">
-                          <strong>{profile.name}</strong>
-                          <small>
-                            {profile.id === profileState.activeProfileId
-                              ? "Active now"
-                              : "Separate sites, tabs, and focus"}
-                          </small>
-                        </span>
-                        {profile.id === profileState.activeProfileId && <Icon name="check" />}
-                      </button>
-                    ))}
+                        </div>
+                      );
+                    })}
                   </div>
                   <div className="profile-actions">
                     <button
@@ -4222,7 +4269,17 @@ export function LatticeApp() {
             setBrowserMenuOpen(false);
             setCommandOpen(false);
             setProfileEditor(null);
-            setProfileMenuOpen((open) => !open);
+            if (profileMenuOpen) {
+              setProfileMenuOpen(false);
+            } else {
+              setProfileMenuOpen(true);
+              void window.lattice.profiles
+                .state()
+                .then(setProfileState)
+                .catch((error) =>
+                  setStatus(error instanceof Error ? error.message : String(error)),
+                );
+            }
           }}
         >
           <span className="profile-avatar">

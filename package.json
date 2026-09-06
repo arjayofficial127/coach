@@ -13,7 +13,7 @@
   },
   "scripts": {
     "start": "pnpm run build:electron && concurrently -k -n main,preload,renderer,electron \"pnpm run watch:main\" \"pnpm run watch:preload\" \"vite --config vite.renderer.config.ts\" \"pnpm run start:electron\"",
-    "start:electron": "wait-on http://127.0.0.1:5173 && cross-env LATTICE_DEV_SERVER_URL=http://127.0.0.1:5173 nodemon --watch dist/main --ext cjs --exec \"electron dist/main/index.cjs\"",
+    "start:electron": "wait-on http://127.0.0.1:5173 && cross-env LATTICE_DEV_SERVER_URL=http://127.0.0.1:5173 electron dist/main/index.cjs",
     "watch:main": "esbuild src/main/index.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/main/index.cjs --watch",
     "watch:preload": "esbuild src/preload/index.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/main/preload.cjs --watch",
     "build:electron": "esbuild src/main/index.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/main/index.cjs && esbuild src/preload/index.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/main/preload.cjs",

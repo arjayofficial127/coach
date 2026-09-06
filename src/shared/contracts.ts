@@ -28,6 +28,7 @@ export const IPC = {
   profilesChooseAvatar: "profiles:choose-avatar",
   profilesClearAvatar: "profiles:clear-avatar",
   profilesSwitch: "profiles:switch",
+  profilesOpenWindow: "profiles:open-window",
   shellCommand: "shell:command",
   vaultCreateDisposable: "vault:create-disposable",
   vaultChoose: "vault:choose",
@@ -512,6 +513,7 @@ export interface LatticeApi {
     chooseAvatar(profileId: string): Promise<ProfileState>;
     clearAvatar(profileId: string): Promise<ProfileState>;
     switch(profileId: string): Promise<ProfileSwitchResult>;
+    openWindow(profileId: string): Promise<void>;
   };
   vault: {
     createDisposable(): Promise<VaultInfo>;

@@ -101,6 +101,7 @@ async function writePrivateFileAtomically(
 export class ProfileStore {
   private document: ProfileDocument | null = null;
   private readonly avatars = new Map<string, string>();
+  private persistQueue: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly statePath: string,
@@ -275,8 +276,12 @@ export class ProfileStore {
     return profile;
   }
 
-  private async persist(): Promise<void> {
+  private persist(): Promise<void> {
     const document = profileDocumentSchema.parse(this.requireDocument());
-    await writePrivateFileAtomically(this.statePath, `${JSON.stringify(document, null, 2)}\n`);
+    const write = this.persistQueue.then(() =>
+      writePrivateFileAtomically(this.statePath, `${JSON.stringify(document, null, 2)}\n`),
+    );
+    this.persistQueue = write.catch(() => undefined);
+    return write;
   }
 }
